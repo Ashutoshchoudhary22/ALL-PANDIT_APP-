@@ -1,5 +1,20 @@
 const pool = require('../config/db');
 
+function pickProfileImage(body) {
+  const value = body.profileImage ?? body.profile_image;
+  return value?.trim() || null;
+}
+
+function pickCityName(body) {
+  const value = body.cityName ?? body.city_name;
+  return value?.trim() || null;
+}
+
+async function saveUserProfileImage(userId, profileImage) {
+  if (!profileImage) return;
+  await pool.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
+}
+
 function formatProfile(row) {
   if (!row) return null;
 
@@ -11,13 +26,72 @@ function formatProfile(row) {
     gender: row.gender,
     dob: row.dob,
     address: row.address,
-    cityId: row.city_id,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    cityName: row.city_name,
+    latitude: row.latitude != null ? parseFloat(row.latitude) : null,
+    longitude: row.longitude != null ? parseFloat(row.longitude) : null,
+    mobile: row.mobile,
+    email: row.email,
+    profileImage: row.profile_image,
+    memberSince: row.user_created_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
+
+const PROFILE_SELECT = `
+  SELECT
+    cp.id,
+    cp.customer_id,
+    cp.first_name,
+    cp.last_name,
+    cp.gender,
+    cp.dob,
+    cp.address,
+    cp.city_name,
+    cp.latitude,
+    cp.longitude,
+    cp.created_at,
+    cp.updated_at,
+    u.mobile,
+    u.email,
+    u.profile_image,
+    u.created_at AS user_created_at
+  FROM customer_profiles cp
+  INNER JOIN users u ON u.id = cp.customer_id
+`;
+
+async function fetchProfileByCustomerId(customerId) {
+  const [rows] = await pool.query(`${PROFILE_SELECT} WHERE cp.customer_id = ?`, [customerId]);
+  return rows[0] || null;
+}
+
+function isPlatformAdmin(user) {
+  return user?.role === 'admin' || user?.role === 'superadmin';
+}
+
+exports.listAllProfiles = async (req, res) => {
+  try {
+    if (!isPlatformAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can list customer profiles',
+      });
+    }
+
+    const [rows] = await pool.query(`${PROFILE_SELECT} ORDER BY cp.created_at DESC`);
+
+    return res.status(200).json({
+      success: true,
+      data: rows.map(formatProfile),
+    });
+  } catch (error) {
+    console.error('List customer profiles error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching customer profiles',
+    });
+  }
+};
 
 exports.createProfile = async (req, res) => {
   try {
@@ -35,10 +109,12 @@ exports.createProfile = async (req, res) => {
       gender,
       dob,
       address,
-      cityId,
       latitude,
       longitude,
     } = req.body;
+
+    const profileImageUrl = pickProfileImage(req.body);
+    const cityName = pickCityName(req.body);
 
     const [customers] = await pool.query(
       'SELECT id FROM users WHERE id = ? AND role = ?',
@@ -71,9 +147,13 @@ exports.createProfile = async (req, res) => {
       });
     }
 
-    const [result] = await pool.query(
+    if (profileImageUrl) {
+      await saveUserProfileImage(customerId, profileImageUrl);
+    }
+
+    await pool.query(
       `INSERT INTO customer_profiles
-       (customer_id, first_name, last_name, gender, dob, address, city_id, latitude, longitude)
+       (customer_id, first_name, last_name, gender, dob, address, city_name, latitude, longitude)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         customerId,
@@ -82,21 +162,18 @@ exports.createProfile = async (req, res) => {
         gender || null,
         dob || null,
         address?.trim() || null,
-        cityId || null,
+        cityName,
         latitude ?? null,
         longitude ?? null,
       ],
     );
 
-    const [rows] = await pool.query(
-      'SELECT * FROM customer_profiles WHERE id = ?',
-      [result.insertId],
-    );
+    const profile = await fetchProfileByCustomerId(customerId);
 
     return res.status(201).json({
       success: true,
       message: 'Customer profile created successfully',
-      data: formatProfile(rows[0]),
+      data: formatProfile(profile),
     });
   } catch (error) {
     console.error('Create profile error:', error);
@@ -117,13 +194,9 @@ exports.getMyProfile = async (req, res) => {
     }
 
     const customerId = req.user.id;
+    const profile = await fetchProfileByCustomerId(customerId);
 
-    const [rows] = await pool.query(
-      'SELECT * FROM customer_profiles WHERE customer_id = ?',
-      [customerId],
-    );
-
-    if (rows.length === 0) {
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: 'Customer profile not found',
@@ -132,7 +205,7 @@ exports.getMyProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: formatProfile(rows[0]),
+      data: formatProfile(profile),
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -159,10 +232,19 @@ exports.updateMyProfile = async (req, res) => {
       gender,
       dob,
       address,
-      cityId,
       latitude,
       longitude,
     } = req.body;
+
+    const profileImageUrl =
+      req.body.profileImage !== undefined || req.body.profile_image !== undefined
+        ? pickProfileImage(req.body)
+        : undefined;
+
+    const cityName =
+      req.body.cityName !== undefined || req.body.city_name !== undefined
+        ? pickCityName(req.body)
+        : undefined;
 
     const [existing] = await pool.query(
       'SELECT id FROM customer_profiles WHERE customer_id = ?',
@@ -183,6 +265,10 @@ exports.updateMyProfile = async (req, res) => {
       });
     }
 
+    if (profileImageUrl !== undefined) {
+      await saveUserProfileImage(customerId, profileImageUrl);
+    }
+
     await pool.query(
       `UPDATE customer_profiles SET
         first_name = COALESCE(?, first_name),
@@ -190,7 +276,7 @@ exports.updateMyProfile = async (req, res) => {
         gender = COALESCE(?, gender),
         dob = COALESCE(?, dob),
         address = COALESCE(?, address),
-        city_id = COALESCE(?, city_id),
+        city_name = COALESCE(?, city_name),
         latitude = COALESCE(?, latitude),
         longitude = COALESCE(?, longitude)
        WHERE customer_id = ?`,
@@ -200,22 +286,19 @@ exports.updateMyProfile = async (req, res) => {
         gender ?? null,
         dob ?? null,
         address?.trim() ?? null,
-        cityId ?? null,
+        cityName ?? null,
         latitude ?? null,
         longitude ?? null,
         customerId,
       ],
     );
 
-    const [rows] = await pool.query(
-      'SELECT * FROM customer_profiles WHERE customer_id = ?',
-      [customerId],
-    );
+    const profile = await fetchProfileByCustomerId(customerId);
 
     return res.status(200).json({
       success: true,
       message: 'Customer profile updated successfully',
-      data: formatProfile(rows[0]),
+      data: formatProfile(profile),
     });
   } catch (error) {
     console.error('Update profile error:', error);
@@ -229,13 +312,9 @@ exports.updateMyProfile = async (req, res) => {
 exports.getProfileByCustomerId = async (req, res) => {
   try {
     const { customerId } = req.params;
+    const profile = await fetchProfileByCustomerId(customerId);
 
-    const [rows] = await pool.query(
-      'SELECT * FROM customer_profiles WHERE customer_id = ?',
-      [customerId],
-    );
-
-    if (rows.length === 0) {
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: 'Customer profile not found',
@@ -244,7 +323,7 @@ exports.getProfileByCustomerId = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: formatProfile(rows[0]),
+      data: formatProfile(profile),
     });
   } catch (error) {
     console.error('Get profile by customerId error:', error);

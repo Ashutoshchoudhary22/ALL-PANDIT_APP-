@@ -58,7 +58,7 @@ export function SignInScreen({
         onSuccess: (response) => {
           if (response.data?.user && response.data?.token) {
             if (!ADMIN_ROLES.has(response.data.user.role)) {
-              setError('This app is for administrators only.');
+              setError('No account found');
               return;
             }
             Alert.alert('Success', response.message);

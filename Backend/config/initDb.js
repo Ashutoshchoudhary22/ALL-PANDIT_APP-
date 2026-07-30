@@ -94,7 +94,7 @@ async function initDb() {
         gender ENUM('male','female','other') NULL,
         dob DATE NULL,
         address TEXT NULL,
-        city_id BIGINT UNSIGNED NULL,
+        city_name VARCHAR(150) NULL,
         latitude DECIMAL(10,8) NULL,
         longitude DECIMAL(11,8) NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +102,8 @@ async function initDb() {
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    await ensureColumn(connection, 'customer_profiles', 'city_name', 'VARCHAR(150) NULL');
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS pandit_profiles (
@@ -111,7 +113,7 @@ async function initDb() {
         gender ENUM('male','female','other') DEFAULT 'male',
         bio TEXT NULL,
         experience_years INT DEFAULT 0,
-        city_id BIGINT UNSIGNED NULL,
+        city_name VARCHAR(150) NULL,
         latitude DECIMAL(10,8) NULL,
         longitude DECIMAL(11,8) NULL,
         rating DECIMAL(3,2) DEFAULT 0.00,
@@ -128,6 +130,7 @@ async function initDb() {
       )
     `);
 
+    await ensureColumn(connection, 'pandit_profiles', 'city_name', 'VARCHAR(150) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'aadhar_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'pandit_certificate_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'bank_account_holder', 'VARCHAR(150) NULL');

@@ -1,10 +1,17 @@
 import { SignInScreen } from '@/components/SignInScreen';
-import { Href, router } from 'expo-router';
+import { goToDashboard } from '@/lib/auth-navigation';
+import { useAuth } from '@/providers/AuthProvider';
+import { router } from 'expo-router';
 
 export default function SignInRoute() {
+  const { signIn } = useAuth();
+
   return (
     <SignInScreen
-      onLoginSuccess={() => router.replace('/(tabs)/home' as Href)}
+      onLoginSuccess={async (user, token) => {
+        await signIn(token, user);
+        goToDashboard();
+      }}
       onSignUp={() => router.push('/sign-up')}
       onForgotPassword={() => router.push('/forgot-password')}
       onSocialPress={() => {}}

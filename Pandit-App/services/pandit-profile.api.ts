@@ -7,7 +7,7 @@ export type PanditProfile = {
   gender: 'male' | 'female' | 'other';
   bio: string | null;
   experienceYears: number;
-  cityId: number | null;
+  cityName: string | null;
   latitude: number | null;
   longitude: number | null;
   aadharImage: string | null;
@@ -41,7 +41,7 @@ export type CreatePanditProfilePayload = {
   gender?: 'male' | 'female' | 'other';
   bio?: string;
   experienceYears?: number;
-  cityId?: number;
+  cityName?: string;
   latitude?: number;
   longitude?: number;
   isAvailable?: boolean;

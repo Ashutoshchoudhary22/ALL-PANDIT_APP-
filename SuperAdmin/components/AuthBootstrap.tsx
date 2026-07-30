@@ -4,8 +4,10 @@ import { useEffect, useRef } from 'react';
 import { goToHome, goToSignIn } from '@/lib/auth-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 
+const ADMIN_ROLES = new Set(['superadmin', 'admin']);
+
 export function AuthBootstrap() {
-  const { token, isLoading } = useAuth();
+  const { token, user, isLoading, signOut } = useAuth();
   const rootNavigationState = useRootNavigationState();
   const hasBootstrapped = useRef(false);
 
@@ -14,13 +16,18 @@ export function AuthBootstrap() {
 
     hasBootstrapped.current = true;
 
+    if (token && (!user?.role || !ADMIN_ROLES.has(user.role))) {
+      signOut();
+      return;
+    }
+
     if (token) {
       goToHome();
       return;
     }
 
     goToSignIn();
-  }, [isLoading, token, rootNavigationState?.key]);
+  }, [isLoading, token, user, signOut, rootNavigationState?.key]);
 
   return null;
 }

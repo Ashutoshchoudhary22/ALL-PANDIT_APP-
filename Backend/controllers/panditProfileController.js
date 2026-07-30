@@ -18,6 +18,11 @@ function pickProfileImage(body) {
   return value?.trim() || null;
 }
 
+function pickCityName(body) {
+  const value = body.cityName ?? body.city_name;
+  return value?.trim() || null;
+}
+
 async function saveUserProfileImage(userId, profileImage) {
   if (!profileImage) return;
   await pool.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
@@ -42,7 +47,7 @@ function formatPanditProfile(row) {
     gender: row.gender,
     bio: row.bio,
     experienceYears,
-    cityId: row.city_id,
+    cityName: row.city_name,
     latitude: row.latitude ? parseFloat(row.latitude) : null,
     longitude: row.longitude ? parseFloat(row.longitude) : null,
     aadharImage: row.aadhar_image,
@@ -80,7 +85,7 @@ const PROFILE_SELECT = `
     pp.gender,
     pp.bio,
     pp.experience_years,
-    pp.city_id,
+    pp.city_name,
     pp.latitude,
     pp.longitude,
     pp.aadhar_image,
@@ -115,6 +120,83 @@ async function fetchProfileByUserId(userId) {
   return rows[0] || null;
 }
 
+async function fetchProfileById(profileId) {
+  const [rows] = await pool.query(`${PROFILE_SELECT} WHERE pp.id = ?`, [profileId]);
+  return rows[0] || null;
+}
+
+function isPlatformAdmin(user) {
+  return user?.role === 'admin' || user?.role === 'superadmin';
+}
+
+function formatPublicPanditProfile(row) {
+  const profile = formatPanditProfile(row);
+  return {
+    id: profile.id,
+    userId: profile.userId,
+    name: profile.name,
+    gender: profile.gender,
+    bio: profile.bio,
+    experienceYears: profile.experienceYears,
+    cityName: profile.cityName,
+    profileImage: profile.profileImage,
+    rating: profile.rating,
+    totalReviews: profile.totalReviews,
+    totalBookings: profile.totalBookings,
+    isVerified: profile.isVerified,
+    isOnline: profile.isOnline,
+    isAvailable: profile.isAvailable,
+    sameDayBooking: profile.sameDayBooking,
+    languages: profile.languages,
+    languageCode: profile.languageCode,
+  };
+}
+
+exports.listPublicProfiles = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `${PROFILE_SELECT}
+       WHERE pp.status = 'approved'
+       ORDER BY pp.is_verified DESC, pp.rating DESC, pp.created_at DESC`,
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows.map(formatPublicPanditProfile),
+    });
+  } catch (error) {
+    console.error('List public pandit profiles error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching pandit profiles',
+    });
+  }
+};
+
+exports.listAllProfiles = async (req, res) => {
+  try {
+    if (!isPlatformAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can list pandit profiles',
+      });
+    }
+
+    const [rows] = await pool.query(`${PROFILE_SELECT} ORDER BY pp.created_at DESC`);
+
+    return res.status(200).json({
+      success: true,
+      data: rows.map(formatPanditProfile),
+    });
+  } catch (error) {
+    console.error('List pandit profiles error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching pandit profiles',
+    });
+  }
+};
+
 exports.createProfile = async (req, res) => {
   try {
     if (req.user.role !== 'pandit') {
@@ -130,7 +212,6 @@ exports.createProfile = async (req, res) => {
       gender,
       bio,
       experienceYears,
-      cityId,
       latitude,
       longitude,
       isAvailable,
@@ -145,6 +226,7 @@ exports.createProfile = async (req, res) => {
     } = req.body;
 
     const profileImageUrl = pickProfileImage(req.body);
+    const cityName = pickCityName(req.body);
 
     if (!name?.trim()) {
       return res.status(400).json({
@@ -190,7 +272,7 @@ exports.createProfile = async (req, res) => {
 
     await pool.query(
       `INSERT INTO pandit_profiles
-       (user_id, name, gender, bio, experience_years, city_id, latitude, longitude,
+       (user_id, name, gender, bio, experience_years, city_name, latitude, longitude,
         profile_image, aadhar_image, pandit_certificate_image, bank_account_holder, bank_account_number,
         bank_ifsc, bank_name, passbook_image, is_available, same_day_booking, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
@@ -200,7 +282,7 @@ exports.createProfile = async (req, res) => {
         gender || 'male',
         bio?.trim() || null,
         experienceYears ?? 0,
-        cityId || null,
+        cityName,
         latitude ?? null,
         longitude ?? null,
         profileImageUrl,
@@ -278,7 +360,6 @@ exports.updateMyProfile = async (req, res) => {
       gender,
       bio,
       experienceYears,
-      cityId,
       latitude,
       longitude,
       isAvailable,
@@ -297,6 +378,11 @@ exports.updateMyProfile = async (req, res) => {
     const profileImageUrl =
       req.body.profileImage !== undefined || req.body.profile_image !== undefined
         ? pickProfileImage(req.body)
+        : undefined;
+
+    const cityName =
+      req.body.cityName !== undefined || req.body.city_name !== undefined
+        ? pickCityName(req.body)
         : undefined;
 
     const [existing] = await pool.query(
@@ -335,7 +421,7 @@ exports.updateMyProfile = async (req, res) => {
         gender = COALESCE(?, gender),
         bio = COALESCE(?, bio),
         experience_years = COALESCE(?, experience_years),
-        city_id = COALESCE(?, city_id),
+        city_name = COALESCE(?, city_name),
         latitude = COALESCE(?, latitude),
         longitude = COALESCE(?, longitude),
         profile_image = COALESCE(?, profile_image),
@@ -355,7 +441,7 @@ exports.updateMyProfile = async (req, res) => {
         gender ?? null,
         bio?.trim() ?? null,
         experienceYears ?? null,
-        cityId ?? null,
+        cityName ?? null,
         latitude ?? null,
         longitude ?? null,
         profileImageUrl ?? null,
@@ -385,6 +471,92 @@ exports.updateMyProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while updating pandit profile',
+    });
+  }
+};
+
+exports.getProfileById = async (req, res) => {
+  try {
+    if (!isPlatformAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can view pandit profile details',
+      });
+    }
+
+    const { profileId } = req.params;
+    const profile = await fetchProfileById(profileId);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: formatPanditProfile(profile),
+    });
+  } catch (error) {
+    console.error('Get pandit profile by id error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching pandit profile',
+    });
+  }
+};
+
+exports.updateProfileStatus = async (req, res) => {
+  try {
+    if (!isPlatformAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can update pandit profile status',
+      });
+    }
+
+    const { profileId } = req.params;
+    const status = req.body.status?.trim()?.toLowerCase();
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be approved or rejected',
+      });
+    }
+
+    const profile = await fetchProfileById(profileId);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    await pool.query(
+      `UPDATE pandit_profiles
+       SET status = ?, is_verified = ?
+       WHERE id = ?`,
+      [status, status === 'approved' ? 1 : 0, profileId],
+    );
+
+    const updated = await fetchProfileById(profileId);
+
+    return res.status(200).json({
+      success: true,
+      message:
+        status === 'approved'
+          ? 'Pandit profile approved successfully'
+          : 'Pandit profile rejected',
+      data: formatPanditProfile(updated),
+    });
+  } catch (error) {
+    console.error('Update pandit profile status error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating pandit profile status',
     });
   }
 };

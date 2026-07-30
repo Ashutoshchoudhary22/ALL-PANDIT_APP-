@@ -59,11 +59,13 @@ export function SignUpScreen({ onSignupSuccess, onSignIn }: SignUpScreenProps) {
         mobile: mobile.trim(),
         email: email.trim().toLowerCase(),
         password,
-        role: 'superadmin',
+        role: 'admin',
       },
       {
         onSuccess: (response) => {
-          Alert.alert('OTP Sent', response.message);
+          const assignedRole =
+            response.data?.role === 'superadmin' ? 'Super Admin' : 'Admin';
+          Alert.alert('OTP Sent', `${response.message}\n\nYour account role: ${assignedRole}.`);
           onSignupSuccess?.({
             mobile: response.data?.mobile || mobile.trim(),
             email: response.data?.email || email.trim().toLowerCase(),
@@ -109,9 +111,10 @@ export function SignUpScreen({ onSignupSuccess, onSignIn }: SignUpScreenProps) {
               { paddingBottom: Math.max(insets.bottom, 16) + 8 },
             ]}
           >
-            <Text style={styles.formTitle}>Create Super Admin Account</Text>
+            <Text style={styles.formTitle}>Create Admin Account</Text>
             <Text style={styles.formSubtitle}>
-              Register to manage the My-Pandit platform and all operations.
+              Register to manage the My-Pandit platform. The first account becomes Super Admin;
+              later accounts are Admin.
             </Text>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}

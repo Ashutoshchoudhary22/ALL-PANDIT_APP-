@@ -5,7 +5,7 @@ import { goToDashboard, goToGetStarted } from '@/lib/auth-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function AuthBootstrap() {
-  const { token, isLoading } = useAuth();
+  const { token, user, isLoading, signOut } = useAuth();
   const rootNavigationState = useRootNavigationState();
   const hasBootstrapped = useRef(false);
 
@@ -14,13 +14,18 @@ export function AuthBootstrap() {
 
     hasBootstrapped.current = true;
 
+    if (token && user?.role !== 'pandit') {
+      signOut();
+      return;
+    }
+
     if (token) {
       goToDashboard();
       return;
     }
 
     goToGetStarted();
-  }, [isLoading, token, rootNavigationState?.key]);
+  }, [isLoading, token, user, signOut, rootNavigationState?.key]);
 
   return null;
 }

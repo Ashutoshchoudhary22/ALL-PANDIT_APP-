@@ -5,6 +5,7 @@ export type SignupPayload = {
   mobile: string;
   email?: string;
   password: string;
+  role?: 'customer';
 };
 
 export type SignupResponse = {
@@ -61,7 +62,7 @@ export type LoginResponse = {
 export async function signupApi(payload: SignupPayload) {
   const { data } = await apiClient.post<SignupResponse>(
     AUTH_ENDPOINTS.signup,
-    payload,
+    { ...payload, role: 'customer' },
   );
   return data;
 }

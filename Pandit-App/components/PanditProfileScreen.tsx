@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,10 +21,10 @@ import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
 function formatLocation(profile: PanditProfile) {
+  if (profile.cityName) return profile.cityName;
   if (profile.latitude != null && profile.longitude != null) {
     return `${profile.latitude.toFixed(2)}, ${profile.longitude.toFixed(2)}`;
   }
-  if (profile.cityId) return `City #${profile.cityId}`;
   return 'Location not set';
 }
 
@@ -104,6 +105,11 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
           <View style={styles.photoWrap}>
             <CloudImage source={imageSource} preset="avatar" style={styles.photo} />
             {profile.isVerified ? (
+              <View style={styles.verifiedTick}>
+                <Ionicons name="checkmark" size={14} color="#fff" />
+              </View>
+            ) : null}
+            {profile.isVerified ? (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={12} color="#fff" />
                 <Text style={styles.verifiedText}>Verified Pandit</Text>
@@ -114,6 +120,9 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.name}>{profile.name}</Text>
+              {profile.isVerified ? (
+                <Ionicons name="checkmark-circle" size={20} color={C.success} />
+              ) : null}
               <View style={styles.ratingPill}>
                 <Ionicons name="star" size={12} color="#fff" />
                 <Text style={styles.ratingPillText}>{profile.rating.toFixed(1)}</Text>
@@ -156,6 +165,33 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
           </View>
         ) : null}
       </View>
+
+      {profile.status === 'pending' ? (
+        <View style={styles.pendingBanner}>
+          <Ionicons name="time-outline" size={18} color="#D97706" />
+          <Text style={styles.pendingBannerText}>
+            Your profile is under review. A green verified tick will appear once Super Admin approves it.
+          </Text>
+        </View>
+      ) : null}
+
+      {profile.status === 'rejected' ? (
+        <View style={styles.rejectedBanner}>
+          <Ionicons name="close-circle-outline" size={18} color={C.danger} />
+          <Text style={styles.rejectedBannerText}>
+            Your profile was rejected. Please update your documents and contact support if needed.
+          </Text>
+        </View>
+      ) : null}
+
+      {profile.status === 'approved' && profile.isVerified ? (
+        <View style={styles.approvedBanner}>
+          <Ionicons name="checkmark-circle" size={18} color={C.success} />
+          <Text style={styles.approvedBannerText}>
+            Your profile is verified. Customers can now see you on their dashboard.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.statsRow}>
         <StatCard
@@ -285,6 +321,16 @@ export function PanditProfileScreen() {
   const { token, isLoading: authLoading, signOut } = useAuth();
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
   const profile = profileQuery.data?.data;
+  const { refetch } = profileQuery;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        void refetch();
+      }
+    }, [token, refetch]),
+  );
+
   const isNotFound =
     profileQuery.error instanceof Error &&
     (profileQuery.error.message.toLowerCase().includes('not found') ||
@@ -464,6 +510,19 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', gap: 14 },
   photoWrap: { position: 'relative' },
   photo: { width: 92, height: 92, borderRadius: 16, backgroundColor: C.border },
+  verifiedTick: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: C.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   verifiedBadge: {
     position: 'absolute',
     bottom: -8,
@@ -510,6 +569,42 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   sameDayText: { color: C.primary, fontWeight: '700', fontSize: 13 },
+  pendingBanner: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  pendingBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#92400E', fontWeight: '500' },
+  rejectedBanner: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  rejectedBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#B91C1C', fontWeight: '500' },
+  approvedBanner: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  approvedBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#166534', fontWeight: '600' },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

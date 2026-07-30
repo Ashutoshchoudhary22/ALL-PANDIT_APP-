@@ -62,7 +62,7 @@ export type LoginResponse = {
 export async function signupApi(payload: SignupPayload) {
   const { data } = await apiClient.post<SignupResponse>(AUTH_ENDPOINTS.signup, {
     ...payload,
-    role: payload.role ?? 'superadmin',
+    role: payload.role ?? 'admin',
   });
   return data;
 }

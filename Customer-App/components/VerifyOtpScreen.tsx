@@ -16,11 +16,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useResendOtpMutation, useVerifyOtpMutation } from '@/hooks/use-auth';
+import { AuthUser } from '@/services/auth.api';
 
 type VerifyOtpScreenProps = {
   mobile: string;
   email?: string;
-  onVerified?: () => void;
+  onVerified?: (user: AuthUser, token: string) => void;
   onSignIn?: () => void;
 };
 
@@ -50,7 +51,13 @@ export function VerifyOtpScreen({
       {
         onSuccess: (response) => {
           Alert.alert('Success', response.message);
-          onVerified?.();
+          if (response.data?.user && response.data?.token) {
+            if (response.data.user.role !== 'customer') {
+              setError('No account found');
+              return;
+            }
+            onVerified?.(response.data.user, response.data.token);
+          }
         },
         onError: (err) => setError(err.message),
       },

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
+import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
+import { useAuth } from '@/providers/AuthProvider';
+import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
 const CATEGORIES = [
   { id: '1', label: 'Marriage Puja', emoji: '💍', bg: '#FEE2E2', color: '#DC2626' },
@@ -24,38 +28,7 @@ const CATEGORIES = [
   { id: '7', label: 'More', emoji: '⊞', bg: '#FEF9C3', color: '#CA8A04' },
 ];
 
-const NEARBY_PANDITS = [
-  {
-    id: '1',
-    name: 'Pt. Shyam Sharma',
-    rating: 4.8,
-    reviews: 128,
-    distance: '2.6 km',
-    languages: 'Hindi, English',
-    price: '₹1,500',
-    image: DEMO_IMAGES.pandit1,
-  },
-  {
-    id: '2',
-    name: 'Pt. Rajesh Kumar',
-    rating: 4.9,
-    reviews: 96,
-    distance: '3.2 km',
-    languages: 'Hindi, Sanskrit',
-    price: '₹2,000',
-    image: DEMO_IMAGES.pandit2,
-  },
-  {
-    id: '3',
-    name: 'Pt. Anil Verma',
-    rating: 4.7,
-    reviews: 74,
-    distance: '4.1 km',
-    languages: 'Hindi, English',
-    price: '₹1,800',
-    image: DEMO_IMAGES.pandit3,
-  },
-];
+const NEARBY_PANDITS_FALLBACK_IMAGES = [DEMO_IMAGES.pandit1, DEMO_IMAGES.pandit2, DEMO_IMAGES.pandit3];
 
 const POPULAR_SERVICES = [
   { id: '1', name: 'Marriage Puja', price: '₹5,101', image: DEMO_IMAGES.serviceMarriage },
@@ -88,12 +61,57 @@ function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => 
   );
 }
 
+function formatLanguages(pandit: PublicPanditProfile) {
+  if (pandit.languages.length > 0) return pandit.languages.join(', ');
+  return pandit.languageCode || 'Hindi';
+}
+
+function PanditCard({ pandit, index }: { pandit: PublicPanditProfile; index: number }) {
+  const imageSource =
+    pandit.profileImage || NEARBY_PANDITS_FALLBACK_IMAGES[index % NEARBY_PANDITS_FALLBACK_IMAGES.length];
+
+  return (
+    <Pressable style={styles.panditCard}>
+      <View style={styles.panditImageWrap}>
+        <CloudImage source={imageSource} preset="panditCard" style={styles.panditImage} />
+        {pandit.isVerified ? (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={12} color="#fff" />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
+        ) : null}
+        <Pressable style={styles.favBtn}>
+          <Ionicons name="heart-outline" size={18} color={C.danger} />
+        </Pressable>
+      </View>
+      <Text style={styles.panditName}>{pandit.name}</Text>
+      <View style={styles.ratingRow}>
+        <Ionicons name="star" size={14} color={C.star} />
+        <Text style={styles.ratingText}>
+          {pandit.rating.toFixed(1)} ({pandit.totalReviews})
+        </Text>
+      </View>
+      <View style={styles.metaRow}>
+        <Ionicons name="location-outline" size={12} color={C.textMuted} />
+        <Text style={styles.metaText}>{pandit.cityName || 'Location not set'}</Text>
+      </View>
+      <Text style={styles.langText}>{formatLanguages(pandit)}</Text>
+      <Text style={styles.priceText}>
+        {pandit.experienceYears > 0 ? `${pandit.experienceYears}+ yrs experience` : 'Available to book'}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function CustomerHome({
   customerName = 'Rahul',
   location = 'Indore, Madhya Pradesh',
   notificationCount = 3,
 }: CustomerHomeProps) {
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
+  const panditsQuery = useApprovedPanditsQuery(Boolean(token));
+  const approvedPandits = panditsQuery.data?.data ?? [];
 
   return (
     <View style={styles.root}>
@@ -194,39 +212,30 @@ export function CustomerHome({
 
         {/* Nearby Pandits */}
         <SectionHeader title="Nearby Pandits" />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.panditsRow}
-        >
-          {NEARBY_PANDITS.map((pandit) => (
-            <Pressable key={pandit.id} style={styles.panditCard}>
-              <View style={styles.panditImageWrap}>
-                <CloudImage source={pandit.image} preset="panditCard" style={styles.panditImage} />
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={12} color="#fff" />
-                  <Text style={styles.verifiedText}>Verified</Text>
-                </View>
-                <Pressable style={styles.favBtn}>
-                  <Ionicons name="heart-outline" size={18} color={C.danger} />
-                </Pressable>
-              </View>
-              <Text style={styles.panditName}>{pandit.name}</Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={14} color={C.star} />
-                <Text style={styles.ratingText}>
-                  {pandit.rating} ({pandit.reviews})
-                </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Ionicons name="location-outline" size={12} color={C.textMuted} />
-                <Text style={styles.metaText}>{pandit.distance}</Text>
-              </View>
-              <Text style={styles.langText}>{pandit.languages}</Text>
-              <Text style={styles.priceText}>{pandit.price} onwards</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {panditsQuery.isLoading ? (
+          <View style={styles.panditsLoading}>
+            <ActivityIndicator size="small" color={C.primary} />
+            <Text style={styles.panditsLoadingText}>Loading verified pandits...</Text>
+          </View>
+        ) : approvedPandits.length === 0 ? (
+          <View style={styles.panditsEmpty}>
+            <Ionicons name="person-outline" size={32} color={C.textLight} />
+            <Text style={styles.panditsEmptyTitle}>No verified pandits yet</Text>
+            <Text style={styles.panditsEmptyText}>
+              Approved pandits will appear here once Super Admin verifies their profiles.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.panditsRow}
+          >
+            {approvedPandits.map((pandit, index) => (
+              <PanditCard key={pandit.id} pandit={pandit} index={index} />
+            ))}
+          </ScrollView>
+        )}
 
         {/* Popular Services */}
         <SectionHeader title="Popular Services" />
@@ -474,6 +483,39 @@ const styles = StyleSheet.create({
   panditsRow: {
     gap: 12,
     paddingBottom: 4,
+  },
+  panditsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 24,
+    justifyContent: 'center',
+  },
+  panditsLoadingText: {
+    fontSize: 13,
+    color: C.textMuted,
+  },
+  panditsEmpty: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    backgroundColor: C.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  panditsEmptyTitle: {
+    marginTop: 10,
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.text,
+  },
+  panditsEmptyText: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: C.textMuted,
+    textAlign: 'center',
   },
   panditCard: {
     width: 160,

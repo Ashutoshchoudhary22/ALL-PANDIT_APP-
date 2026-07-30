@@ -5,17 +5,22 @@ import { apiClient } from '@/lib/axios';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function AuthSessionHandler() {
-  const { token, isLoading } = useAuth();
+  const { token, isLoading, signOut } = useAuth();
 
   const validateSession = useCallback(async () => {
     if (!token) return;
 
     try {
-      await apiClient.get('/api/auth/me');
+      const { data } = await apiClient.get<{ success: boolean; data?: { user: { role: string } } }>(
+        '/api/auth/me',
+      );
+      if (data.data?.user?.role && data.data.user.role !== 'pandit') {
+        await signOut();
+      }
     } catch {
       // 401 responses are handled by the axios interceptor.
     }
-  }, [token]);
+  }, [token, signOut]);
 
   useEffect(() => {
     if (isLoading || !token) return;

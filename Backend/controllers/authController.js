@@ -61,6 +61,13 @@ async function findExistingUser(normalizedMobile, normalizedEmail) {
   return null;
 }
 
+async function resolvePlatformAdminRole() {
+  const [rows] = await pool.query(
+    `SELECT id FROM users WHERE role IN ('superadmin', 'admin') LIMIT 1`,
+  );
+  return rows.length === 0 ? 'superadmin' : 'admin';
+}
+
 exports.signup = async (req, res) => {
   try {
     const { mobile, email, password, role } = req.body;
@@ -82,12 +89,13 @@ exports.signup = async (req, res) => {
     const normalizedMobile = mobile.trim();
     const normalizedEmail = email?.trim().toLowerCase() || null;
     const normalizedRole = role?.trim()?.toLowerCase();
-    const accountType =
-      normalizedRole === 'pandit' ||
-      normalizedRole === 'admin' ||
-      normalizedRole === 'superadmin'
-        ? normalizedRole
-        : 'customer';
+
+    let accountType = 'customer';
+    if (normalizedRole === 'pandit') {
+      accountType = 'pandit';
+    } else if (normalizedRole === 'admin' || normalizedRole === 'superadmin') {
+      accountType = await resolvePlatformAdminRole();
+    }
 
     const existing = await findExistingUser(normalizedMobile, normalizedEmail);
     if (existing) {
@@ -224,7 +232,11 @@ exports.verifyOtp = async (req, res) => {
       message:
         userRole === 'pandit'
           ? 'Pandit account verified and created successfully.'
-          : 'Account verified and created successfully.',
+          : userRole === 'superadmin'
+            ? 'Super Admin account verified and created successfully.'
+            : userRole === 'admin'
+              ? 'Admin account verified and created successfully.'
+              : 'Account verified and created successfully.',
       data: { user, token },
     });
   } catch (error) {

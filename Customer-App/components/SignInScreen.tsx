@@ -56,6 +56,10 @@ export function SignInScreen({
       {
         onSuccess: (response) => {
           if (response.data?.user && response.data?.token) {
+            if (response.data.user.role !== 'customer') {
+              setError('No account found');
+              return;
+            }
             Alert.alert('Success', response.message);
             onLoginSuccess?.(response.data.user, response.data.token);
           }

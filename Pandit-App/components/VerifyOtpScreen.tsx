@@ -49,6 +49,10 @@ export function VerifyOtpScreen({
       { mobile, email, otp: otp.trim() },
       {
         onSuccess: (response) => {
+          if (response.data?.user?.role && response.data.user.role !== 'pandit') {
+            setError('No account found');
+            return;
+          }
           Alert.alert('Success', response.message);
           onVerified?.();
         },

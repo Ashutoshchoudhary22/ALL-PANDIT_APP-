@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
@@ -21,6 +20,7 @@ import { ImageUploadField } from '@/components/ImageUploadField';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useMyPanditProfileQuery, useUpdatePanditProfileMutation } from '@/hooks/use-pandit-profile';
 import { goToProfile } from '@/lib/auth-navigation';
+import { getCurrentAddress } from '@/lib/location';
 import { uploadProfileImages } from '@/lib/upload-local-image';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
@@ -39,7 +39,7 @@ function initFormFromProfile(profile: PanditProfile) {
     gender: profile.gender,
     bio: profile.bio || '',
     experienceYears: String(profile.experienceYears),
-    cityId: profile.cityId != null ? String(profile.cityId) : '',
+    cityName: profile.cityName || '',
     latitude: profile.latitude != null ? profile.latitude.toFixed(6) : '',
     longitude: profile.longitude != null ? profile.longitude.toFixed(6) : '',
     profilePhoto: profile.profileImage,
@@ -64,7 +64,7 @@ export function EditPanditProfileScreen() {
   const [gender, setGender] = useState<Gender>('male');
   const [bio, setBio] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
-  const [cityId, setCityId] = useState('');
+  const [cityName, setCityName] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function EditPanditProfileScreen() {
     setGender(form.gender);
     setBio(form.bio);
     setExperienceYears(form.experienceYears);
-    setCityId(form.cityId);
+    setCityName(form.cityName);
     setLatitude(form.latitude);
     setLongitude(form.longitude);
     setProfilePhotoUri(form.profilePhoto);
@@ -105,18 +105,15 @@ export function EditPanditProfileScreen() {
   const handleGetLocation = async () => {
     setFetchingLocation(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Please allow location access.');
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLatitude(position.coords.latitude.toFixed(6));
-      setLongitude(position.coords.longitude.toFixed(6));
-    } catch {
-      Alert.alert('Location error', 'Could not get your current location.');
+      const result = await getCurrentAddress();
+      setCityName(result.cityName);
+      setLatitude(result.latitude.toFixed(6));
+      setLongitude(result.longitude.toFixed(6));
+    } catch (error) {
+      Alert.alert(
+        'Location error',
+        error instanceof Error ? error.message : 'Could not fetch your current location.',
+      );
     } finally {
       setFetchingLocation(false);
     }
@@ -145,7 +142,7 @@ export function EditPanditProfileScreen() {
         gender,
         bio: bio.trim() || undefined,
         experienceYears: Number(experienceYears),
-        cityId: cityId ? Number(cityId) : undefined,
+        cityName: cityName.trim() || undefined,
         latitude: latitude ? Number(latitude) : undefined,
         longitude: longitude ? Number(longitude) : undefined,
         profileImage,
@@ -243,7 +240,6 @@ export function EditPanditProfileScreen() {
 
           <Text style={styles.sectionTitle}>Location</Text>
           <View style={styles.card}>
-            <Field label="City ID" placeholder="City ID" value={cityId} onChangeText={setCityId} keyboardType="number-pad" />
             <Pressable
               style={[styles.locationBtn, fetchingLocation && styles.locationBtnDisabled]}
               onPress={handleGetLocation}
@@ -258,17 +254,27 @@ export function EditPanditProfileScreen() {
                 </>
               )}
             </Pressable>
-            {(latitude || longitude) && (
-              <View style={styles.coordsRow}>
-                <View style={styles.coordBox}>
-                  <Text style={styles.coordLabel}>Latitude</Text>
-                  <Text style={styles.coordValue}>{latitude || '—'}</Text>
-                </View>
-                <View style={styles.coordBox}>
-                  <Text style={styles.coordLabel}>Longitude</Text>
-                  <Text style={styles.coordValue}>{longitude || '—'}</Text>
-                </View>
-              </View>
+            {(cityName || latitude || longitude) && (
+              <>
+                {cityName ? (
+                  <View style={styles.cityBox}>
+                    <Text style={styles.coordLabel}>City</Text>
+                    <Text style={styles.coordValue}>{cityName}</Text>
+                  </View>
+                ) : null}
+                {(latitude || longitude) && (
+                  <View style={styles.coordsRow}>
+                    <View style={styles.coordBox}>
+                      <Text style={styles.coordLabel}>Latitude</Text>
+                      <Text style={styles.coordValue}>{latitude || '—'}</Text>
+                    </View>
+                    <View style={styles.coordBox}>
+                      <Text style={styles.coordLabel}>Longitude</Text>
+                      <Text style={styles.coordValue}>{longitude || '—'}</Text>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -415,6 +421,14 @@ const styles = StyleSheet.create({
   },
   coordLabel: { fontSize: 11, fontWeight: '600', color: C.textMuted },
   coordValue: { marginTop: 6, fontSize: 14, fontWeight: '700', color: C.text },
+  cityBox: {
+    marginTop: 14,
+    backgroundColor: '#FAFAFA',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    padding: 12,
+  },
   submitBtn: {
     marginTop: 24,
     backgroundColor: C.primary,

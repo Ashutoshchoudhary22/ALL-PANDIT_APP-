@@ -57,7 +57,7 @@ export function SignInScreen({
         onSuccess: (response) => {
           if (response.data?.user && response.data?.token) {
             if (response.data.user.role !== 'pandit') {
-              setError('This app is for pandits only. Please use the customer app.');
+              setError('No account found');
               return;
             }
             Alert.alert('Success', response.message);
