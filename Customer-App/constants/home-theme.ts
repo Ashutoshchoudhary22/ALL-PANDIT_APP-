@@ -1,0 +1,16 @@
+export const HomeColors = {
+  primary: '#FF8C00',
+  primaryDark: '#E67E00',
+  success: '#22C55E',
+  danger: '#EF4444',
+  text: '#1F2937',
+  textMuted: '#6B7280',
+  textLight: '#9CA3AF',
+  background: '#FFFFFF',
+  card: '#FFFFFF',
+  border: '#E5E7EB',
+  bannerBg: '#FFF5EC',
+  bannerText: '#78350F',
+  trustBg: '#EFF6FF',
+  star: '#FBBF24',
+};
