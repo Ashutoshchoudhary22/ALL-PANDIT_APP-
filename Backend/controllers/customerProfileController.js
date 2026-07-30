@@ -29,6 +29,9 @@ function formatProfile(row) {
     cityName: row.city_name,
     latitude: row.latitude != null ? parseFloat(row.latitude) : null,
     longitude: row.longitude != null ? parseFloat(row.longitude) : null,
+    liveLatitude: row.live_latitude != null ? parseFloat(row.live_latitude) : null,
+    liveLongitude: row.live_longitude != null ? parseFloat(row.live_longitude) : null,
+    liveLocationAt: row.live_location_at,
     mobile: row.mobile,
     email: row.email,
     profileImage: row.profile_image,
@@ -50,6 +53,9 @@ const PROFILE_SELECT = `
     cp.city_name,
     cp.latitude,
     cp.longitude,
+    cp.live_latitude,
+    cp.live_longitude,
+    cp.live_location_at,
     cp.created_at,
     cp.updated_at,
     u.mobile,
@@ -305,6 +311,61 @@ exports.updateMyProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while updating profile',
+    });
+  }
+};
+
+exports.updateLiveLocation = async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can update customer live location',
+      });
+    }
+
+    const { latitude, longitude } = req.body;
+
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required',
+      });
+    }
+
+    const customerId = req.user.id;
+
+    const [existing] = await pool.query(
+      'SELECT id FROM customer_profiles WHERE customer_id = ?',
+      [customerId],
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer profile not found',
+      });
+    }
+
+    await pool.query(
+      `UPDATE customer_profiles
+       SET live_latitude = ?, live_longitude = ?, live_location_at = NOW()
+       WHERE customer_id = ?`,
+      [latitude, longitude, customerId],
+    );
+
+    const profile = await fetchProfileByCustomerId(customerId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Live location updated',
+      data: formatProfile(profile),
+    });
+  } catch (error) {
+    console.error('Update customer live location error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating live location',
     });
   }
 };

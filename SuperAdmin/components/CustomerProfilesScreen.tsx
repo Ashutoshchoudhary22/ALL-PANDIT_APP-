@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdminScreenHeader } from '@/components/AdminScreenHeader';
+import { LiveLocationIconButton } from '@/components/LiveLocationIconButton';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useCustomerProfilesQuery } from '@/hooks/use-admin-profiles';
 import { CustomerProfile } from '@/services/admin-profiles.api';
@@ -46,6 +47,14 @@ function CustomerProfileRow({ profile }: { profile: CustomerProfile }) {
           </Text>
         ) : null}
       </View>
+
+      <LiveLocationIconButton
+        name={name}
+        latitude={profile.liveLatitude}
+        longitude={profile.liveLongitude}
+        updatedAt={profile.liveLocationAt}
+        cityName={profile.cityName}
+      />
     </View>
   );
 }

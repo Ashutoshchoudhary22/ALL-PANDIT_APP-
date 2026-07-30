@@ -8,7 +8,6 @@ import {
   saveAuthSession,
 } from '@/lib/auth-storage';
 import { setAuthTokenGetter, setUnauthorizedHandler } from '@/lib/axios';
-import { goToGetStarted } from '@/lib/auth-navigation';
 import { AuthUser } from '@/services/auth.api';
 
 type AuthContextValue = {
@@ -32,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     queryClient.clear();
-    goToGetStarted();
   }, [queryClient]);
 
   useEffect(() => {

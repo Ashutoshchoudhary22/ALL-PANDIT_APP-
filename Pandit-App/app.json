@@ -30,7 +30,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow My-Pandit to access your location for pandit profile."
+          "locationWhenInUsePermission": "Allow My-Pandit to access your live location so customers and admin can see your current position for bookings."
         }
       ],
       [

@@ -10,6 +10,9 @@ export type PanditProfile = {
   cityName: string | null;
   latitude: number | null;
   longitude: number | null;
+  liveLatitude: number | null;
+  liveLongitude: number | null;
+  liveLocationAt: string | null;
   aadharImage: string | null;
   panditCertificateImage: string | null;
   bankAccountHolder: string | null;
@@ -81,6 +84,17 @@ export async function createPanditProfileApi(payload: CreatePanditProfilePayload
 export async function updatePanditProfileApi(payload: UpdatePanditProfilePayload) {
   const { data } = await apiClient.put<{ success: boolean; message: string; data: PanditProfile }>(
     '/api/pandit-profiles/me',
+    payload,
+  );
+  return data;
+}
+
+export async function updatePanditLiveLocationApi(payload: {
+  latitude: number;
+  longitude: number;
+}) {
+  const { data } = await apiClient.patch<{ success: boolean; message: string; data: PanditProfile }>(
+    '/api/pandit-profiles/me/live-location',
     payload,
   );
   return data;

@@ -11,6 +11,9 @@ export type PanditProfile = {
   cityName: string | null;
   latitude: number | null;
   longitude: number | null;
+  liveLatitude: number | null;
+  liveLongitude: number | null;
+  liveLocationAt: string | null;
   mobile: string;
   email: string | null;
   profileImage: string | null;
@@ -39,6 +42,9 @@ export type CustomerProfile = {
   dob: string | null;
   address: string | null;
   cityName: string | null;
+  liveLatitude: number | null;
+  liveLongitude: number | null;
+  liveLocationAt: string | null;
   mobile: string;
   email: string | null;
   profileImage: string | null;

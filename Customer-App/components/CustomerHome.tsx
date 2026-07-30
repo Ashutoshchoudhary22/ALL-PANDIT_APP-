@@ -93,7 +93,11 @@ function PanditCard({ pandit, index }: { pandit: PublicPanditProfile; index: num
       </View>
       <View style={styles.metaRow}>
         <Ionicons name="location-outline" size={12} color={C.textMuted} />
-        <Text style={styles.metaText}>{pandit.cityName || 'Location not set'}</Text>
+        <Text style={styles.metaText}>
+          {pandit.liveLatitude != null && pandit.liveLongitude != null
+            ? `Live: ${pandit.liveLatitude.toFixed(4)}, ${pandit.liveLongitude.toFixed(4)}`
+            : pandit.cityName || 'Location not set'}
+        </Text>
       </View>
       <Text style={styles.langText}>{formatLanguages(pandit)}</Text>
       <Text style={styles.priceText}>

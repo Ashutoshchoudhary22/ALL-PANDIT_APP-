@@ -21,6 +21,9 @@ import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
 function formatLocation(profile: PanditProfile) {
+  if (profile.liveLatitude != null && profile.liveLongitude != null) {
+    return `Live: ${profile.liveLatitude.toFixed(4)}, ${profile.liveLongitude.toFixed(4)}`;
+  }
   if (profile.cityName) return profile.cityName;
   if (profile.latitude != null && profile.longitude != null) {
     return `${profile.latitude.toFixed(2)}, ${profile.longitude.toFixed(2)}`;

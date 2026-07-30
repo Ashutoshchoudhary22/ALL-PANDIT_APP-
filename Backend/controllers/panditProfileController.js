@@ -50,6 +50,9 @@ function formatPanditProfile(row) {
     cityName: row.city_name,
     latitude: row.latitude ? parseFloat(row.latitude) : null,
     longitude: row.longitude ? parseFloat(row.longitude) : null,
+    liveLatitude: row.live_latitude != null ? parseFloat(row.live_latitude) : null,
+    liveLongitude: row.live_longitude != null ? parseFloat(row.live_longitude) : null,
+    liveLocationAt: row.live_location_at,
     aadharImage: row.aadhar_image,
     panditCertificateImage: row.pandit_certificate_image,
     bankAccountHolder: row.bank_account_holder,
@@ -88,6 +91,9 @@ const PROFILE_SELECT = `
     pp.city_name,
     pp.latitude,
     pp.longitude,
+    pp.live_latitude,
+    pp.live_longitude,
+    pp.live_location_at,
     pp.aadhar_image,
     pp.pandit_certificate_image,
     pp.bank_account_holder,
@@ -139,6 +145,9 @@ function formatPublicPanditProfile(row) {
     bio: profile.bio,
     experienceYears: profile.experienceYears,
     cityName: profile.cityName,
+    liveLatitude: profile.liveLatitude,
+    liveLongitude: profile.liveLongitude,
+    liveLocationAt: profile.liveLocationAt,
     profileImage: profile.profileImage,
     rating: profile.rating,
     totalReviews: profile.totalReviews,
@@ -471,6 +480,61 @@ exports.updateMyProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while updating pandit profile',
+    });
+  }
+};
+
+exports.updateLiveLocation = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only pandits can update pandit live location',
+      });
+    }
+
+    const { latitude, longitude } = req.body;
+
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required',
+      });
+    }
+
+    const userId = req.user.id;
+
+    const [existing] = await pool.query(
+      'SELECT id FROM pandit_profiles WHERE user_id = ?',
+      [userId],
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    await pool.query(
+      `UPDATE pandit_profiles
+       SET live_latitude = ?, live_longitude = ?, live_location_at = NOW(), is_online = TRUE
+       WHERE user_id = ?`,
+      [latitude, longitude, userId],
+    );
+
+    const profile = await fetchProfileByUserId(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Live location updated',
+      data: formatPanditProfile(profile),
+    });
+  } catch (error) {
+    console.error('Update pandit live location error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating live location',
     });
   }
 };

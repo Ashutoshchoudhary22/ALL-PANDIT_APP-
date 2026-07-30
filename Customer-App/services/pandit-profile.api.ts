@@ -8,6 +8,9 @@ export type PublicPanditProfile = {
   bio: string | null;
   experienceYears: number;
   cityName: string | null;
+  liveLatitude: number | null;
+  liveLongitude: number | null;
+  liveLocationAt: string | null;
   profileImage: string | null;
   rating: number;
   totalReviews: number;

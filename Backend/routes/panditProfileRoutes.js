@@ -9,6 +9,7 @@ router.get('/public', authMiddleware, panditProfileController.listPublicProfiles
 router.get('/', authMiddleware, panditProfileController.listAllProfiles);
 router.get('/me', authMiddleware, panditProfileController.getMyProfile);
 router.put('/me', authMiddleware, panditProfileController.updateMyProfile);
+router.patch('/me/live-location', authMiddleware, panditProfileController.updateLiveLocation);
 router.get('/user/:userId', authMiddleware, panditProfileController.getProfileByUserId);
 router.patch('/:profileId/status', authMiddleware, panditProfileController.updateProfileStatus);
 router.get('/:profileId', authMiddleware, panditProfileController.getProfileById);

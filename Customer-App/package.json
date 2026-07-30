@@ -3,11 +3,11 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start",
-    "start:clear": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --clear",
-    "android": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --android",
-    "ios": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --ios",
-    "web": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --web",
+    "start": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --port 8081",
+    "start:clear": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --clear --port 8081",
+    "android": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --android --port 8081",
+    "ios": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --ios --port 8081",
+    "web": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --web --port 8081",
     "reset-project": "node ./scripts/reset-project.js",
     "lint": "expo lint"
   },

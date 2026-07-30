@@ -1,7 +1,7 @@
 import { Href, router } from 'expo-router';
 
 export function goToGetStarted() {
-  router.replace('/' as Href);
+  router.replace('/(tabs)' as Href);
 }
 
 export function goToSignIn() {
@@ -9,9 +9,9 @@ export function goToSignIn() {
 }
 
 export function goToDashboard() {
-  router.replace('/dashboard' as Href);
+  router.replace('/(tabs)/dashboard' as Href);
 }
 
 export function goToProfile() {
-  router.replace('/profile' as Href);
+  router.replace('/(tabs)/profile' as Href);
 }

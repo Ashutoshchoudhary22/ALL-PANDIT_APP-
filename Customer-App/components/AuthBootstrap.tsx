@@ -1,11 +1,17 @@
-import { useRootNavigationState } from 'expo-router';
+import { usePathname, useRootNavigationState } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { goToDashboard, goToGetStarted } from '@/lib/auth-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 
+function isOnboardingPath(pathname: string) {
+  const segment = pathname.split('/').filter(Boolean).pop() ?? 'index';
+  return segment === 'index' || segment === '(tabs)';
+}
+
 export function AuthBootstrap() {
   const { token, user, isLoading, signOut } = useAuth();
+  const pathname = usePathname();
   const rootNavigationState = useRootNavigationState();
   const hasBootstrapped = useRef(false);
 
@@ -14,8 +20,13 @@ export function AuthBootstrap() {
 
     hasBootstrapped.current = true;
 
-    if (token && user?.role !== 'customer') {
-      signOut();
+    if (token && user && user.role !== 'customer') {
+      void signOut();
+      return;
+    }
+
+    if (token && !user) {
+      void signOut();
       return;
     }
 
@@ -24,7 +35,9 @@ export function AuthBootstrap() {
       return;
     }
 
-    goToGetStarted();
+    if (!isOnboardingPath(pathname)) {
+      goToGetStarted();
+    }
   }, [isLoading, token, user, signOut, rootNavigationState?.key]);
 
   return null;

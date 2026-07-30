@@ -30,7 +30,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow My-Pandit to access your location to auto-fill your address."
+          "locationWhenInUsePermission": "Allow My-Pandit to access your live location so we can show your current position for bookings and nearby pandits."
         }
       ],
       [

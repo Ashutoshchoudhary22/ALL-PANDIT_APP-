@@ -6,6 +6,8 @@ import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
+import { LiveLocationGate } from '@/components/LiveLocationGate';
+import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
@@ -24,16 +26,19 @@ export default function RootLayout() {
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AuthSessionHandler />
           <AuthBootstrap />
-          <Stack initialRouteName="(tabs)">
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-up" options={{ headerShown: false }} />
-            <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
-            <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-            <Stack.Screen name="create-profile" options={{ headerShown: false }} />
-            <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
+          <LiveLocationGate role="pandit">
+            <LiveLocationTracker />
+            <Stack initialRouteName="(tabs)">
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+              <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+              <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
+              <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+              <Stack.Screen name="create-profile" options={{ headerShown: false }} />
+              <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+          </LiveLocationGate>
           <StatusBar style="auto" />
           </ThemeProvider>
         </AuthProvider>

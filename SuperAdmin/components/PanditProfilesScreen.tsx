@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdminScreenHeader } from '@/components/AdminScreenHeader';
+import { LiveLocationIconButton } from '@/components/LiveLocationIconButton';
 import { PanditProfileReviewModal } from '@/components/PanditProfileReviewModal';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import {
@@ -63,10 +64,17 @@ function PanditProfileRow({ profile, onView, onApprove, onReject, updating }: Pa
           <Text style={styles.meta}>
             {profile.cityName || 'City not set'} • {profile.experienceYears} yrs exp
           </Text>
-          <Text style={styles.contact}>{profile.mobile}</Text>
-        </View>
+        <Text style={styles.contact}>{profile.mobile}</Text>
+      </View>
 
         <View style={styles.actions}>
+          <LiveLocationIconButton
+            name={profile.name}
+            latitude={profile.liveLatitude}
+            longitude={profile.liveLongitude}
+            updatedAt={profile.liveLocationAt}
+            cityName={profile.cityName}
+          />
           <Pressable style={styles.viewBtn} onPress={() => onView(profile.id)} hitSlop={8}>
             <Ionicons name="eye-outline" size={20} color={C.primary} />
           </Pressable>

@@ -11,6 +11,9 @@ export type CustomerProfile = {
   cityName: string | null;
   latitude: number | null;
   longitude: number | null;
+  liveLatitude: number | null;
+  liveLongitude: number | null;
+  liveLocationAt: string | null;
   mobile: string;
   email: string | null;
   profileImage: string | null;
@@ -55,5 +58,17 @@ export async function updateCustomerProfileApi(payload: UpdateCustomerProfilePay
     message: string;
     data: CustomerProfile;
   }>('/api/customer-profiles/me', payload);
+  return data;
+}
+
+export async function updateCustomerLiveLocationApi(payload: {
+  latitude: number;
+  longitude: number;
+}) {
+  const { data } = await apiClient.patch<{
+    success: boolean;
+    message: string;
+    data: CustomerProfile;
+  }>('/api/customer-profiles/me/live-location', payload);
   return data;
 }

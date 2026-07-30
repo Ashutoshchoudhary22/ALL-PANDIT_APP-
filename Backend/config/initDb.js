@@ -104,6 +104,9 @@ async function initDb() {
     `);
 
     await ensureColumn(connection, 'customer_profiles', 'city_name', 'VARCHAR(150) NULL');
+    await ensureColumn(connection, 'customer_profiles', 'live_latitude', 'DECIMAL(10,8) NULL');
+    await ensureColumn(connection, 'customer_profiles', 'live_longitude', 'DECIMAL(11,8) NULL');
+    await ensureColumn(connection, 'customer_profiles', 'live_location_at', 'DATETIME NULL');
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS pandit_profiles (
@@ -131,6 +134,9 @@ async function initDb() {
     `);
 
     await ensureColumn(connection, 'pandit_profiles', 'city_name', 'VARCHAR(150) NULL');
+    await ensureColumn(connection, 'pandit_profiles', 'live_latitude', 'DECIMAL(10,8) NULL');
+    await ensureColumn(connection, 'pandit_profiles', 'live_longitude', 'DECIMAL(11,8) NULL');
+    await ensureColumn(connection, 'pandit_profiles', 'live_location_at', 'DATETIME NULL');
     await ensureColumn(connection, 'pandit_profiles', 'aadhar_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'pandit_certificate_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'bank_account_holder', 'VARCHAR(150) NULL');
