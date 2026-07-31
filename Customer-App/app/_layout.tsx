@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -10,6 +11,7 @@ import { BookingApprovalListener } from '@/components/BookingApprovalListener';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { PanditFiltersHost } from '@/components/PanditFiltersHost';
+import { SplashController } from '@/components/SplashController';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { NotificationsProvider } from '@/providers/NotificationsProvider';
@@ -19,6 +21,8 @@ import { QueryProvider } from '@/providers/QueryProvider';
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -32,6 +36,7 @@ export default function RootLayout() {
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <AuthSessionHandler />
               <AuthBootstrap />
+              <SplashController />
               <LiveLocationGate role="customer">
                 <LiveLocationTracker />
                 <BookingApprovalListener />

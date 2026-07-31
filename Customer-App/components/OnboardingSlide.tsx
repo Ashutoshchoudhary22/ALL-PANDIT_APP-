@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
+  ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StyleSheet,
@@ -165,11 +166,12 @@ export function OnboardingCarousel({
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <LinearGradient
-        colors={['#1A0A3E', '#12062E', '#0A001A', '#050010']}
-        locations={[0, 0.35, 0.7, 1]}
+      <ImageBackground
+        source={require('@/assets/landing.png')}
         style={StyleSheet.absoluteFill}
+        resizeMode="cover"
       />
+      <View style={styles.backgroundOverlay} />
 
       <FlatList
         ref={listRef}
@@ -247,7 +249,11 @@ export function OnboardingSlide({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A001A',
+    backgroundColor: '#1A0A3E',
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 0, 26, 0.45)',
   },
   list: {
     flex: 1,
