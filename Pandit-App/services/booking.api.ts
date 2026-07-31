@@ -27,7 +27,7 @@ export type PanditBooking = {
 };
 
 export type PanditBookingNotification = {
-  type: 'booking:new';
+  type: 'booking:new' | 'booking:confirmed';
   title: string;
   message: string;
   booking: PanditBooking;
@@ -36,6 +36,27 @@ export type PanditBookingNotification = {
 export async function getPanditBookingsApi() {
   const { data } = await apiClient.get<{ success: boolean; data: PanditBooking[] }>(
     '/api/bookings/pandit/me',
+  );
+  return data;
+}
+
+export async function getPanditBookingRequestsApi() {
+  const { data } = await apiClient.get<{ success: boolean; data: PanditBooking[] }>(
+    '/api/bookings/pandit/requests',
+  );
+  return data;
+}
+
+export async function approvePanditBookingApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/approve`,
+  );
+  return data;
+}
+
+export async function rejectPanditBookingApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/reject`,
   );
   return data;
 }

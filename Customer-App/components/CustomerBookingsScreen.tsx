@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
 import { HomeColors as C } from '@/constants/home-theme';
 import {
+  useCancelBookingMutation,
   useMyBookingsQuery,
   useRetryBookingPaymentMutation,
   useVerifyBookingPaymentMutation,
@@ -33,7 +34,7 @@ const STATUS_STYLES: Record<
   { label: string; bg: string; text: string; icon: keyof typeof Ionicons.glyphMap }
 > = {
   payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C', icon: 'card-outline' },
-  pending: { label: 'Pending', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
+  pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
   confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D', icon: 'checkmark-circle-outline' },
   cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline' },
   completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8', icon: 'checkmark-done-outline' },
@@ -64,14 +65,19 @@ function formatBookingTime(value: string) {
 function BookingCard({
   booking,
   paying,
+  cancelling,
   onPayNow,
+  onCancel,
 }: {
   booking: Booking;
   paying: boolean;
+  cancelling: boolean;
   onPayNow: (booking: Booking) => void;
+  onCancel: (booking: Booking) => void;
 }) {
   const statusStyle = STATUS_STYLES[booking.status];
   const needsPayment = booking.status === 'payment_pending';
+  const canCancel = booking.status === 'pending' || booking.status === 'payment_pending';
 
   return (
     <View style={styles.card}>
@@ -141,11 +147,20 @@ function BookingCard({
         </View>
       </View>
 
+      {booking.status === 'pending' ? (
+        <View style={styles.waitingBox}>
+          <Ionicons name="hourglass-outline" size={16} color="#B45309" />
+          <Text style={styles.waitingText}>
+            Waiting for pandit approval. You can pay 40% after approval.
+          </Text>
+        </View>
+      ) : null}
+
       {needsPayment ? (
         <Pressable
           style={[styles.payBtn, paying && styles.payBtnDisabled]}
           onPress={() => onPayNow(booking)}
-          disabled={paying}
+          disabled={paying || cancelling}
         >
           {paying ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -155,6 +170,23 @@ function BookingCard({
               <Text style={styles.payBtnText}>
                 Pay 40% Now • {formatINR(booking.advanceAmount)}
               </Text>
+            </>
+          )}
+        </Pressable>
+      ) : null}
+
+      {canCancel ? (
+        <Pressable
+          style={[styles.cancelBtn, (paying || cancelling) && styles.payBtnDisabled]}
+          onPress={() => onCancel(booking)}
+          disabled={paying || cancelling}
+        >
+          {cancelling ? (
+            <ActivityIndicator color={C.danger} size="small" />
+          ) : (
+            <>
+              <Ionicons name="close-circle-outline" size={16} color={C.danger} />
+              <Text style={styles.cancelBtnText}>Cancel Request</Text>
             </>
           )}
         </Pressable>
@@ -169,8 +201,10 @@ export function CustomerBookingsScreen() {
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
   const retryPayment = useRetryBookingPaymentMutation();
   const verifyPayment = useVerifyBookingPaymentMutation();
+  const cancelBooking = useCancelBookingMutation();
   const bookings = bookingsQuery.data?.data ?? [];
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+  const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
   const [paymentSession, setPaymentSession] = useState<{
     bookingId: number;
     payment: BookingPaymentDetails;
@@ -190,6 +224,10 @@ export function CustomerBookingsScreen() {
     setPayingBookingId(booking.id);
     try {
       const response = await retryPayment.mutateAsync(booking.id);
+      if (!response.payment) {
+        Alert.alert('Error', 'Payment details are not available for this booking.');
+        return;
+      }
       setPaymentSession({
         bookingId: booking.id,
         payment: response.payment,
@@ -201,6 +239,27 @@ export function CustomerBookingsScreen() {
     } finally {
       setPayingBookingId(null);
     }
+  };
+
+  const handleCancel = (booking: Booking) => {
+    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking request?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel',
+        style: 'destructive',
+        onPress: async () => {
+          setCancellingBookingId(booking.id);
+          try {
+            const response = await cancelBooking.mutateAsync(booking.id);
+            Alert.alert('Cancelled', response.message);
+          } catch (error) {
+            Alert.alert('Error', error instanceof Error ? error.message : 'Could not cancel booking');
+          } finally {
+            setCancellingBookingId(null);
+          }
+        },
+      },
+    ]);
   };
 
   const handlePaymentSuccess = async (payload: {
@@ -219,7 +278,7 @@ export function CustomerBookingsScreen() {
       });
 
       setPaymentSession(null);
-      Alert.alert('Booking Successful', verifyResponse.message || 'Booking confirmed! Pandit has been notified.');
+      Alert.alert('Booking Confirmed', 'Your booking is confirmed. 40% advance payment was successful.');
       void bookingsQuery.refetch();
     } catch (error) {
       setPaymentSession(null);
@@ -260,7 +319,9 @@ export function CustomerBookingsScreen() {
             <BookingCard
               booking={item}
               paying={payingBookingId === item.id}
+              cancelling={cancellingBookingId === item.id}
               onPayNow={handlePayNow}
+              onCancel={handleCancel}
             />
           )}
           contentContainerStyle={[
@@ -461,10 +522,44 @@ const styles = StyleSheet.create({
   payBtnDisabled: {
     opacity: 0.7,
   },
+  cancelBtn: {
+    marginTop: 10,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.danger,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  cancelBtnText: {
+    color: C.danger,
+    fontSize: 14,
+    fontWeight: '800',
+  },
   payBtnText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '800',
+  },
+  waitingBox: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  waitingText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#92400E',
+    fontWeight: '600',
   },
   centerState: {
     flex: 1,

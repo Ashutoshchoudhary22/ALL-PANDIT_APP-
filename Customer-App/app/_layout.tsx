@@ -6,11 +6,13 @@ import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
+import { BookingApprovalListener } from '@/components/BookingApprovalListener';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { PanditFiltersHost } from '@/components/PanditFiltersHost';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { NotificationsProvider } from '@/providers/NotificationsProvider';
 import { PanditFiltersProvider } from '@/providers/PanditFiltersProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 
@@ -25,15 +27,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <AuthProvider>
+          <NotificationsProvider>
           <PanditFiltersProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <AuthSessionHandler />
               <AuthBootstrap />
               <LiveLocationGate role="customer">
                 <LiveLocationTracker />
+                <BookingApprovalListener />
                 <PanditFiltersHost />
                 <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="notifications" options={{ headerShown: false }} />
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
                 <Stack.Screen name="sign-up" options={{ headerShown: false }} />
                 <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
@@ -50,6 +55,7 @@ export default function RootLayout() {
             <StatusBar style="auto" />
           </ThemeProvider>
           </PanditFiltersProvider>
+          </NotificationsProvider>
         </AuthProvider>
       </QueryProvider>
     </GestureHandlerRootView>

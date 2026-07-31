@@ -9,19 +9,19 @@ import {
 } from 'react';
 
 import { clearNotifications, loadNotifications, saveNotifications } from '@/lib/notification-storage';
-import { getPanditBookingRequestsApi } from '@/services/booking.api';
+import { getMyBookingsApi } from '@/services/booking.api';
 import {
-  PanditNotification,
+  CustomerNotification,
   mergeNotifications,
   notificationFromBooking,
 } from '@/services/notification.api';
 import { useAuth } from '@/providers/AuthProvider';
 
 type NotificationsContextValue = {
-  notifications: PanditNotification[];
+  notifications: CustomerNotification[];
   unreadCount: number;
   isLoading: boolean;
-  addNotification: (notification: PanditNotification) => void;
+  addNotification: (notification: CustomerNotification) => void;
   markAllRead: () => void;
   markAsRead: (id: string) => void;
   refreshNotifications: () => Promise<void>;
@@ -31,11 +31,11 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { token, user, isLoading: authLoading } = useAuth();
-  const [notifications, setNotifications] = useState<PanditNotification[]>([]);
+  const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const persist = useCallback(
-    async (items: PanditNotification[]) => {
+    async (items: CustomerNotification[]) => {
       if (!user?.id) return;
       await saveNotifications(user.id, items);
     },
@@ -43,7 +43,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshNotifications = useCallback(async () => {
-    if (!token || user?.role !== 'pandit' || !user.id) {
+    if (!token || user?.role !== 'customer' || !user.id) {
       setNotifications([]);
       setIsLoading(false);
       return;
@@ -52,8 +52,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const stored = await loadNotifications(user.id);
-      const response = await getPanditBookingRequestsApi();
-      const fromBookings = (response.data ?? []).map(notificationFromBooking);
+      const response = await getMyBookingsApi();
+      const fromBookings = (response.data ?? [])
+        .filter((booking) => booking.status === 'payment_pending')
+        .map(notificationFromBooking);
       const merged = mergeNotifications(stored, fromBookings);
       setNotifications(merged);
       await saveNotifications(user.id, merged);
@@ -67,7 +69,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!token || user?.role !== 'pandit') {
+    if (!token || user?.role !== 'customer') {
       setNotifications([]);
       setIsLoading(false);
       if (user?.id && !token) {
@@ -79,7 +81,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [authLoading, token, user?.id, user?.role, refreshNotifications]);
 
   const addNotification = useCallback(
-    (notification: PanditNotification) => {
+    (notification: CustomerNotification) => {
       setNotifications((prev) => {
         const merged = mergeNotifications(prev, [notification]);
         void persist(merged);
@@ -143,8 +145,4 @@ export function useNotifications() {
     throw new Error('useNotifications must be used within NotificationsProvider');
   }
   return ctx;
-}
-
-export async function clearUserNotifications(userId: number) {
-  await clearNotifications(userId);
 }

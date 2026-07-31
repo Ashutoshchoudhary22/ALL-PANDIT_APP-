@@ -10,6 +10,8 @@ const config = getDefaultConfig(projectRoot);
 // Only watch Customer-App — ignore sibling apps in the monorepo (saves memory).
 config.watchFolders = [projectRoot];
 config.resolver.nodeModulesPaths = [path.resolve(projectRoot, 'node_modules')];
+// Prefer CJS entry points so Metro can resolve socket.io sub-dependencies.
+config.resolver.unstable_enablePackageExports = false;
 config.maxWorkers = 1;
 config.server = { port: 8081 };
 

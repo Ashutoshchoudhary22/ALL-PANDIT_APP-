@@ -10,6 +10,9 @@ function initSocket(httpServer) {
       origin: '*',
       methods: ['GET', 'POST'],
     },
+    transports: ['polling', 'websocket'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
   });
 
   io.use(async (socket, next) => {

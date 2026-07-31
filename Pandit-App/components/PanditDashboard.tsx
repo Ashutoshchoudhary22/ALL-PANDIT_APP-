@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,9 +17,16 @@ import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { usePanditEarnings } from '@/hooks/use-pandit-earnings';
+import {
+  useApproveBookingMutation,
+  usePanditBookingRequestsQuery,
+  useRejectBookingMutation,
+} from '@/hooks/use-pandit-booking-requests';
 import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
 import { formatINR, MonthEarning } from '@/lib/pandit-earnings';
 import { useAuth } from '@/providers/AuthProvider';
+import { PanditBooking } from '@/services/booking.api';
+import { PanditBookingRequestCard } from '@/components/PanditBookingRequestCard';
 import { useNotifications } from '@/providers/NotificationsProvider';
 
 type PanditDashboardProps = {
@@ -165,7 +173,14 @@ export function PanditDashboard({
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
   const earningsQuery = usePanditEarnings(Boolean(token));
+  const requestsQuery = usePanditBookingRequestsQuery(Boolean(token));
+  const approveBooking = useApproveBookingMutation();
+  const rejectBooking = useRejectBookingMutation();
   const summary = earningsQuery.summary;
+  const pendingRequests = requestsQuery.data?.data ?? [];
+  const featuredRequest = pendingRequests[0] ?? null;
+  const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const panditName = profileQuery.data?.data?.name || panditNameProp || 'Pandit Ji';
 
   useFocusEffect(
@@ -173,9 +188,47 @@ export function PanditDashboard({
       if (token) {
         void earningsQuery.refetch();
         void profileQuery.refetch();
+        void requestsQuery.refetch();
       }
-    }, [token, earningsQuery.refetch, profileQuery.refetch]),
+    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch]),
   );
+
+  const handleApprove = async (booking: PanditBooking) => {
+    setActiveBookingId(booking.id);
+    setActionType('approve');
+    try {
+      const response = await approveBooking.mutateAsync(booking.id);
+      Alert.alert('Approved', response.message);
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Could not approve booking');
+    } finally {
+      setActiveBookingId(null);
+      setActionType(null);
+    }
+  };
+
+  const handleReject = (booking: PanditBooking) => {
+    Alert.alert('Reject Booking', 'Are you sure you want to reject this booking request?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: async () => {
+          setActiveBookingId(booking.id);
+          setActionType('reject');
+          try {
+            const response = await rejectBooking.mutateAsync(booking.id);
+            Alert.alert('Rejected', response.message);
+          } catch (error) {
+            Alert.alert('Error', error instanceof Error ? error.message : 'Could not reject booking');
+          } finally {
+            setActiveBookingId(null);
+            setActionType(null);
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.root}>
@@ -326,37 +379,32 @@ export function PanditDashboard({
         </View>
 
         {/* New Booking Requests */}
-        <SectionHeader title="New Booking Requests" actionLabel="View All (2) >" />
-        <View style={styles.bookingCard}>
-          <View style={styles.bookingCardTop}>
-            <CloudImage
-              source={DEMO_IMAGES.customer}
-              preset="avatar"
-              style={styles.customerAvatar}
-            />
-            <View style={styles.bookingInfo}>
-              <Text style={styles.customerName}>Rahul Verma</Text>
-              <Text style={styles.serviceName}>Griha Pravesh Puja</Text>
-              <View style={styles.metaRow}>
-                <Ionicons name="location-outline" size={14} color={C.textMuted} />
-                <Text style={styles.metaText}>Indore, Madhya Pradesh</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Ionicons name="calendar-outline" size={14} color={C.textMuted} />
-                <Text style={styles.metaText}>25 May 2024 • 10:00 AM</Text>
-              </View>
-            </View>
-            <Text style={styles.price}>₹3,500</Text>
+        <SectionHeader
+          title="New Booking Requests"
+          actionLabel={
+            pendingRequests.length > 0 ? `View All (${pendingRequests.length}) >` : undefined
+          }
+          onAction={
+            pendingRequests.length > 0 ? () => router.push('/booking-requests') : undefined
+          }
+        />
+        {requestsQuery.isLoading ? (
+          <View style={styles.requestsLoading}>
+            <ActivityIndicator size="small" color={C.primary} />
           </View>
-          <View style={styles.bookingActions}>
-            <Pressable style={styles.acceptBtn}>
-              <Text style={styles.acceptBtnText}>Accept</Text>
-            </Pressable>
-            <Pressable style={styles.rejectBtn}>
-              <Text style={styles.rejectBtnText}>Reject</Text>
-            </Pressable>
+        ) : featuredRequest ? (
+          <PanditBookingRequestCard
+            booking={featuredRequest}
+            approving={activeBookingId === featuredRequest.id && actionType === 'approve'}
+            rejecting={activeBookingId === featuredRequest.id && actionType === 'reject'}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
+        ) : (
+          <View style={styles.requestsEmpty}>
+            <Text style={styles.requestsEmptyText}>No pending booking requests right now.</Text>
           </View>
-        </View>
+        )}
 
         {/* Upcoming Puja */}
         <SectionHeader title="Upcoming Puja" actionLabel="View All >" />
@@ -638,6 +686,22 @@ const styles = StyleSheet.create({
   monthDivider: {
     height: 1,
     backgroundColor: C.border,
+  },
+  requestsLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  requestsEmpty: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  requestsEmptyText: {
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: 'center',
   },
   withdrawBtn: {
     marginTop: 10,

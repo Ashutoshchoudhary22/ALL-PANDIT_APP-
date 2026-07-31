@@ -26,6 +26,7 @@ import { usePopularPujaServicesQuery } from '@/hooks/use-popular-puja-services';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { useAuth } from '@/providers/AuthProvider';
 import { usePanditFilters } from '@/providers/PanditFiltersProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
@@ -49,6 +50,12 @@ const TRUST_FEATURES = [
 type CustomerHomeProps = {
   notificationCount?: number;
 };
+
+function formatBadgeCount(count: number) {
+  if (count <= 0) return '';
+  if (count > 9) return '9+';
+  return String(count);
+}
 
 function getDisplayName(profile: CustomerProfile | undefined, mobile?: string | null, email?: string | null) {
   if (profile) {
@@ -79,9 +86,11 @@ function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => 
   );
 }
 
-export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
+export function CustomerHome({ notificationCount: notificationCountProp }: CustomerHomeProps) {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
+  const { unreadCount } = useNotifications();
+  const badgeLabel = formatBadgeCount(notificationCountProp ?? unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const panditsQuery = useApprovedPanditsQuery(Boolean(token));
   const popularServicesQuery = usePopularPujaServicesQuery(Boolean(token), 10);
@@ -144,11 +153,11 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
             </View>
           </Pressable>
           <View style={styles.headerRight}>
-            <Pressable style={styles.iconBtn}>
+            <Pressable style={styles.iconBtn} onPress={() => router.push('/notifications')}>
               <Ionicons name="notifications-outline" size={24} color={C.text} />
-              {notificationCount > 0 ? (
+              {badgeLabel ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{notificationCount}</Text>
+                  <Text style={styles.badgeText}>{badgeLabel}</Text>
                 </View>
               ) : null}
             </Pressable>

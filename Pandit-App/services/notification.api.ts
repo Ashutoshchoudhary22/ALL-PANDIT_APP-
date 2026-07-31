@@ -2,7 +2,7 @@ import { PanditBooking } from '@/services/booking.api';
 
 export type PanditNotification = {
   id: string;
-  type: 'booking:new';
+  type: 'booking:new' | 'booking:confirmed';
   title: string;
   message: string;
   bookingId: number;
@@ -15,11 +15,24 @@ export function notificationFromBooking(booking: PanditBooking): PanditNotificat
   return {
     id: `booking-${booking.id}`,
     type: 'booking:new',
-    title: 'New Booking Received',
-    message: `${booking.customerName} booked ${booking.serviceName}. 40% advance paid.`,
+    title: 'New Booking Request',
+    message: `${booking.customerName} requested ${booking.serviceName}. Please review and approve.`,
     bookingId: booking.id,
     read: false,
     createdAt: booking.createdAt,
+    booking,
+  };
+}
+
+export function notificationFromConfirmedBooking(booking: PanditBooking): PanditNotification {
+  return {
+    id: `booking-confirmed-${booking.id}`,
+    type: 'booking:confirmed',
+    title: 'Payment Received',
+    message: `${booking.customerName} paid 40% advance for ${booking.serviceName}. Booking is confirmed.`,
+    bookingId: booking.id,
+    read: false,
+    createdAt: booking.updatedAt || booking.createdAt,
     booking,
   };
 }

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -13,9 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { HomeColors as C } from '@/constants/home-theme';
+import { formatINR } from '@/lib/booking-pricing';
 import { useNotifications } from '@/providers/NotificationsProvider';
-import { PanditNotification } from '@/services/notification.api';
+import { CustomerNotification } from '@/services/notification.api';
 
 function formatDateTime(value: string) {
   const parsed = new Date(value);
@@ -28,37 +28,19 @@ function formatDateTime(value: string) {
   });
 }
 
-function formatBookingDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-IN', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
 function NotificationCard({
   item,
   onPress,
 }: {
-  item: PanditNotification;
-  onPress: (item: PanditNotification) => void;
+  item: CustomerNotification;
+  onPress: (item: CustomerNotification) => void;
 }) {
-  const booking = item.booking;
-  const isConfirmed = item.type === 'booking:confirmed';
+  const advanceAmount = item.booking?.advanceAmount ?? 0;
 
   return (
-    <Pressable
-      style={[styles.card, !item.read && styles.cardUnread, isConfirmed && !item.read && styles.cardConfirmedUnread]}
-      onPress={() => onPress(item)}
-    >
-      <View style={[styles.iconWrap, !item.read && styles.iconWrapUnread, isConfirmed && styles.iconWrapConfirmed]}>
-        <Ionicons
-          name={isConfirmed ? 'checkmark-circle-outline' : 'calendar-outline'}
-          size={20}
-          color={isConfirmed ? C.success : C.primary}
-        />
+    <Pressable style={[styles.card, !item.read && styles.cardUnread]} onPress={() => onPress(item)}>
+      <View style={[styles.iconWrap, !item.read && styles.iconWrapUnread]}>
+        <Ionicons name="checkmark-circle-outline" size={20} color={C.success} />
       </View>
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
@@ -66,10 +48,8 @@ function NotificationCard({
           {!item.read ? <View style={styles.unreadDot} /> : null}
         </View>
         <Text style={styles.message}>{item.message}</Text>
-        {booking ? (
-          <Text style={styles.meta}>
-            {formatBookingDate(booking.bookingDate)} • Advance {booking.advanceAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
-          </Text>
+        {advanceAmount > 0 ? (
+          <Text style={styles.meta}>Pay now: {formatINR(advanceAmount)} (40% advance)</Text>
         ) : null}
         <Text style={styles.time}>{formatDateTime(item.createdAt)}</Text>
       </View>
@@ -77,7 +57,7 @@ function NotificationCard({
   );
 }
 
-export function PanditNotificationsScreen() {
+export function CustomerNotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { notifications, isLoading, markAllRead, markAsRead, refreshNotifications } =
     useNotifications();
@@ -88,13 +68,9 @@ export function PanditNotificationsScreen() {
     }, [markAllRead]),
   );
 
-  const handlePress = (item: PanditNotification) => {
+  const handlePress = (item: CustomerNotification) => {
     markAsRead(item.id);
-    if (item.type === 'booking:confirmed') {
-      router.push('/(tabs)/bookings');
-      return;
-    }
-    router.push('/booking-requests');
+    router.push('/(tabs)/bookings');
   };
 
   return (
@@ -130,7 +106,7 @@ export function PanditNotificationsScreen() {
               <Ionicons name="notifications-outline" size={48} color={C.textLight} />
               <Text style={styles.emptyTitle}>No notifications yet</Text>
               <Text style={styles.emptySubtitle}>
-                Booking requests and payment confirmations will appear here.
+                You will be notified here when a pandit approves your booking request.
               </Text>
             </View>
           }
@@ -174,10 +150,6 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   cardUnread: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FDBA74',
-  },
-  cardConfirmedUnread: {
     backgroundColor: '#F0FDF4',
     borderColor: '#86EFAC',
   },
@@ -185,15 +157,12 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: C.orangeBg,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrapUnread: {
-    backgroundColor: '#FFEDD5',
-  },
-  iconWrapConfirmed: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#BBF7D0',
   },
   cardBody: { flex: 1 },
   cardTop: {
@@ -210,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
   },
   message: { marginTop: 4, fontSize: 13, lineHeight: 19, color: C.textMuted },
-  meta: { marginTop: 8, fontSize: 12, fontWeight: '600', color: C.text },
+  meta: { marginTop: 8, fontSize: 12, fontWeight: '700', color: C.success },
   time: { marginTop: 6, fontSize: 11, color: C.textLight },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyWrap: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 24 },

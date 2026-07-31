@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  cancelBookingApi,
   createBookingApi,
   getMyBookingsApi,
   retryBookingPaymentApi,
@@ -33,6 +34,16 @@ export function useVerifyBookingPaymentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: VerifyBookingPaymentPayload) => verifyBookingPaymentApi(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+    },
+  });
+}
+
+export function useCancelBookingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: number) => cancelBookingApi(bookingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
     },

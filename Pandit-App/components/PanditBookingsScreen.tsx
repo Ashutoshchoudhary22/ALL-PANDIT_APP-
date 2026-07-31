@@ -18,6 +18,37 @@ import { promptBookingLocation } from '@/lib/open-map';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
 
+const STATUS_STYLES: Record<
+  PanditBooking['status'],
+  { label: string; bg: string; text: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  pending: { label: 'Pending', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
+  payment_pending: {
+    label: 'Approved',
+    bg: '#DBEAFE',
+    text: '#1D4ED8',
+    icon: 'checkmark-circle-outline',
+  },
+  confirmed: {
+    label: 'Confirmed',
+    bg: '#DCFCE7',
+    text: '#15803D',
+    icon: 'checkmark-circle-outline',
+  },
+  cancelled: {
+    label: 'Rejected',
+    bg: '#FEE2E2',
+    text: '#B91C1C',
+    icon: 'close-circle-outline',
+  },
+  completed: {
+    label: 'Completed',
+    bg: '#EFF6FF',
+    text: '#1D4ED8',
+    icon: 'checkmark-done-outline',
+  },
+};
+
 function formatINR(amount: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
@@ -45,6 +76,10 @@ function formatBookingTime(value: string) {
 }
 
 function BookingCard({ booking }: { booking: PanditBooking }) {
+  const statusStyle = STATUS_STYLES[booking.status];
+  const isPaid = booking.paymentStatus === 'advance_paid' || booking.status === 'confirmed';
+  const isRejected = booking.status === 'cancelled';
+
   const handleOpenMap = () => {
     promptBookingLocation({
       latitude: booking.latitude,
@@ -61,11 +96,25 @@ function BookingCard({ booking }: { booking: PanditBooking }) {
           <Text style={styles.serviceName}>{booking.serviceName}</Text>
           <Text style={styles.customerName}>{booking.customerName}</Text>
         </View>
-        <View style={styles.statusBadge}>
-          <Ionicons name="checkmark-circle-outline" size={12} color="#15803D" />
-          <Text style={styles.statusText}>Confirmed</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+          <Ionicons name={statusStyle.icon} size={12} color={statusStyle.text} />
+          <Text style={[styles.statusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
         </View>
       </View>
+
+      {booking.status === 'payment_pending' ? (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoBoxText}>Approved by you. Waiting for customer to pay 40% advance.</Text>
+        </View>
+      ) : null}
+
+      {isRejected ? (
+        <View style={[styles.infoBox, styles.infoBoxRejected]}>
+          <Text style={[styles.infoBoxText, styles.infoBoxTextRejected]}>
+            You rejected this booking request.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.metaRow}>
         <Ionicons name="calendar-outline" size={16} color={C.textMuted} />
@@ -81,9 +130,10 @@ function BookingCard({ booking }: { booking: PanditBooking }) {
           {booking.address}
         </Text>
         <Pressable
-          style={styles.mapBtn}
+          style={[styles.mapBtn, isRejected && styles.mapBtnDisabled]}
           onPress={handleOpenMap}
           hitSlop={8}
+          disabled={isRejected}
           accessibilityLabel="Open booking location on map"
         >
           <Ionicons name="map-outline" size={20} color={C.primary} />
@@ -91,9 +141,19 @@ function BookingCard({ booking }: { booking: PanditBooking }) {
       </View>
 
       <View style={styles.footer}>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>40% paid • {formatINR(booking.advanceAmount)}</Text>
-        </View>
+        {isPaid ? (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>40% paid • {formatINR(booking.advanceAmount)}</Text>
+          </View>
+        ) : isRejected ? (
+          <View style={[styles.tag, styles.tagRejected]}>
+            <Text style={[styles.tagText, styles.tagRejectedText]}>Not confirmed</Text>
+          </View>
+        ) : (
+          <View style={[styles.tag, styles.tagAwaiting]}>
+            <Text style={[styles.tagText, styles.tagAwaitingText]}>Awaiting payment</Text>
+          </View>
+        )}
         <Text style={styles.totalPrice}>{formatINR(booking.totalPrice)}</Text>
       </View>
     </View>
@@ -117,7 +177,7 @@ export function PanditBookingsScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
       <Text style={styles.title}>Bookings</Text>
-      <Text style={styles.subtitle}>Paid bookings assigned to you</Text>
+      <Text style={styles.subtitle}>Approved, rejected and confirmed bookings</Text>
 
       {bookingsQuery.isLoading ? (
         <View style={styles.centerState}>
@@ -152,7 +212,7 @@ export function PanditBookingsScreen() {
               <Ionicons name="clipboard-outline" size={48} color={C.textLight} />
               <Text style={styles.emptyTitle}>No bookings yet</Text>
               <Text style={styles.emptySubtitle}>
-                New booking notifications will appear here when customers pay the 40% advance.
+                Bookings will appear here after you approve or reject customer requests.
               </Text>
             </View>
           }
@@ -194,7 +254,28 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#DCFCE7',
   },
-  statusText: { fontSize: 11, fontWeight: '700', color: '#15803D' },
+  statusText: { fontSize: 11, fontWeight: '700' },
+  infoBox: {
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  infoBoxRejected: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  infoBoxText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#1D4ED8',
+    fontWeight: '600',
+  },
+  infoBoxTextRejected: {
+    color: '#B91C1C',
+  },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   metaText: { flex: 1, fontSize: 13, color: C.text, lineHeight: 19 },
   mapBtn: {
@@ -206,6 +287,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#FDBA74',
+  },
+  mapBtnDisabled: {
+    opacity: 0.45,
   },
   footer: {
     marginTop: 8,
@@ -223,6 +307,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
   },
   tagText: { fontSize: 11, fontWeight: '700', color: C.primary },
+  tagAwaiting: {
+    backgroundColor: '#DBEAFE',
+  },
+  tagAwaitingText: {
+    color: '#1D4ED8',
+  },
+  tagRejected: {
+    backgroundColor: '#FEE2E2',
+  },
+  tagRejectedText: {
+    color: '#B91C1C',
+  },
   totalPrice: { fontSize: 16, fontWeight: '800', color: C.primary },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   centerText: { fontSize: 14, color: C.textMuted },

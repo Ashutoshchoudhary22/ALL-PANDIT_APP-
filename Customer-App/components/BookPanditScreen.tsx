@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,19 +19,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CloudImage } from '@/components/CloudImage';
 import { DatePickerField, getTodayIsoDate } from '@/components/DatePickerField';
-import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
 import { TimePickerField } from '@/components/TimePickerField';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
-import { useCreateBookingMutation, useVerifyBookingPaymentMutation } from '@/hooks/use-bookings';
+import { useCreateBookingMutation } from '@/hooks/use-bookings';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
 import { calculateBookingPrice, formatINR, SAMAGRI_RATE, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
-import {
-  BookingCustomerPrefill,
-  BookingPaymentDetails,
-} from '@/services/booking.api';
 
 type BookPanditScreenProps = {
   panditProfileId: number;
@@ -44,7 +39,7 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
   const panditQuery = usePublicPanditProfileQuery(panditProfileId, Boolean(token));
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const createBooking = useCreateBookingMutation();
-  const verifyPayment = useVerifyBookingPaymentMutation();
+  const isSubmittingRef = useRef(false);
 
   const pandit = panditQuery.data?.data;
   const customerProfile = profileQuery.data?.data;
@@ -55,12 +50,6 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
   const [address, setAddress] = useState('');
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [samagriRequired, setSamagriRequired] = useState(false);
-  const [paymentSession, setPaymentSession] = useState<{
-    bookingId: number;
-    payment: BookingPaymentDetails;
-    customer?: BookingCustomerPrefill;
-    description: string;
-  } | null>(null);
 
   useEffect(() => {
     if (!customerProfile) return;
@@ -87,7 +76,15 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
     [selectedService?.price, samagriRequired],
   );
 
+  const showBookingSuccess = (message: string) => {
+    Alert.alert('Request Sent', message, [{ text: 'OK', onPress: () => router.back() }]);
+  };
+
   const handleSubmit = async () => {
+    if (isSubmittingRef.current || createBooking.isPending) {
+      return;
+    }
+
     if (!serviceName) {
       Alert.alert('Required', 'Please select a puja service.');
       return;
@@ -100,6 +97,8 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
       Alert.alert('Required', 'Please enter the booking address.');
       return;
     }
+
+    isSubmittingRef.current = true;
 
     try {
       const response = await createBooking.mutateAsync({
@@ -114,54 +113,33 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
         samagriRequired,
       });
 
-      setPaymentSession({
-        bookingId: response.data.id,
-        payment: response.payment,
-        customer: response.customer,
-        description: `${serviceName} • 40% advance`,
-      });
-    } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to submit booking');
-    }
-  };
-
-  const handlePaymentSuccess = async (payload: {
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }) => {
-    if (!paymentSession) return;
-
-    try {
-      const verifyResponse = await verifyPayment.mutateAsync({
-        bookingId: paymentSession.bookingId,
-        razorpayOrderId: payload.razorpayOrderId,
-        razorpayPaymentId: payload.razorpayPaymentId,
-        razorpaySignature: payload.razorpaySignature,
-      });
-
-      setPaymentSession(null);
-      Alert.alert('Booking Successful', verifyResponse.message || 'Booking confirmed! Pandit has been notified.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (error) {
-      setPaymentSession(null);
-      Alert.alert(
-        'Payment Verification Failed',
-        error instanceof Error ? error.message : 'Could not verify payment',
+      showBookingSuccess(
+        response.message || 'Your booking request has been sent to the pandit for approval.',
       );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit booking';
+      const alreadySent =
+        message.includes('already sent') ||
+        message.includes('pending booking request') ||
+        message.includes('already have an active booking');
+
+      if (alreadySent) {
+        showBookingSuccess(message);
+        return;
+      }
+
+      if (message.includes('approved') && message.includes('Bookings tab')) {
+        Alert.alert('Payment Pending', message, [{ text: 'OK', onPress: () => router.back() }]);
+        return;
+      }
+
+      Alert.alert('Error', message);
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
-  const handlePaymentDismiss = () => {
-    setPaymentSession(null);
-    Alert.alert(
-      'Payment Pending',
-      'Your booking is saved. Open the Bookings tab and tap "Pay 40% Now" to complete payment.',
-    );
-  };
-
-  const isSubmitting = createBooking.isPending || verifyPayment.isPending;
+  const isSubmitting = createBooking.isPending;
 
   if (panditQuery.isLoading) {
     return (
@@ -291,7 +269,7 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
             />
             <View style={styles.divider} />
             <PriceRow
-              label={`Pay Now (${Math.round(ADVANCE_RATE * 100)}%)`}
+              label={`Advance After Approval (${Math.round(ADVANCE_RATE * 100)}%)`}
               value={formatINR(pricing.advanceAmount)}
               bold
             />
@@ -312,23 +290,12 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Ionicons name="card-outline" size={20} color="#fff" />
-              <Text style={styles.submitText}>
-                Pay {Math.round(ADVANCE_RATE * 100)}% & Confirm • {formatINR(pricing.advanceAmount)}
-              </Text>
+              <Ionicons name="send-outline" size={20} color="#fff" />
+              <Text style={styles.submitText}>Send Booking Request</Text>
             </>
           )}
         </Pressable>
       </View>
-
-      <RazorpayCheckoutModal
-        visible={Boolean(paymentSession)}
-        payment={paymentSession?.payment ?? null}
-        customer={paymentSession?.customer}
-        description={paymentSession?.description ?? 'Booking advance payment'}
-        onSuccess={handlePaymentSuccess}
-        onDismiss={handlePaymentDismiss}
-      />
     </View>
   );
 }

@@ -57,7 +57,7 @@ export type CreateBookingResponse = {
   success: boolean;
   message: string;
   data: Booking;
-  payment: BookingPaymentDetails;
+  payment?: BookingPaymentDetails;
   customer?: BookingCustomerPrefill;
 };
 
@@ -86,6 +86,13 @@ export type RetryBookingPaymentResponse = CreateBookingResponse;
 export async function retryBookingPaymentApi(bookingId: number) {
   const { data } = await apiClient.post<RetryBookingPaymentResponse>(
     `/api/bookings/${bookingId}/retry-payment`,
+  );
+  return data;
+}
+
+export async function cancelBookingApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: Booking }>(
+    `/api/bookings/${bookingId}/cancel`,
   );
   return data;
 }

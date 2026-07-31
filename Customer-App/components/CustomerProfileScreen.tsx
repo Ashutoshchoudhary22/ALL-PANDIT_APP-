@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { useAuth } from '@/providers/AuthProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
 
 function formatDob(dob: string | null) {
@@ -24,6 +25,16 @@ function formatMemberSince(memberSince: string) {
 
 function comingSoon(feature: string) {
   Alert.alert(feature, 'This will be available soon.');
+}
+
+function formatBadgeCount(count: number) {
+  if (count <= 0) return '';
+  if (count > 9) return '9+';
+  return String(count);
+}
+
+function openNotifications() {
+  router.push('/notifications');
 }
 
 function StatCard({
@@ -254,7 +265,7 @@ function ProfileContent({ profile }: { profile: CustomerProfile }) {
           <Text style={styles.preferenceLabel}>Preferred City</Text>
           <Text style={styles.preferenceValue}>{profile.cityName || 'Not set'}</Text>
         </View>
-        <Pressable style={styles.preferenceItem} onPress={() => comingSoon('Notifications')}>
+        <Pressable style={styles.preferenceItem} onPress={openNotifications}>
           <Ionicons name="notifications-outline" size={18} color="#DB2777" />
           <Text style={styles.preferenceLabel}>Notifications</Text>
           <Text style={styles.preferenceValue}>On</Text>
@@ -280,6 +291,8 @@ function ProfileContent({ profile }: { profile: CustomerProfile }) {
 export function CustomerProfileScreen() {
   const insets = useSafeAreaInsets();
   const { token, isLoading: authLoading, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
+  const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const profile = profileQuery.data?.data;
   const isNotFound =
@@ -312,12 +325,14 @@ export function CustomerProfileScreen() {
               <Ionicons name="create-outline" size={18} color={C.primary} />
             </Pressable>
           ) : null}
-          <Pressable onPress={() => comingSoon('Notifications')} hitSlop={8}>
+          <Pressable onPress={openNotifications} hitSlop={8}>
             <View>
               <Ionicons name="notifications-outline" size={22} color={C.text} />
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>3</Text>
-              </View>
+              {badgeLabel ? (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>{badgeLabel}</Text>
+                </View>
+              ) : null}
             </View>
           </Pressable>
           <Pressable onPress={() => comingSoon('Settings')} hitSlop={8}>

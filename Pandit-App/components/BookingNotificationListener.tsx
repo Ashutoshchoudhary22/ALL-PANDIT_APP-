@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Alert } from 'react-native';
+import { Socket } from 'socket.io-client';
 
-import { getSocketUrl } from '@/lib/socket';
+import { createAuthenticatedSocket } from '@/lib/socket';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBookingNotification } from '@/services/booking.api';
@@ -18,27 +20,57 @@ export function BookingNotificationListener() {
       return;
     }
 
-    const socket = io(getSocketUrl(), {
-      auth: { token },
-      transports: ['websocket'],
-      reconnection: true,
-    });
+    const socket = createAuthenticatedSocket(token);
 
     socketRef.current = socket;
 
+    socket.on('connect', () => {
+      console.log('Pandit socket connected');
+    });
+
     socket.on('booking:new', (payload: PanditBookingNotification) => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
 
       addNotification({
         id: `booking-${payload.booking.id}`,
         type: 'booking:new',
-        title: payload.title || 'New Booking Received',
+        title: payload.title || 'New Booking Request',
         message: payload.message,
         bookingId: payload.booking.id,
         read: false,
         createdAt: payload.booking.createdAt || new Date().toISOString(),
         booking: payload.booking,
       });
+    });
+
+    socket.on('booking:confirmed', (payload: PanditBookingNotification) => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit', 'earnings'] });
+
+      addNotification({
+        id: `booking-confirmed-${payload.booking.id}`,
+        type: 'booking:confirmed',
+        title: payload.title || 'Payment Received',
+        message: payload.message,
+        bookingId: payload.booking.id,
+        read: false,
+        createdAt: payload.booking.updatedAt || payload.booking.createdAt || new Date().toISOString(),
+        booking: payload.booking,
+      });
+
+      Alert.alert(
+        payload.title || 'Payment Received',
+        payload.message || 'Customer paid 40% advance. Booking is confirmed.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'View Booking',
+            onPress: () => router.push('/(tabs)/bookings'),
+          },
+        ],
+      );
     });
 
     socket.on('connect_error', (error) => {
