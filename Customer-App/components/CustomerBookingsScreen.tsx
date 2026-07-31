@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, memo } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  ListRenderItemInfo,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -62,7 +63,7 @@ function formatBookingTime(value: string) {
   });
 }
 
-function BookingCard({
+const BookingCard = memo(function BookingCard({
   booking,
   paying,
   cancelling,
@@ -193,7 +194,39 @@ function BookingCard({
       ) : null}
     </View>
   );
+});
+
+type BookingListItemProps = {
+  booking: Booking;
+  paying: boolean;
+  cancelling: boolean;
+  onPayNow: (booking: Booking) => void;
+  onCancel: (booking: Booking) => void;
+};
+
+const BookingListItem = memo(function BookingListItem({
+  booking,
+  paying,
+  cancelling,
+  onPayNow,
+  onCancel,
+}: BookingListItemProps) {
+  return (
+    <BookingCard
+      booking={booking}
+      paying={paying}
+      cancelling={cancelling}
+      onPayNow={onPayNow}
+      onCancel={onCancel}
+    />
+  );
+});
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
 }
+
+const keyExtractor = (item: Booking) => String(item.id);
 
 export function CustomerBookingsScreen() {
   const insets = useSafeAreaInsets();
@@ -220,7 +253,7 @@ export function CustomerBookingsScreen() {
     }, [token, bookingsQuery.refetch]),
   );
 
-  const handlePayNow = async (booking: Booking) => {
+  const handlePayNow = useCallback(async (booking: Booking) => {
     setPayingBookingId(booking.id);
     try {
       const response = await retryPayment.mutateAsync(booking.id);
@@ -239,9 +272,9 @@ export function CustomerBookingsScreen() {
     } finally {
       setPayingBookingId(null);
     }
-  };
+  }, [retryPayment]);
 
-  const handleCancel = (booking: Booking) => {
+  const handleCancel = useCallback((booking: Booking) => {
     Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking request?', [
       { text: 'No', style: 'cancel' },
       {
@@ -260,7 +293,24 @@ export function CustomerBookingsScreen() {
         },
       },
     ]);
-  };
+  }, [cancelBooking]);
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<Booking>) => (
+      <BookingListItem
+        booking={item}
+        paying={payingBookingId === item.id}
+        cancelling={cancellingBookingId === item.id}
+        onPayNow={handlePayNow}
+        onCancel={handleCancel}
+      />
+    ),
+    [payingBookingId, cancellingBookingId, handlePayNow, handleCancel],
+  );
+
+  const handleRefresh = useCallback(() => {
+    void bookingsQuery.refetch();
+  }, [bookingsQuery.refetch]);
 
   const handlePaymentSuccess = async (payload: {
     razorpayOrderId: string;
@@ -270,7 +320,7 @@ export function CustomerBookingsScreen() {
     if (!paymentSession) return;
 
     try {
-      const verifyResponse = await verifyPayment.mutateAsync({
+      await verifyPayment.mutateAsync({
         bookingId: paymentSession.bookingId,
         razorpayOrderId: payload.razorpayOrderId,
         razorpayPaymentId: payload.razorpayPaymentId,
@@ -314,26 +364,22 @@ export function CustomerBookingsScreen() {
       ) : (
         <FlatList
           data={bookings}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <BookingCard
-              booking={item}
-              paying={payingBookingId === item.id}
-              cancelling={cancellingBookingId === item.id}
-              onPayNow={handlePayNow}
-              onCancel={handleCancel}
-            />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 90 },
             bookings.length === 0 && styles.emptyList,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={
             <RefreshControl
               refreshing={bookingsQuery.isRefetching && !bookingsQuery.isLoading}
-              onRefresh={() => bookingsQuery.refetch()}
+              onRefresh={handleRefresh}
             />
           }
           ListEmptyComponent={

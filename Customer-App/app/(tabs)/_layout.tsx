@@ -12,6 +12,7 @@ export default function TabLayout() {
         tabBar={(props) => <CustomerTabBar {...props} />}
         screenOptions={{
           headerShown: false,
+          lazy: true,
           tabBarActiveTintColor: C.primary,
           tabBarInactiveTintColor: C.textLight,
         }}>

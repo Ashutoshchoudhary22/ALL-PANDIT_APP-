@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ListRenderItemInfo,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -28,7 +29,7 @@ function formatDateTime(value: string) {
   });
 }
 
-function NotificationCard({
+const NotificationCard = memo(function NotificationCard({
   item,
   onPress,
 }: {
@@ -55,7 +56,13 @@ function NotificationCard({
       </View>
     </Pressable>
   );
+});
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
 }
+
+const keyExtractor = (item: CustomerNotification) => item.id;
 
 export function CustomerNotificationsScreen() {
   const insets = useSafeAreaInsets();
@@ -68,10 +75,24 @@ export function CustomerNotificationsScreen() {
     }, [markAllRead]),
   );
 
-  const handlePress = (item: CustomerNotification) => {
-    markAsRead(item.id);
-    router.push('/(tabs)/bookings');
-  };
+  const handlePress = useCallback(
+    (item: CustomerNotification) => {
+      markAsRead(item.id);
+      router.push('/(tabs)/bookings');
+    },
+    [markAsRead],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<CustomerNotification>) => (
+      <NotificationCard item={item} onPress={handlePress} />
+    ),
+    [handlePress],
+  );
+
+  const handleRefresh = useCallback(() => {
+    void refreshNotifications();
+  }, [refreshNotifications]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
@@ -90,16 +111,20 @@ export function CustomerNotificationsScreen() {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <NotificationCard item={item} onPress={handlePress} />}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 24 },
             notifications.length === 0 && styles.emptyList,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={() => refreshNotifications()} />
+            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
           }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
