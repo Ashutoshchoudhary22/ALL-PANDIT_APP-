@@ -11,6 +11,9 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+const BHAGWA_LIGHT = '#FFB366';
+const BHAGWA_LIGHT_FILL = 'rgba(255, 195, 130, 0.65)';
+const BHAGWA_ICON = '#F59E0B';
 const THUMB_SIZE = 42;
 const TRACK_HEIGHT = 58;
 const PADDING = 8;
@@ -75,9 +78,12 @@ export function SlideToAction({ label, onComplete, resetKey }: SlideToActionProp
     transform: [{ translateX: translateX.value }],
   }));
 
-  const fillStyle = useAnimatedStyle(() => ({
-    width: translateX.value + THUMB_SIZE + PADDING,
-  }));
+  const fillStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      width: translateX.value + 50,
+    };
+  });
 
   const labelStyle = useAnimatedStyle(() => {
     const max = maxSlide.value || 1;
@@ -98,7 +104,7 @@ export function SlideToAction({ label, onComplete, resetKey }: SlideToActionProp
 
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.thumb, thumbStyle]}>
-          <Ionicons name="arrow-forward" size={16} color="#fff" />
+          <Ionicons name="arrow-forward" size={16} color={BHAGWA_ICON} />
         </Animated.View>
       </GestureDetector>
     </View>
@@ -109,7 +115,7 @@ const styles = StyleSheet.create({
   track: {
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: BHAGWA_LIGHT,
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -118,7 +124,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(167, 139, 250, 0.45)',
+    backgroundColor: BHAGWA_LIGHT_FILL,
     borderRadius: TRACK_HEIGHT / 2,
   },
   label: {
@@ -135,7 +141,7 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: '#0A001A',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },

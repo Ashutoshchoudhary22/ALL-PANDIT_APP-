@@ -5,6 +5,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +18,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useForgotPasswordMutation } from '@/hooks/use-auth';
+
+const BHAGWA = '#FFB366';
+const BHAGWA_DARK = '#FF8C00';
+const INPUT_BG = 'rgba(255, 248, 240, 0.94)';
+const INPUT_BORDER = '#FFCC80';
+const ICON_COLOR = '#FF8C00';
+const TEXT_COLOR = '#1F2937';
+const DANGER_COLOR = '#EF4444';
 
 type ForgotPasswordScreenProps = {
   onSuccess?: () => void;
@@ -56,52 +65,36 @@ export function ForgotPasswordScreen({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      <LinearGradient
-        colors={['#A78BFA', '#7C3AED', '#4C1D95']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.brandRow}>
-          <View style={styles.brandIcon}>
-            <Text style={styles.brandIconText}>ॐ</Text>
-          </View>
-          <Text style={styles.brandName}>My-Pandit Partner</Text>
-        </View>
-
-        <Text style={styles.heroTitle}>
-          Reset your password{'\n'}and get back in. 🔐
-        </Text>
-      </LinearGradient>
+      <ImageBackground
+        source={require('@/assets/sign-in.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
 
       <KeyboardAvoidingView
-        style={styles.sheetWrap}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.sheet}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.sheetContent,
-              { paddingBottom: Math.max(insets.bottom, 16) + 8 },
-            ]}
-          >
-            <Text style={styles.formTitle}>Forgot Password?</Text>
-            <Text style={styles.formSubtitle}>
-              Enter your registered email and we&apos;ll send you a link to reset your password.
-            </Text>
-
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Math.max(insets.bottom, 16) + 22,
+            },
+          ]}
+        >
+          <View style={styles.form}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
+            <View style={[styles.inputRow, styles.firstRow]}>
+              <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="you@example.com"
+                placeholder="Email"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -114,21 +107,24 @@ export function ForgotPasswordScreen({
 
             <Pressable
               style={({ pressed }) => [
-                styles.resetBtn,
+                styles.resetBtnWrap,
                 (pressed || forgotPasswordMutation.isPending) && styles.pressed,
-                forgotPasswordMutation.isPending && styles.disabledBtn,
               ]}
               onPress={handleSendReset}
               disabled={forgotPasswordMutation.isPending}
             >
-              {forgotPasswordMutation.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
+              <LinearGradient
+                colors={[BHAGWA, BHAGWA_DARK]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.resetBtn}
+              >
+                {forgotPasswordMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
                   <Text style={styles.resetText}>Send Reset Link</Text>
-                  <Ionicons name="send-outline" size={20} color="#fff" />
-                </>
-              )}
+                )}
+              </LinearGradient>
             </Pressable>
 
             <Text style={styles.accountRow}>
@@ -137,8 +133,8 @@ export function ForgotPasswordScreen({
                 Sign In
               </Text>
             </Text>
-          </ScrollView>
-        </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -147,126 +143,74 @@ export function ForgotPasswordScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#FFF8F0',
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  brandIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandIconText: {
-    fontSize: 20,
-    color: '#7C3AED',
-    fontWeight: '700',
-  },
-  brandName: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  heroTitle: {
-    marginTop: 28,
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '800',
-    lineHeight: 38,
-  },
-  sheetWrap: {
+  flex: {
     flex: 1,
-    marginTop: -24,
   },
-  sheet: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'flex-end',
   },
-  sheetContent: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-  },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  formSubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#9CA3AF',
-    lineHeight: 20,
+  form: {
+    width: '100%',
   },
   errorText: {
-    marginTop: 12,
-    color: '#DC2626',
+    marginBottom: 12,
+    color: DANGER_COLOR,
     fontSize: 14,
     fontWeight: '600',
-  },
-  label: {
-    marginTop: 22,
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+    textAlign: 'center',
   },
   inputRow: {
     height: 54,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
+    gap: 12,
+    backgroundColor: INPUT_BG,
+  },
+  firstRow: {
+    marginTop: 2,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#111827',
+    color: TEXT_COLOR,
     paddingVertical: 0,
   },
+  resetBtnWrap: {
+    marginTop: 22,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   resetBtn: {
-    marginTop: 28,
     height: 54,
-    borderRadius: 27,
-    backgroundColor: '#7C3AED',
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  },
-  pressed: {
-    opacity: 0.88,
-  },
-  disabledBtn: {
-    opacity: 0.7,
+    borderRadius: 16,
   },
   resetText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
+  pressed: {
+    opacity: 0.9,
+  },
   accountRow: {
-    marginTop: 18,
+    marginTop: 20,
     textAlign: 'center',
     fontSize: 14,
     color: '#6B7280',
   },
   link: {
-    color: '#7C3AED',
+    color: BHAGWA_DARK,
     fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

@@ -5,6 +5,8 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,17 +20,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupMutation } from '@/hooks/use-auth';
 
+const BHAGWA = '#FFB366';
+const BHAGWA_DARK = '#FF8C00';
+const INPUT_BG = 'rgba(255, 248, 240, 0.94)';
+const INPUT_BORDER = '#FFCC80';
+const ICON_COLOR = '#FF8C00';
+const TEXT_COLOR = '#1F2937';
+const DANGER_COLOR = '#EF4444';
+
 type SignUpScreenProps = {
   onSignupSuccess?: (data: { mobile: string; email?: string }) => void;
   onSignIn?: () => void;
   onSocialPress?: (provider: 'facebook' | 'x' | 'google') => void;
 };
 
-export function SignUpScreen({
-  onSignupSuccess,
-  onSignIn,
-  onSocialPress,
-}: SignUpScreenProps) {
+export function SignUpScreen({ onSignupSuccess, onSignIn }: SignUpScreenProps) {
   const insets = useSafeAreaInsets();
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
@@ -82,52 +88,44 @@ export function SignUpScreen({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      <LinearGradient
-        colors={['#A78BFA', '#7C3AED', '#4C1D95']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.brandRow}>
-          <View style={styles.brandIcon}>
-            <Text style={styles.brandIconText}>ॐ</Text>
-          </View>
-          <Text style={styles.brandName}>My-Pandit Partner</Text>
-        </View>
+      <ImageBackground
+        source={require('@/assets/sign-up.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
 
-        <Text style={styles.heroTitle}>
-          Join My-Pandit as{'\n'}a verified pandit. ✨
-        </Text>
-      </LinearGradient>
+      <View style={[styles.logoHeader, { paddingTop: insets.top + 52 }]}>
+        <Image
+          source={require('@/assets/main-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
 
       <KeyboardAvoidingView
-        style={styles.sheetWrap}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.sheet}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.sheetContent,
-              { paddingBottom: Math.max(insets.bottom, 16) + 8 },
-            ]}
-          >
-            <Text style={styles.formTitle}>Create Pandit Account</Text>
-            <Text style={styles.formSubtitle}>
-              Register to receive puja bookings and grow your spiritual services.
-            </Text>
-
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Math.max(insets.bottom, 16) + 22,
+            },
+          ]}
+        >
+          <View style={styles.form}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Text style={styles.label}>Mobile Number</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="call-outline" size={20} color="#9CA3AF" />
+            <View style={[styles.inputRow, styles.firstRow]}>
+              <Ionicons name="call-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="9876543210"
+                placeholder="Mobile Number"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
                 maxLength={15}
@@ -137,12 +135,11 @@ export function SignUpScreen({
               />
             </View>
 
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
+            <View style={[styles.inputRow, styles.inputRowSpacing]}>
+              <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="you@example.com"
+                placeholder="Email"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -153,12 +150,11 @@ export function SignUpScreen({
               />
             </View>
 
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />
+            <View style={[styles.inputRow, styles.inputRowSpacing]}>
+              <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="••••••••••••"
+                placeholder="Password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
                 value={password}
@@ -169,17 +165,16 @@ export function SignUpScreen({
                 <Ionicons
                   name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={20}
-                  color="#9CA3AF"
+                  color={ICON_COLOR}
                 />
               </Pressable>
             </View>
 
-            <Text style={styles.label}>Confirm Password</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />
+            <View style={[styles.inputRow, styles.inputRowSpacing]}>
+              <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="••••••••••••"
+                placeholder="Confirm Password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showConfirmPassword}
                 value={confirmPassword}
@@ -190,56 +185,41 @@ export function SignUpScreen({
                 <Ionicons
                   name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={20}
-                  color="#9CA3AF"
+                  color={ICON_COLOR}
                 />
               </Pressable>
             </View>
 
             <Pressable
               style={({ pressed }) => [
-                styles.signUpBtn,
+                styles.signUpBtnWrap,
                 (pressed || signupMutation.isPending) && styles.pressed,
-                signupMutation.isPending && styles.disabledBtn,
               ]}
               onPress={handleSignUp}
               disabled={signupMutation.isPending}
             >
-              {signupMutation.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
+              <LinearGradient
+                colors={[BHAGWA, BHAGWA_DARK]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.signUpBtn}
+              >
+                {signupMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
                   <Text style={styles.signUpText}>Sign Up</Text>
-                  <Ionicons name="person-add-outline" size={20} color="#fff" />
-                </>
-              )}
+                )}
+              </LinearGradient>
             </Pressable>
 
             <Text style={styles.accountRow}>
-              Already registered?{' '}
+              Already have an account?{' '}
               <Text style={styles.link} onPress={onSignIn}>
                 Sign In
               </Text>
             </Text>
-
-            <View style={styles.socialRow}>
-              <Pressable
-                style={styles.socialBtn}
-                onPress={() => onSocialPress?.('facebook')}
-              >
-                <Text style={styles.facebook}>f</Text>
-              </Pressable>
-              <Pressable style={styles.socialBtn} onPress={() => onSocialPress?.('x')}>
-                <Text style={styles.xLogo}>𝕏</Text>
-              </Pressable>
-              <Pressable
-                style={styles.socialBtn}
-                onPress={() => onSocialPress?.('google')}
-              >
-                <Text style={styles.google}>G</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -248,157 +228,89 @@ export function SignUpScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#FFF8F0',
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  brandIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandIconText: {
-    fontSize: 20,
-    color: '#7C3AED',
-    fontWeight: '700',
-  },
-  brandName: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  heroTitle: {
-    marginTop: 28,
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '800',
-    lineHeight: 38,
-  },
-  sheetWrap: {
+  flex: {
     flex: 1,
-    marginTop: -24,
   },
-  sheet: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+  logoHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1,
   },
-  sheetContent: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
+  logo: {
+    width: 220,
+    height: 155,
   },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'flex-end',
   },
-  formSubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#9CA3AF',
-    lineHeight: 20,
+  form: {
+    width: '100%',
   },
   errorText: {
-    marginTop: 12,
-    color: '#DC2626',
+    marginBottom: 12,
+    color: DANGER_COLOR,
     fontSize: 14,
     fontWeight: '600',
-  },
-  label: {
-    marginTop: 22,
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+    textAlign: 'center',
   },
   inputRow: {
     height: 54,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
+    gap: 12,
+    backgroundColor: INPUT_BG,
+  },
+  firstRow: {
+    marginTop: 2,
+  },
+  inputRowSpacing: {
+    marginTop: 14,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#111827',
+    color: TEXT_COLOR,
     paddingVertical: 0,
   },
+  signUpBtnWrap: {
+    marginTop: 22,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   signUpBtn: {
-    marginTop: 28,
     height: 54,
-    borderRadius: 27,
-    backgroundColor: '#7C3AED',
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  },
-  pressed: {
-    opacity: 0.88,
-  },
-  disabledBtn: {
-    opacity: 0.7,
+    borderRadius: 16,
   },
   signUpText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
+  pressed: {
+    opacity: 0.9,
+  },
   accountRow: {
-    marginTop: 18,
+    marginTop: 20,
     textAlign: 'center',
     fontSize: 14,
     color: '#6B7280',
   },
   link: {
-    color: '#7C3AED',
+    color: BHAGWA_DARK,
     fontWeight: '700',
-  },
-  socialRow: {
-    marginTop: 28,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  socialBtn: {
-    flex: 1,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  facebook: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1877F2',
-  },
-  xLogo: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  google: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#EA4335',
+    textDecorationLine: 'underline',
   },
 });
