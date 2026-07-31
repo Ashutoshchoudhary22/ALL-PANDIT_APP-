@@ -13,6 +13,7 @@ export default function TabLayout() {
         tabBar={(props) => <PanditTabBar {...props} />}
         screenOptions={{
           headerShown: false,
+          lazy: true,
           tabBarActiveTintColor: C.primary,
           tabBarInactiveTintColor: C.textLight,
         }}>

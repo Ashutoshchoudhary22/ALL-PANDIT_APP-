@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CloudImage } from '@/components/CloudImage';
@@ -39,7 +40,7 @@ type PanditBookingRequestCardProps = {
   onReject: (booking: PanditBooking) => void;
 };
 
-export function PanditBookingRequestCard({
+export const PanditBookingRequestCard = memo(function PanditBookingRequestCard({
   booking,
   approving,
   rejecting,
@@ -103,7 +104,7 @@ export function PanditBookingRequestCard({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

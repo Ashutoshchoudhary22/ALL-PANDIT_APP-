@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, memo } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  ListRenderItemInfo,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -22,6 +23,38 @@ import {
 } from '@/hooks/use-pandit-booking-requests';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
+
+type RequestListItemProps = {
+  booking: PanditBooking;
+  approving: boolean;
+  rejecting: boolean;
+  onApprove: (booking: PanditBooking) => void;
+  onReject: (booking: PanditBooking) => void;
+};
+
+const RequestListItem = memo(function RequestListItem({
+  booking,
+  approving,
+  rejecting,
+  onApprove,
+  onReject,
+}: RequestListItemProps) {
+  return (
+    <PanditBookingRequestCard
+      booking={booking}
+      approving={approving}
+      rejecting={rejecting}
+      onApprove={onApprove}
+      onReject={onReject}
+    />
+  );
+});
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
+}
+
+const keyExtractor = (item: PanditBooking) => String(item.id);
 
 export function PanditBookingRequestsScreen() {
   const insets = useSafeAreaInsets();
@@ -41,7 +74,7 @@ export function PanditBookingRequestsScreen() {
     }, [token, requestsQuery.refetch]),
   );
 
-  const handleApprove = async (booking: PanditBooking) => {
+  const handleApprove = useCallback(async (booking: PanditBooking) => {
     setActiveBookingId(booking.id);
     setActionType('approve');
     try {
@@ -53,9 +86,9 @@ export function PanditBookingRequestsScreen() {
       setActiveBookingId(null);
       setActionType(null);
     }
-  };
+  }, [approveBooking]);
 
-  const handleReject = (booking: PanditBooking) => {
+  const handleReject = useCallback((booking: PanditBooking) => {
     Alert.alert('Reject Booking', 'Are you sure you want to reject this booking request?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -76,7 +109,24 @@ export function PanditBookingRequestsScreen() {
         },
       },
     ]);
-  };
+  }, [rejectBooking]);
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<PanditBooking>) => (
+      <RequestListItem
+        booking={item}
+        approving={activeBookingId === item.id && actionType === 'approve'}
+        rejecting={activeBookingId === item.id && actionType === 'reject'}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
+    ),
+    [activeBookingId, actionType, handleApprove, handleReject],
+  );
+
+  const handleRefresh = useCallback(() => {
+    void requestsQuery.refetch();
+  }, [requestsQuery.refetch]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
@@ -95,24 +145,20 @@ export function PanditBookingRequestsScreen() {
       ) : (
         <FlatList
           data={requests}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <PanditBookingRequestCard
-              booking={item}
-              approving={activeBookingId === item.id && actionType === 'approve'}
-              rejecting={activeBookingId === item.id && actionType === 'reject'}
-              onApprove={handleApprove}
-              onReject={handleReject}
-            />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 24 },
             requests.length === 0 && styles.emptyList,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={
-            <RefreshControl refreshing={requestsQuery.isRefetching} onRefresh={() => requestsQuery.refetch()} />
+            <RefreshControl refreshing={requestsQuery.isRefetching} onRefresh={handleRefresh} />
           }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>

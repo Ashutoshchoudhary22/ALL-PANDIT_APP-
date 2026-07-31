@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ListRenderItemInfo,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -75,7 +76,7 @@ function formatBookingTime(value: string) {
   });
 }
 
-function BookingCard({ booking }: { booking: PanditBooking }) {
+const BookingCard = memo(function BookingCard({ booking }: { booking: PanditBooking }) {
   const statusStyle = STATUS_STYLES[booking.status];
   const isPaid = booking.paymentStatus === 'advance_paid' || booking.status === 'confirmed';
   const isRejected = booking.status === 'cancelled';
@@ -158,7 +159,13 @@ function BookingCard({ booking }: { booking: PanditBooking }) {
       </View>
     </View>
   );
+});
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
 }
+
+const keyExtractor = (item: PanditBooking) => String(item.id);
 
 export function PanditBookingsScreen() {
   const insets = useSafeAreaInsets();
@@ -173,6 +180,15 @@ export function PanditBookingsScreen() {
       }
     }, [token, bookingsQuery.refetch]),
   );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<PanditBooking>) => <BookingCard booking={item} />,
+    [],
+  );
+
+  const handleRefresh = useCallback(() => {
+    void bookingsQuery.refetch();
+  }, [bookingsQuery.refetch]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
@@ -193,18 +209,22 @@ export function PanditBookingsScreen() {
       ) : (
         <FlatList
           data={bookings}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <BookingCard booking={item} />}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 90 },
             bookings.length === 0 && styles.emptyList,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={
             <RefreshControl
               refreshing={bookingsQuery.isRefetching && !bookingsQuery.isLoading}
-              onRefresh={() => bookingsQuery.refetch()}
+              onRefresh={handleRefresh}
             />
           }
           ListEmptyComponent={

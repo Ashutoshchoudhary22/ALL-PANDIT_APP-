@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ListRenderItemInfo,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -38,7 +39,7 @@ function formatBookingDate(value: string) {
   });
 }
 
-function NotificationCard({
+const NotificationCard = memo(function NotificationCard({
   item,
   onPress,
 }: {
@@ -75,7 +76,13 @@ function NotificationCard({
       </View>
     </Pressable>
   );
+});
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
 }
+
+const keyExtractor = (item: PanditNotification) => item.id;
 
 export function PanditNotificationsScreen() {
   const insets = useSafeAreaInsets();
@@ -88,14 +95,28 @@ export function PanditNotificationsScreen() {
     }, [markAllRead]),
   );
 
-  const handlePress = (item: PanditNotification) => {
-    markAsRead(item.id);
-    if (item.type === 'booking:confirmed') {
-      router.push('/(tabs)/bookings');
-      return;
-    }
-    router.push('/booking-requests');
-  };
+  const handlePress = useCallback(
+    (item: PanditNotification) => {
+      markAsRead(item.id);
+      if (item.type === 'booking:confirmed') {
+        router.push('/(tabs)/bookings');
+        return;
+      }
+      router.push('/booking-requests');
+    },
+    [markAsRead],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<PanditNotification>) => (
+      <NotificationCard item={item} onPress={handlePress} />
+    ),
+    [handlePress],
+  );
+
+  const handleRefresh = useCallback(() => {
+    void refreshNotifications();
+  }, [refreshNotifications]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
@@ -114,16 +135,20 @@ export function PanditNotificationsScreen() {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <NotificationCard item={item} onPress={handlePress} />}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 24 },
             notifications.length === 0 && styles.emptyList,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ListSeparator}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={() => refreshNotifications()} />
+            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
           }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
