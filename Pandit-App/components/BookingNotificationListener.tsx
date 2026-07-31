@@ -1,24 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 
 import { getSocketUrl } from '@/lib/socket';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBookingNotification } from '@/services/booking.api';
 
-function formatBookingDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 export function BookingNotificationListener() {
   const { token, user, isLoading } = useAuth();
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
 
@@ -38,12 +29,16 @@ export function BookingNotificationListener() {
     socket.on('booking:new', (payload: PanditBookingNotification) => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
 
-      const booking = payload.booking;
-      Alert.alert(
-        payload.title || 'New Booking Received',
-        `${payload.message}\n\nService: ${booking.serviceName}\nDate: ${formatBookingDate(booking.bookingDate)}\nAdvance Paid: ₹${booking.advanceAmount.toLocaleString('en-IN')}`,
-        [{ text: 'OK' }],
-      );
+      addNotification({
+        id: `booking-${payload.booking.id}`,
+        type: 'booking:new',
+        title: payload.title || 'New Booking Received',
+        message: payload.message,
+        bookingId: payload.booking.id,
+        read: false,
+        createdAt: payload.booking.createdAt || new Date().toISOString(),
+        booking: payload.booking,
+      });
     });
 
     socket.on('connect_error', (error) => {
@@ -54,7 +49,7 @@ export function BookingNotificationListener() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [token, user?.role, isLoading, queryClient]);
+  }, [token, user?.role, isLoading, queryClient, addNotification]);
 
   return null;
 }

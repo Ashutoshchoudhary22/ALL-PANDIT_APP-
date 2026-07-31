@@ -108,6 +108,8 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
         bookingDate,
         bookingTime,
         address: address.trim(),
+        latitude: customerProfile?.latitude ?? undefined,
+        longitude: customerProfile?.longitude ?? undefined,
         specialRequirements: specialRequirements.trim() || undefined,
         samagriRequired,
       });

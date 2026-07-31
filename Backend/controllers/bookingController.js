@@ -18,6 +18,8 @@ function formatBooking(row) {
     bookingDate: row.booking_date,
     bookingTime: row.booking_time,
     address: row.address,
+    latitude: row.latitude != null ? parseFloat(row.latitude) : null,
+    longitude: row.longitude != null ? parseFloat(row.longitude) : null,
     specialRequirements: row.special_requirements,
     samagriRequired: Boolean(row.samagri_required),
     basePrice: Number(row.base_price),
@@ -79,6 +81,8 @@ exports.createBooking = async (req, res) => {
       address,
       specialRequirements,
       samagriRequired,
+      latitude,
+      longitude,
     } = req.body;
 
     if (!panditProfileId || !serviceName?.trim() || !bookingDate || !bookingTime || !address?.trim()) {
@@ -145,12 +149,25 @@ exports.createBooking = async (req, res) => {
     const totalPrice = basePrice + samagriCharge;
     const { advanceAmount, remainingAmount } = calculateAdvanceAmount(totalPrice);
 
+    let bookingLatitude = latitude ?? null;
+    let bookingLongitude = longitude ?? null;
+    if (bookingLatitude == null || bookingLongitude == null) {
+      const [customerProfiles] = await pool.query(
+        `SELECT latitude, longitude FROM customer_profiles WHERE customer_id = ?`,
+        [req.user.id],
+      );
+      if (customerProfiles[0]) {
+        bookingLatitude = bookingLatitude ?? customerProfiles[0].latitude;
+        bookingLongitude = bookingLongitude ?? customerProfiles[0].longitude;
+      }
+    }
+
     const [result] = await pool.query(
       `INSERT INTO bookings
        (customer_id, pandit_profile_id, service_name, booking_date, booking_time, address,
-        special_requirements, samagri_required, base_price, samagri_charge, total_price,
-        advance_amount, remaining_amount, payment_status, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'payment_pending')`,
+        latitude, longitude, special_requirements, samagri_required, base_price, samagri_charge,
+        total_price, advance_amount, remaining_amount, payment_status, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'payment_pending')`,
       [
         req.user.id,
         panditProfileId,
@@ -158,6 +175,8 @@ exports.createBooking = async (req, res) => {
         bookingDate,
         normalizedTime,
         address.trim(),
+        bookingLatitude,
+        bookingLongitude,
         specialRequirements?.trim() || null,
         needsSamagri,
         basePrice,
@@ -424,7 +443,9 @@ exports.getPanditBookings = async (req, res) => {
       `SELECT b.*,
               pp.name AS pandit_name,
               TRIM(CONCAT(COALESCE(cp.first_name, ''), ' ', COALESCE(cp.last_name, ''))) AS customer_name,
-              u.mobile AS customer_mobile
+              u.mobile AS customer_mobile,
+              COALESCE(b.latitude, cp.latitude) AS latitude,
+              COALESCE(b.longitude, cp.longitude) AS longitude
        FROM bookings b
        INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
        LEFT JOIN customer_profiles cp ON cp.customer_id = b.customer_id

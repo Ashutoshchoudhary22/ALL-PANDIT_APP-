@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ReactNode } from 'react';
 import {
@@ -13,13 +14,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { useNotifications } from '@/providers/NotificationsProvider';
 
 type PanditDashboardProps = {
   panditName?: string;
   isVerified?: boolean;
   isOnline?: boolean;
-  notificationCount?: number;
 };
+
+function formatBadgeCount(count: number) {
+  if (count <= 0) return '';
+  if (count > 9) return '9+';
+  return String(count);
+}
 
 function SectionHeader({
   title,
@@ -126,9 +133,10 @@ export function PanditDashboard({
   panditName = 'Pt. Shyam Sharma',
   isVerified = true,
   isOnline = true,
-  notificationCount = 3,
 }: PanditDashboardProps) {
   const insets = useSafeAreaInsets();
+  const { unreadCount } = useNotifications();
+  const badgeLabel = formatBadgeCount(unreadCount);
 
   return (
     <View style={styles.root}>
@@ -165,11 +173,11 @@ export function PanditDashboard({
           </View>
 
           <View style={styles.headerRight}>
-            <Pressable style={styles.notifBtn}>
+            <Pressable style={styles.notifBtn} onPress={() => router.push('/notifications')}>
               <Ionicons name="notifications-outline" size={24} color={C.text} />
-              {notificationCount > 0 ? (
+              {badgeLabel ? (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>{notificationCount}</Text>
+                  <Text style={styles.notifBadgeText}>{badgeLabel}</Text>
                 </View>
               ) : null}
             </Pressable>

@@ -11,6 +11,8 @@ export type PanditBooking = {
   bookingDate: string;
   bookingTime: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   specialRequirements: string | null;
   samagriRequired: boolean;
   basePrice: number;

@@ -33,6 +33,8 @@ export type CreateBookingPayload = {
   bookingDate: string;
   bookingTime: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   specialRequirements?: string;
   samagriRequired: boolean;
 };

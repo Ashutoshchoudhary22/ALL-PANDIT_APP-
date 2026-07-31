@@ -104,6 +104,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   booking_date DATE NOT NULL,
   booking_time TIME NOT NULL,
   address TEXT NOT NULL,
+  latitude DECIMAL(10,8) NULL,
+  longitude DECIMAL(11,8) NULL,
   special_requirements TEXT NULL,
   samagri_required BOOLEAN DEFAULT FALSE,
   base_price DECIMAL(10,2) NOT NULL,

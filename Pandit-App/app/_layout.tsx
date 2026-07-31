@@ -11,6 +11,7 @@ import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { NotificationsProvider } from '@/providers/NotificationsProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 
 export const unstable_settings = {
@@ -24,6 +25,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <AuthProvider>
+          <NotificationsProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AuthSessionHandler />
           <AuthBootstrap />
@@ -32,6 +34,7 @@ export default function RootLayout() {
             <BookingNotificationListener />
             <Stack initialRouteName="(tabs)">
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ headerShown: false }} />
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />
               <Stack.Screen name="sign-up" options={{ headerShown: false }} />
               <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
@@ -43,6 +46,7 @@ export default function RootLayout() {
           </LiveLocationGate>
           <StatusBar style="auto" />
           </ThemeProvider>
+          </NotificationsProvider>
         </AuthProvider>
       </QueryProvider>
     </GestureHandlerRootView>

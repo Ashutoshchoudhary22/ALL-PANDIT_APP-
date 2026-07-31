@@ -179,6 +179,8 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'payment_status', "ENUM('pending','advance_paid','fully_paid') DEFAULT 'pending'");
     await ensureColumn(connection, 'bookings', 'razorpay_order_id', 'VARCHAR(100) NULL');
     await ensureColumn(connection, 'bookings', 'razorpay_payment_id', 'VARCHAR(100) NULL');
+    await ensureColumn(connection, 'bookings', 'latitude', 'DECIMAL(10,8) NULL');
+    await ensureColumn(connection, 'bookings', 'longitude', 'DECIMAL(11,8) NULL');
 
     try {
       await connection.query(`

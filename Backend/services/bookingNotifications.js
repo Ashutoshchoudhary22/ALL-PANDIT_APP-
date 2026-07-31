@@ -11,6 +11,8 @@ function formatPanditBookingNotification(row) {
     bookingDate: row.booking_date,
     bookingTime: row.booking_time,
     address: row.address,
+    latitude: row.latitude != null ? parseFloat(row.latitude) : null,
+    longitude: row.longitude != null ? parseFloat(row.longitude) : null,
     specialRequirements: row.special_requirements,
     samagriRequired: Boolean(row.samagri_required),
     basePrice: Number(row.base_price),

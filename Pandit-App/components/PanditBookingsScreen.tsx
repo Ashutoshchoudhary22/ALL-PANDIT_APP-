@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
+import { promptBookingLocation } from '@/lib/open-map';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
 
@@ -44,6 +45,15 @@ function formatBookingTime(value: string) {
 }
 
 function BookingCard({ booking }: { booking: PanditBooking }) {
+  const handleOpenMap = () => {
+    promptBookingLocation({
+      latitude: booking.latitude,
+      longitude: booking.longitude,
+      address: booking.address,
+      label: `${booking.customerName} • ${booking.serviceName}`,
+    });
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
@@ -70,6 +80,14 @@ function BookingCard({ booking }: { booking: PanditBooking }) {
         <Text style={styles.metaText} numberOfLines={2}>
           {booking.address}
         </Text>
+        <Pressable
+          style={styles.mapBtn}
+          onPress={handleOpenMap}
+          hitSlop={8}
+          accessibilityLabel="Open booking location on map"
+        >
+          <Ionicons name="map-outline" size={20} color={C.primary} />
+        </Pressable>
       </View>
 
       <View style={styles.footer}>
@@ -177,8 +195,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCFCE7',
   },
   statusText: { fontSize: 11, fontWeight: '700', color: '#15803D' },
-  metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   metaText: { flex: 1, fontSize: 13, color: C.text, lineHeight: 19 },
+  mapBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+  },
   footer: {
     marginTop: 8,
     paddingTop: 12,
