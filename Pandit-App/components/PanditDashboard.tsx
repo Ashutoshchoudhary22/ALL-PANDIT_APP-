@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { usePanditEarnings } from '@/hooks/use-pandit-earnings';
+import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
+import { formatINR, MonthEarning } from '@/lib/pandit-earnings';
+import { useAuth } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 
 type PanditDashboardProps = {
@@ -52,19 +57,21 @@ function SectionHeader({
 function EarningCard({
   label,
   amount,
-  trend,
+  subtitle,
   icon,
   iconColor,
   bgColor,
   action,
+  loading,
 }: {
   label: string;
   amount: string;
-  trend?: string;
+  subtitle?: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   bgColor: string;
   action?: ReactNode;
+  loading?: boolean;
 }) {
   return (
     <View style={[styles.earningCard, { backgroundColor: bgColor }]}>
@@ -74,14 +81,32 @@ function EarningCard({
         </View>
         <Text style={styles.earningLabel}>{label}</Text>
       </View>
-      <Text style={styles.earningAmount}>{amount}</Text>
-      {trend ? (
-        <Text style={styles.earningTrend}>
-          <Text style={styles.trendUp}>↑ </Text>
-          {trend}
-        </Text>
-      ) : null}
+      {loading ? (
+        <ActivityIndicator size="small" color={iconColor} style={styles.earningLoader} />
+      ) : (
+        <Text style={styles.earningAmount}>{amount}</Text>
+      )}
+      {subtitle ? <Text style={styles.earningSubtitle}>{subtitle}</Text> : null}
       {action}
+    </View>
+  );
+}
+
+function MonthEarningRow({ item }: { item: MonthEarning }) {
+  return (
+    <View style={styles.monthRow}>
+      <View style={styles.monthRowLeft}>
+        <View style={styles.monthIconWrap}>
+          <Ionicons name="calendar-outline" size={16} color={C.primary} />
+        </View>
+        <View>
+          <Text style={styles.monthLabel}>{item.label}</Text>
+          <Text style={styles.monthMeta}>
+            {item.bookingCount} confirmed booking{item.bookingCount === 1 ? '' : 's'}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.monthAmount}>{formatINR(item.amount)}</Text>
     </View>
   );
 }
@@ -130,13 +155,27 @@ function QuickAction({
 }
 
 export function PanditDashboard({
-  panditName = 'Pt. Shyam Sharma',
+  panditName: panditNameProp,
   isVerified = true,
   isOnline = true,
 }: PanditDashboardProps) {
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const { unreadCount } = useNotifications();
   const badgeLabel = formatBadgeCount(unreadCount);
+  const profileQuery = useMyPanditProfileQuery(Boolean(token));
+  const earningsQuery = usePanditEarnings(Boolean(token));
+  const summary = earningsQuery.summary;
+  const panditName = profileQuery.data?.data?.name || panditNameProp || 'Pandit Ji';
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        void earningsQuery.refetch();
+        void profileQuery.refetch();
+      }
+    }, [token, earningsQuery.refetch, profileQuery.refetch]),
+  );
 
   return (
     <View style={styles.root}>
@@ -197,19 +236,29 @@ export function PanditDashboard({
         >
           <EarningCard
             label="Today's Earnings"
-            amount="₹2,450"
-            trend="12% from yesterday"
+            amount={formatINR(summary.todayAmount)}
+            subtitle={
+              summary.todayBookingCount > 0
+                ? `${summary.todayBookingCount} confirmed booking${summary.todayBookingCount === 1 ? '' : 's'}`
+                : 'No confirmed bookings today'
+            }
             icon="cash-outline"
             iconColor={C.primary}
             bgColor={C.orangeBg}
+            loading={earningsQuery.isLoading}
           />
           <EarningCard
-            label="Monthly Earnings"
-            amount="₹48,750"
-            trend="18% from last month"
+            label={summary.currentMonthLabel}
+            amount={formatINR(summary.currentMonthAmount)}
+            subtitle={
+              summary.currentMonthBookingCount > 0
+                ? `${summary.currentMonthBookingCount} confirmed this month`
+                : 'No confirmed bookings this month'
+            }
             icon="wallet-outline"
             iconColor={C.success}
             bgColor={C.greenBg}
+            loading={earningsQuery.isLoading}
           />
           <EarningCard
             label="Wallet Balance"
@@ -225,11 +274,46 @@ export function PanditDashboard({
           />
         </ScrollView>
 
+        <SectionHeader title="Monthly Earnings" />
+        <View style={styles.monthlyCard}>
+          {earningsQuery.isLoading ? (
+            <View style={styles.monthlyLoading}>
+              <ActivityIndicator size="small" color={C.primary} />
+            </View>
+          ) : summary.monthlyBreakdown.length === 0 ? (
+            <Text style={styles.monthlyEmpty}>No confirmed booking earnings yet.</Text>
+          ) : (
+            summary.monthlyBreakdown.map((item, index) => (
+              <View key={item.monthKey}>
+                <MonthEarningRow item={item} />
+                {index < summary.monthlyBreakdown.length - 1 ? (
+                  <View style={styles.monthDivider} />
+                ) : null}
+              </View>
+            ))
+          )}
+        </View>
+
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatItem icon="calendar-outline" iconColor={C.blue} value="04" label="Today's Bookings" />
-          <StatItem icon="time-outline" iconColor={C.primary} value="06" label="Upcoming Bookings" />
-          <StatItem icon="checkmark-circle-outline" iconColor={C.success} value="23" label="Completed Services" />
+          <StatItem
+            icon="calendar-outline"
+            iconColor={C.blue}
+            value={String(summary.todayBookingsCount).padStart(2, '0')}
+            label="Today's Bookings"
+          />
+          <StatItem
+            icon="time-outline"
+            iconColor={C.primary}
+            value={String(summary.upcomingBookingsCount).padStart(2, '0')}
+            label="Upcoming Bookings"
+          />
+          <StatItem
+            icon="checkmark-circle-outline"
+            iconColor={C.success}
+            value={String(summary.completedBookingsCount).padStart(2, '0')}
+            label="Completed Services"
+          />
         </View>
 
         {/* Quick Actions */}
@@ -487,14 +571,73 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: C.text,
   },
-  earningTrend: {
+  earningLoader: {
+    alignSelf: 'flex-start',
+    marginVertical: 8,
+  },
+  earningSubtitle: {
     fontSize: 11,
     color: C.textMuted,
     marginTop: 4,
+    lineHeight: 15,
   },
-  trendUp: {
-    color: C.success,
+  monthlyCard: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  monthlyLoading: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  monthlyEmpty: {
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  monthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  monthRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  monthIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.orangeBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthLabel: {
+    fontSize: 14,
     fontWeight: '700',
+    color: C.text,
+  },
+  monthMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: C.textMuted,
+  },
+  monthAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.success,
+  },
+  monthDivider: {
+    height: 1,
+    backgroundColor: C.border,
   },
   withdrawBtn: {
     marginTop: 10,
