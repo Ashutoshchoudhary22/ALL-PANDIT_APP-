@@ -9,6 +9,7 @@ type DatePickerFieldProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  mode?: 'past' | 'future';
 };
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -50,6 +51,7 @@ export function DatePickerField({
   value,
   onChange,
   placeholder = 'Select date',
+  mode = 'past',
 }: DatePickerFieldProps) {
   const today = new Date();
   const initial = toDate(value) || new Date(2000, 0, 1);
@@ -93,10 +95,17 @@ export function DatePickerField({
   ];
 
   const isNextMonthDisabled =
-    viewYear > today.getFullYear() ||
-    (viewYear === today.getFullYear() && viewMonth >= today.getMonth());
+    mode === 'past'
+      ? viewYear > today.getFullYear() ||
+        (viewYear === today.getFullYear() && viewMonth >= today.getMonth())
+      : false;
 
-  const isDayDisabled = (day: number) => new Date(viewYear, viewMonth, day) > today;
+  const isDayDisabled = (day: number) => {
+    const date = new Date(viewYear, viewMonth, day);
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return mode === 'future' ? dayStart < todayStart : dayStart > todayStart;
+  };
 
   const isSelected = (day: number) =>
     Boolean(

@@ -11,3 +11,13 @@ export function openPanditsForService(service?: string) {
 
   router.push('/nearby-pandits');
 }
+
+export function openBookPandit(panditProfileId: number, serviceName?: string) {
+  router.push({
+    pathname: '/book-pandit',
+    params: {
+      panditId: String(panditProfileId),
+      ...(serviceName ? { service: serviceName } : {}),
+    },
+  });
+}

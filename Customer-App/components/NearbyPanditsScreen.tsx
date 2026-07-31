@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -23,6 +22,8 @@ import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
+
+import { openBookPandit } from '@/lib/pandit-navigation';
 
 function openPanditDetail(pandit: PublicPanditProfile) {
   router.push(`/pandit/${pandit.id}`);
@@ -47,24 +48,12 @@ export function NearbyPanditsScreen() {
     customerLongitude,
   });
 
-  const handleBook = useCallback((pandit: PublicPanditProfile) => {
-    Alert.alert(
-      'Book Pandit',
-      `Confirm booking with ${pandit.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Booking',
-          onPress: () => {
-            Alert.alert(
-              'Booking Request Sent',
-              `Your booking request has been sent to ${pandit.name}. You will be notified once confirmed.`,
-            );
-          },
-        },
-      ],
-    );
-  }, []);
+  const handleBook = useCallback(
+    (pandit: PublicPanditProfile) => {
+      openBookPandit(pandit.id, serviceName);
+    },
+    [serviceName],
+  );
 
   return (
     <View style={styles.root}>

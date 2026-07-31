@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import {
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
+import { openBookPandit } from '@/lib/pandit-navigation';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
 type PanditDetailScreenProps = {
@@ -68,23 +68,8 @@ function DetailContent({ pandit }: { pandit: PublicPanditProfile }) {
   const imageSource = pandit.profileImage || DEMO_IMAGES.pandit1;
 
   const handleBook = useCallback(() => {
-    Alert.alert(
-      'Book Pandit',
-      `Confirm booking with ${pandit.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Booking',
-          onPress: () => {
-            Alert.alert(
-              'Booking Request Sent',
-              `Your booking request has been sent to ${pandit.name}. You will be notified once confirmed.`,
-            );
-          },
-        },
-      ],
-    );
-  }, [pandit.name]);
+    openBookPandit(pandit.id);
+  }, [pandit.id]);
 
   return (
     <>

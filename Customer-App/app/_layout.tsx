@@ -43,6 +43,7 @@ export default function RootLayout() {
                 <Stack.Screen name="nearby-pandits" options={{ headerShown: false }} />
                 <Stack.Screen name="all-puja-services" options={{ headerShown: false }} />
                 <Stack.Screen name="pandit/[id]" options={{ headerShown: false }} />
+                <Stack.Screen name="book-pandit" options={{ headerShown: false }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
               </Stack>
             </LiveLocationGate>

@@ -147,6 +147,28 @@ async function initDb() {
     await ensureColumn(connection, 'pandit_profiles', 'profile_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'puja_services', 'JSON NULL');
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        customer_id BIGINT UNSIGNED NOT NULL,
+        pandit_profile_id BIGINT UNSIGNED NOT NULL,
+        service_name VARCHAR(150) NOT NULL,
+        booking_date DATE NOT NULL,
+        booking_time TIME NOT NULL,
+        address TEXT NOT NULL,
+        special_requirements TEXT NULL,
+        samagri_required BOOLEAN DEFAULT FALSE,
+        base_price DECIMAL(10,2) NOT NULL,
+        samagri_charge DECIMAL(10,2) DEFAULT 0,
+        total_price DECIMAL(10,2) NOT NULL,
+        status ENUM('pending','confirmed','cancelled','completed') DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (pandit_profile_id) REFERENCES pandit_profiles(id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('Database tables ready');
   } finally {
     connection.release();
