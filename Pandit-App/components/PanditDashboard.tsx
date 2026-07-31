@@ -38,9 +38,30 @@ import { useNotifications } from '@/providers/NotificationsProvider';
 
 type PanditDashboardProps = {
   panditName?: string;
-  isVerified?: boolean;
-  isOnline?: boolean;
 };
+
+function getGreetingName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return 'Pandit Ji';
+  return trimmed.split(/\s+/)[0] || 'Pandit Ji';
+}
+
+function getProfileSubtitle(profile: {
+  cityName: string | null;
+  experienceYears: number;
+  rating: number;
+  totalReviews: number;
+}) {
+  const parts: string[] = [];
+  if (profile.cityName) parts.push(profile.cityName);
+  if (profile.experienceYears > 0) {
+    parts.push(`${profile.experienceYears}+ yrs experience`);
+  }
+  if (profile.totalReviews > 0) {
+    parts.push(`${profile.rating.toFixed(1)} ★ (${profile.totalReviews})`);
+  }
+  return parts.join(' • ');
+}
 
 function formatBadgeCount(count: number) {
   if (count <= 0) return '';
@@ -213,13 +234,9 @@ function UpcomingPujaCard({ booking }: { booking: PanditBooking }) {
   );
 }
 
-export function PanditDashboard({
-  panditName: panditNameProp,
-  isVerified = true,
-  isOnline = true,
-}: PanditDashboardProps) {
+export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardProps) {
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { unreadCount } = useNotifications();
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
@@ -238,7 +255,13 @@ export function PanditDashboard({
   const featuredRequest = pendingRequests[0] ?? null;
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
-  const panditName = profileQuery.data?.data?.name || panditNameProp || 'Pandit Ji';
+  const profile = profileQuery.data?.data;
+  const panditName = profile?.name || panditNameProp || user?.mobile || 'Pandit Ji';
+  const greetingName = getGreetingName(panditName);
+  const avatarSource = profile?.profileImage || user?.profileImage || DEMO_IMAGES.pandit1;
+  const isVerified = Boolean(profile?.isVerified && profile.status === 'approved');
+  const isOnline = profile?.isOnline ?? false;
+  const profileSubtitle = profile ? getProfileSubtitle(profile) : '';
 
   useFocusEffect(
     useCallback(() => {
@@ -301,26 +324,45 @@ export function PanditDashboard({
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <Pressable
+            style={styles.headerLeft}
+            onPress={() => router.push('/(tabs)/profile')}
+          >
             <View style={styles.avatarWrap}>
-              <CloudImage
-                source={DEMO_IMAGES.pandit1}
-                preset="avatar"
-                style={styles.avatar}
-              />
+              {profileQuery.isLoading && !profile ? (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <ActivityIndicator size="small" color={C.primary} />
+                </View>
+              ) : (
+                <CloudImage
+                  source={avatarSource}
+                  preset="avatar"
+                  style={styles.avatar}
+                />
+              )}
               {isOnline ? <View style={styles.onlineDot} /> : null}
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.greeting}>Namaste, Pandit Ji 🙏</Text>
+              <Text style={styles.greeting}>Namaste, {greetingName} 🙏</Text>
               <Text style={styles.panditName}>{panditName}</Text>
+              {profileSubtitle ? (
+                <Text style={styles.profileSubtitle} numberOfLines={1}>
+                  {profileSubtitle}
+                </Text>
+              ) : null}
               {isVerified ? (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="star" size={12} color={C.primary} />
                   <Text style={styles.verifiedText}>Verified Pandit</Text>
                 </View>
+              ) : profile?.status === 'pending' ? (
+                <View style={[styles.verifiedBadge, styles.pendingBadge]}>
+                  <Ionicons name="time-outline" size={12} color="#B45309" />
+                  <Text style={styles.pendingText}>Verification Pending</Text>
+                </View>
               ) : null}
             </View>
-          </View>
+          </Pressable>
 
           <View style={styles.headerRight}>
             <Pressable style={styles.notifBtn} onPress={() => router.push('/notifications')}>
@@ -542,6 +584,10 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     backgroundColor: C.border,
   },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   onlineDot: {
     position: 'absolute',
     bottom: 2,
@@ -566,6 +612,11 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     marginTop: 2,
   },
+  profileSubtitle: {
+    fontSize: 11,
+    color: C.textLight,
+    marginTop: 2,
+  },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -581,6 +632,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: C.primary,
+  },
+  pendingBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  pendingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B45309',
   },
   headerRight: {
     alignItems: 'flex-end',
