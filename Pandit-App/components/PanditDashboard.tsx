@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ReactNode, useCallback, useState } from 'react';
+import { ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,8 +22,15 @@ import {
   usePanditBookingRequestsQuery,
   useRejectBookingMutation,
 } from '@/hooks/use-pandit-booking-requests';
+import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
 import { formatINR, MonthEarning } from '@/lib/pandit-earnings';
+import {
+  formatUpcomingBadge,
+  formatUpcomingDateTime,
+  getUpcomingPujas,
+} from '@/lib/pandit-upcoming';
+import { promptBookingLocation } from '@/lib/open-map';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
 import { PanditBookingRequestCard } from '@/components/PanditBookingRequestCard';
@@ -162,6 +169,50 @@ function QuickAction({
   );
 }
 
+function UpcomingPujaCard({ booking }: { booking: PanditBooking }) {
+  const handleOpenLocation = () => {
+    promptBookingLocation({
+      latitude: booking.latitude,
+      longitude: booking.longitude,
+      address: booking.address,
+      label: `${booking.customerName} • ${booking.serviceName}`,
+    });
+  };
+
+  return (
+    <View style={[styles.upcomingCard, { backgroundColor: C.yellowBg }]}>
+      <View style={styles.upcomingBadge}>
+        <Text style={styles.upcomingBadgeText}>{formatUpcomingBadge(booking.bookingDate)}</Text>
+      </View>
+      <View style={styles.upcomingContent}>
+        <View style={styles.kalashIcon}>
+          <Text style={styles.kalashEmoji}>🪔</Text>
+        </View>
+        <View style={styles.upcomingInfo}>
+          <Text style={styles.customerName}>{booking.customerName}</Text>
+          <Text style={styles.serviceName}>{booking.serviceName}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={14} color={C.textMuted} />
+            <Text style={styles.metaText}>
+              {formatUpcomingDateTime(booking.bookingDate, booking.bookingTime)}
+            </Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={C.textMuted} />
+            <Text style={styles.metaText} numberOfLines={2}>
+              {booking.address}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Pressable style={styles.locationBtn} onPress={handleOpenLocation}>
+        <Ionicons name="location" size={16} color="#fff" />
+        <Text style={styles.locationBtnText}>View Location</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function PanditDashboard({
   panditName: panditNameProp,
   isVerified = true,
@@ -173,11 +224,17 @@ export function PanditDashboard({
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
   const earningsQuery = usePanditEarnings(Boolean(token));
+  const bookingsQuery = usePanditBookingsQuery(Boolean(token));
   const requestsQuery = usePanditBookingRequestsQuery(Boolean(token));
   const approveBooking = useApproveBookingMutation();
   const rejectBooking = useRejectBookingMutation();
   const summary = earningsQuery.summary;
   const pendingRequests = requestsQuery.data?.data ?? [];
+  const upcomingPujas = useMemo(
+    () => getUpcomingPujas(bookingsQuery.data?.data ?? []),
+    [bookingsQuery.data?.data],
+  );
+  const featuredUpcomingPuja = upcomingPujas[0] ?? null;
   const featuredRequest = pendingRequests[0] ?? null;
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
@@ -189,8 +246,9 @@ export function PanditDashboard({
         void earningsQuery.refetch();
         void profileQuery.refetch();
         void requestsQuery.refetch();
+        void bookingsQuery.refetch();
       }
-    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch]),
+    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch, bookingsQuery.refetch]),
   );
 
   const handleApprove = async (booking: PanditBooking) => {
@@ -407,33 +465,22 @@ export function PanditDashboard({
         )}
 
         {/* Upcoming Puja */}
-        <SectionHeader title="Upcoming Puja" actionLabel="View All >" />
-        <View style={[styles.upcomingCard, { backgroundColor: C.yellowBg }]}>
-          <View style={styles.upcomingBadge}>
-            <Text style={styles.upcomingBadgeText}>Tomorrow</Text>
+        <SectionHeader
+          title="Upcoming Puja"
+          actionLabel={upcomingPujas.length > 0 ? `View All (${upcomingPujas.length}) >` : undefined}
+          onAction={upcomingPujas.length > 0 ? () => router.push('/(tabs)/bookings') : undefined}
+        />
+        {bookingsQuery.isLoading ? (
+          <View style={styles.upcomingLoading}>
+            <ActivityIndicator size="small" color={C.primary} />
           </View>
-          <View style={styles.upcomingContent}>
-            <View style={styles.kalashIcon}>
-              <Text style={styles.kalashEmoji}>🪔</Text>
-            </View>
-            <View style={styles.upcomingInfo}>
-              <Text style={styles.customerName}>Satyam Singh</Text>
-              <Text style={styles.serviceName}>Satyanarayan Katha</Text>
-              <View style={styles.metaRow}>
-                <Ionicons name="calendar-outline" size={14} color={C.textMuted} />
-                <Text style={styles.metaText}>26 May 2024 • 11:00 AM</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Ionicons name="location-outline" size={14} color={C.textMuted} />
-                <Text style={styles.metaText}>Vijay Nagar, Indore, MP</Text>
-              </View>
-            </View>
+        ) : featuredUpcomingPuja ? (
+          <UpcomingPujaCard booking={featuredUpcomingPuja} />
+        ) : (
+          <View style={styles.upcomingEmpty}>
+            <Text style={styles.upcomingEmptyText}>No upcoming puja scheduled.</Text>
           </View>
-          <Pressable style={styles.locationBtn}>
-            <Ionicons name="location" size={16} color="#fff" />
-            <Text style={styles.locationBtnText}>View Location</Text>
-          </Pressable>
-        </View>
+        )}
 
         {/* Recent Reviews */}
         <SectionHeader title="Recent Reviews" actionLabel="View All >" />
@@ -911,6 +958,22 @@ const styles = StyleSheet.create({
   upcomingInfo: {
     flex: 1,
     paddingTop: 4,
+  },
+  upcomingLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  upcomingEmpty: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  upcomingEmptyText: {
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: 'center',
   },
   locationBtn: {
     flexDirection: 'row',
