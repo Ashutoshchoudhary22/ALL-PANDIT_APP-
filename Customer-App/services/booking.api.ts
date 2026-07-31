@@ -1,5 +1,8 @@
 import { apiClient } from '@/lib/axios';
 
+export type BookingStatus = 'payment_pending' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type PaymentStatus = 'pending' | 'advance_paid' | 'fully_paid';
+
 export type Booking = {
   id: number;
   customerId: number;
@@ -14,7 +17,12 @@ export type Booking = {
   basePrice: number;
   samagriCharge: number;
   totalPrice: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  advanceAmount: number;
+  remainingAmount: number;
+  paymentStatus: PaymentStatus;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  status: BookingStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,10 +37,53 @@ export type CreateBookingPayload = {
   samagriRequired: boolean;
 };
 
+export type BookingPaymentDetails = {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  advanceAmount: number;
+};
+
+export type BookingCustomerPrefill = {
+  name?: string;
+  email?: string;
+  contact?: string;
+};
+
+export type CreateBookingResponse = {
+  success: boolean;
+  message: string;
+  data: Booking;
+  payment: BookingPaymentDetails;
+  customer?: BookingCustomerPrefill;
+};
+
+export type VerifyBookingPaymentPayload = {
+  bookingId: number;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+};
+
 export async function createBookingApi(payload: CreateBookingPayload) {
+  const { data } = await apiClient.post<CreateBookingResponse>('/api/bookings', payload);
+  return data;
+}
+
+export async function verifyBookingPaymentApi(payload: VerifyBookingPaymentPayload) {
   const { data } = await apiClient.post<{ success: boolean; message: string; data: Booking }>(
-    '/api/bookings',
+    '/api/bookings/verify-payment',
     payload,
+  );
+  return data;
+}
+
+export type RetryBookingPaymentResponse = CreateBookingResponse;
+
+export async function retryBookingPaymentApi(bookingId: number) {
+  const { data } = await apiClient.post<RetryBookingPaymentResponse>(
+    `/api/bookings/${bookingId}/retry-payment`,
   );
   return data;
 }

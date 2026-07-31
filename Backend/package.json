@@ -23,6 +23,8 @@
     "multer": "^2.2.0",
     "mysql2": "^3.23.2",
     "nodemailer": "^9.0.3",
+    "razorpay": "^2.9.8",
+    "socket.io": "^4.8.3",
     "uuid": "^14.0.1"
   },
   "devDependencies": {

@@ -40,6 +40,15 @@ function toIsoDateString(year: number, month: number, day: number): string {
   return `${year}-${mm}-${dd}`;
 }
 
+export function getTodayIsoDate(): string {
+  const today = new Date();
+  return toIsoDateString(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+function getDefaultViewDate(value: string): Date {
+  return toDate(value) || new Date();
+}
+
 function formatDisplay(value: string): string {
   const date = toDate(value);
   if (!date) return '';
@@ -54,7 +63,7 @@ export function DatePickerField({
   mode = 'past',
 }: DatePickerFieldProps) {
   const today = new Date();
-  const initial = toDate(value) || new Date(2000, 0, 1);
+  const initial = getDefaultViewDate(value);
 
   const [visible, setVisible] = useState(false);
   const [viewYear, setViewYear] = useState(initial.getFullYear());
@@ -63,7 +72,7 @@ export function DatePickerField({
   const selectedDate = toDate(value);
 
   const openPicker = () => {
-    const base = toDate(value) || new Date(2000, 0, 1);
+    const base = getDefaultViewDate(value);
     setViewYear(base.getFullYear());
     setViewMonth(base.getMonth());
     setVisible(true);

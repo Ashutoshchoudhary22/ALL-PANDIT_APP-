@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 require('dotenv').config();
 
 const initDb = require('./config/initDb');
+const { initSocket } = require('./config/socket');
 const authRoutes = require('./routes/authRoutes');
 const customerProfileRoutes = require('./routes/customerProfileRoutes');
 const panditProfileRoutes = require('./routes/panditProfileRoutes');
@@ -11,6 +13,10 @@ const adminRoutes = require('./routes/adminRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 
 const app = express();
+const server = http.createServer(app);
+const io = initSocket(server);
+
+app.set('io', io);
 
 app.use(cors());
 app.use(express.json());
@@ -35,9 +41,10 @@ async function startServer() {
   try {
     await initDb();
 
-    app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
       console.log(`Local network: http://192.168.1.59:${PORT}`);
+      console.log('Socket.io ready');
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);

@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
+import { BookingNotificationListener } from '@/components/BookingNotificationListener';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -28,6 +29,7 @@ export default function RootLayout() {
           <AuthBootstrap />
           <LiveLocationGate role="pandit">
             <LiveLocationTracker />
+            <BookingNotificationListener />
             <Stack initialRouteName="(tabs)">
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />

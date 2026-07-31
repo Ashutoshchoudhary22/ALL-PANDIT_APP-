@@ -161,13 +161,35 @@ async function initDb() {
         base_price DECIMAL(10,2) NOT NULL,
         samagri_charge DECIMAL(10,2) DEFAULT 0,
         total_price DECIMAL(10,2) NOT NULL,
-        status ENUM('pending','confirmed','cancelled','completed') DEFAULT 'pending',
+        advance_amount DECIMAL(10,2) DEFAULT 0,
+        remaining_amount DECIMAL(10,2) DEFAULT 0,
+        payment_status ENUM('pending','advance_paid','fully_paid') DEFAULT 'pending',
+        razorpay_order_id VARCHAR(100) NULL,
+        razorpay_payment_id VARCHAR(100) NULL,
+        status ENUM('payment_pending','pending','confirmed','cancelled','completed') DEFAULT 'payment_pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (pandit_profile_id) REFERENCES pandit_profiles(id) ON DELETE CASCADE
       )
     `);
+
+    await ensureColumn(connection, 'bookings', 'advance_amount', 'DECIMAL(10,2) DEFAULT 0');
+    await ensureColumn(connection, 'bookings', 'remaining_amount', 'DECIMAL(10,2) DEFAULT 0');
+    await ensureColumn(connection, 'bookings', 'payment_status', "ENUM('pending','advance_paid','fully_paid') DEFAULT 'pending'");
+    await ensureColumn(connection, 'bookings', 'razorpay_order_id', 'VARCHAR(100) NULL');
+    await ensureColumn(connection, 'bookings', 'razorpay_payment_id', 'VARCHAR(100) NULL');
+
+    try {
+      await connection.query(`
+        ALTER TABLE bookings
+        MODIFY COLUMN status ENUM('payment_pending','pending','confirmed','cancelled','completed') DEFAULT 'payment_pending'
+      `);
+    } catch (error) {
+      if (!String(error.message).includes('Duplicate')) {
+        console.warn('Could not update bookings.status enum:', error.message);
+      }
+    }
 
     console.log('Database tables ready');
   } finally {

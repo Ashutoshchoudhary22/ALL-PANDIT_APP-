@@ -1,11 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createBookingApi, getMyBookingsApi, CreateBookingPayload } from '@/services/booking.api';
+import {
+  createBookingApi,
+  getMyBookingsApi,
+  retryBookingPaymentApi,
+  verifyBookingPaymentApi,
+  CreateBookingPayload,
+  VerifyBookingPaymentPayload,
+} from '@/services/booking.api';
+
+export function useRetryBookingPaymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: number) => retryBookingPaymentApi(bookingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+    },
+  });
+}
 
 export function useCreateBookingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateBookingPayload) => createBookingApi(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+    },
+  });
+}
+
+export function useVerifyBookingPaymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: VerifyBookingPaymentPayload) => verifyBookingPaymentApi(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
     },

@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,16 +13,26 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
 import { HomeColors as C } from '@/constants/home-theme';
-import { useMyBookingsQuery } from '@/hooks/use-bookings';
+import {
+  useMyBookingsQuery,
+  useRetryBookingPaymentMutation,
+  useVerifyBookingPaymentMutation,
+} from '@/hooks/use-bookings';
 import { formatINR } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
-import { Booking } from '@/services/booking.api';
+import {
+  Booking,
+  BookingCustomerPrefill,
+  BookingPaymentDetails,
+} from '@/services/booking.api';
 
 const STATUS_STYLES: Record<
   Booking['status'],
   { label: string; bg: string; text: string; icon: keyof typeof Ionicons.glyphMap }
 > = {
+  payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C', icon: 'card-outline' },
   pending: { label: 'Pending', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
   confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D', icon: 'checkmark-circle-outline' },
   cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline' },
@@ -50,8 +61,17 @@ function formatBookingTime(value: string) {
   });
 }
 
-function BookingCard({ booking }: { booking: Booking }) {
+function BookingCard({
+  booking,
+  paying,
+  onPayNow,
+}: {
+  booking: Booking;
+  paying: boolean;
+  onPayNow: (booking: Booking) => void;
+}) {
   const statusStyle = STATUS_STYLES[booking.status];
+  const needsPayment = booking.status === 'payment_pending';
 
   return (
     <View style={styles.card}>
@@ -95,9 +115,50 @@ function BookingCard({ booking }: { booking: Booking }) {
               <Text style={styles.tagText}>Samagri included</Text>
             </View>
           ) : null}
+          {booking.paymentStatus === 'advance_paid' ? (
+            <View style={[styles.tag, styles.tagPaid]}>
+              <Text style={[styles.tagText, styles.tagPaidText]}>40% paid</Text>
+            </View>
+          ) : null}
+          {booking.status === 'confirmed' ? (
+            <View style={[styles.tag, styles.tagConfirmed]}>
+              <Text style={[styles.tagText, styles.tagConfirmedText]}>Confirmed</Text>
+            </View>
+          ) : null}
         </View>
-        <Text style={styles.totalPrice}>{formatINR(booking.totalPrice)}</Text>
+        <View style={styles.priceWrap}>
+          <Text style={styles.totalPrice}>{formatINR(booking.totalPrice)}</Text>
+          {booking.remainingAmount > 0 || booking.advanceAmount > 0 ? (
+            <Text style={styles.remainingText}>
+              {booking.paymentStatus === 'advance_paid' ? 'Due later: ' : 'Advance: '}
+              {formatINR(
+                booking.paymentStatus === 'advance_paid'
+                  ? booking.remainingAmount
+                  : booking.advanceAmount,
+              )}
+            </Text>
+          ) : null}
+        </View>
       </View>
+
+      {needsPayment ? (
+        <Pressable
+          style={[styles.payBtn, paying && styles.payBtnDisabled]}
+          onPress={() => onPayNow(booking)}
+          disabled={paying}
+        >
+          {paying ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Ionicons name="card-outline" size={16} color="#fff" />
+              <Text style={styles.payBtnText}>
+                Pay 40% Now • {formatINR(booking.advanceAmount)}
+              </Text>
+            </>
+          )}
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -106,7 +167,16 @@ export function CustomerBookingsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
+  const retryPayment = useRetryBookingPaymentMutation();
+  const verifyPayment = useVerifyBookingPaymentMutation();
   const bookings = bookingsQuery.data?.data ?? [];
+  const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+  const [paymentSession, setPaymentSession] = useState<{
+    bookingId: number;
+    payment: BookingPaymentDetails;
+    customer?: BookingCustomerPrefill;
+    description: string;
+  } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,6 +185,54 @@ export function CustomerBookingsScreen() {
       }
     }, [token, bookingsQuery.refetch]),
   );
+
+  const handlePayNow = async (booking: Booking) => {
+    setPayingBookingId(booking.id);
+    try {
+      const response = await retryPayment.mutateAsync(booking.id);
+      setPaymentSession({
+        bookingId: booking.id,
+        payment: response.payment,
+        customer: response.customer,
+        description: `${booking.serviceName} • 40% advance`,
+      });
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Could not start payment');
+    } finally {
+      setPayingBookingId(null);
+    }
+  };
+
+  const handlePaymentSuccess = async (payload: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }) => {
+    if (!paymentSession) return;
+
+    try {
+      const verifyResponse = await verifyPayment.mutateAsync({
+        bookingId: paymentSession.bookingId,
+        razorpayOrderId: payload.razorpayOrderId,
+        razorpayPaymentId: payload.razorpayPaymentId,
+        razorpaySignature: payload.razorpaySignature,
+      });
+
+      setPaymentSession(null);
+      Alert.alert('Booking Successful', verifyResponse.message || 'Booking confirmed! Pandit has been notified.');
+      void bookingsQuery.refetch();
+    } catch (error) {
+      setPaymentSession(null);
+      Alert.alert(
+        'Payment Verification Failed',
+        error instanceof Error ? error.message : 'Could not verify payment',
+      );
+    }
+  };
+
+  const handlePaymentDismiss = () => {
+    setPaymentSession(null);
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
@@ -138,7 +256,13 @@ export function CustomerBookingsScreen() {
         <FlatList
           data={bookings}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <BookingCard booking={item} />}
+          renderItem={({ item }) => (
+            <BookingCard
+              booking={item}
+              paying={payingBookingId === item.id}
+              onPayNow={handlePayNow}
+            />
+          )}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 90 },
@@ -162,6 +286,15 @@ export function CustomerBookingsScreen() {
           }
         />
       )}
+
+      <RazorpayCheckoutModal
+        visible={Boolean(paymentSession)}
+        payment={paymentSession?.payment ?? null}
+        customer={paymentSession?.customer}
+        description={paymentSession?.description ?? 'Booking advance payment'}
+        onSuccess={handlePaymentSuccess}
+        onDismiss={handlePaymentDismiss}
+      />
     </View>
   );
 }
@@ -289,10 +422,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: C.primary,
   },
+  tagPaid: {
+    backgroundColor: '#DCFCE7',
+  },
+  tagPaidText: {
+    color: '#15803D',
+  },
+  tagConfirmed: {
+    backgroundColor: '#EFF6FF',
+  },
+  tagConfirmedText: {
+    color: '#1D4ED8',
+  },
+  priceWrap: {
+    alignItems: 'flex-end',
+  },
   totalPrice: {
     fontSize: 16,
     fontWeight: '800',
     color: C.primary,
+  },
+  remainingText: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.textMuted,
+  },
+  payBtn: {
+    marginTop: 12,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  payBtnDisabled: {
+    opacity: 0.7,
+  },
+  payBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
   },
   centerState: {
     flex: 1,
