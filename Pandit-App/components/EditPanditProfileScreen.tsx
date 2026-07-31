@@ -17,7 +17,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ImageUploadField } from '@/components/ImageUploadField';
+import { PujaServicesField } from '@/components/PujaServicesField';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import {
+  normalizePujaServices,
+  PujaServiceDraft,
+  toPujaServiceDrafts,
+  validatePujaServices,
+} from '@/constants/puja-services';
 import { useMyPanditProfileQuery, useUpdatePanditProfileMutation } from '@/hooks/use-pandit-profile';
 import { goToProfile } from '@/lib/auth-navigation';
 import { getCurrentAddress } from '@/lib/location';
@@ -50,6 +57,7 @@ function initFormFromProfile(profile: PanditProfile) {
     bankAccountNumber: profile.bankAccountNumber || '',
     bankIfsc: profile.bankIfsc || '',
     bankName: profile.bankName || '',
+    pujaServices: toPujaServiceDrafts(profile.pujaServices),
   };
 }
 
@@ -75,6 +83,7 @@ export function EditPanditProfileScreen() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
   const [bankName, setBankName] = useState('');
+  const [pujaServices, setPujaServices] = useState<PujaServiceDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
@@ -99,6 +108,7 @@ export function EditPanditProfileScreen() {
     setBankAccountNumber(form.bankAccountNumber);
     setBankIfsc(form.bankIfsc);
     setBankName(form.bankName);
+    setPujaServices(form.pujaServices);
     setInitialized(true);
   }, [profile, initialized]);
 
@@ -124,6 +134,12 @@ export function EditPanditProfileScreen() {
 
     if (!name.trim() || !experienceYears.trim()) {
       Alert.alert('Required', 'Name and experience are required.');
+      return;
+    }
+
+    const pujaValidationError = validatePujaServices(pujaServices);
+    if (pujaValidationError) {
+      Alert.alert('Required', pujaValidationError);
       return;
     }
 
@@ -153,6 +169,7 @@ export function EditPanditProfileScreen() {
         bankIfsc: bankIfsc.trim().toUpperCase() || undefined,
         bankName: bankName.trim() || undefined,
         passbookImage,
+        pujaServices: normalizePujaServices(pujaServices),
       });
 
       if (token && user && profileImage) {
@@ -276,6 +293,15 @@ export function EditPanditProfileScreen() {
                 )}
               </>
             )}
+          </View>
+
+          <Text style={styles.sectionTitle}>Puja Services *</Text>
+          <View style={styles.card}>
+            <PujaServicesField
+              value={pujaServices}
+              onChange={setPujaServices}
+              disabled={isBusy}
+            />
           </View>
 
           <Text style={styles.sectionTitle}>Documents</Text>

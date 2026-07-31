@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import {
@@ -15,16 +15,37 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PanditProfileCard } from '@/components/PanditProfileCard';
+import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { HomeColors as C } from '@/constants/home-theme';
+import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
+import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
+
+function openPanditDetail(pandit: PublicPanditProfile) {
+  router.push(`/pandit/${pandit.id}`);
+}
 
 export function NearbyPanditsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
-  const panditsQuery = useApprovedPanditsQuery(Boolean(token));
-  const pandits = panditsQuery.data?.data ?? [];
+  const { service } = useLocalSearchParams<{ service?: string }>();
+  const { activeCount } = usePanditFilters();
+  const profileQuery = useMyCustomerProfileQuery(Boolean(token));
+  const serviceName = typeof service === 'string' && service.trim() ? service.trim() : undefined;
+  const panditsQuery = useApprovedPanditsQuery(Boolean(token), serviceName);
+  const approvedPandits = panditsQuery.data?.data ?? [];
+  const profile = profileQuery.data?.data;
+  const customerLatitude = profile?.liveLatitude ?? profile?.latitude ?? null;
+  const customerLongitude = profile?.liveLongitude ?? profile?.longitude ?? null;
+  const pandits = useFilteredPandits({
+    pandits: approvedPandits,
+    serviceName,
+    customerLatitude,
+    customerLongitude,
+  });
 
   const handleBook = useCallback((pandit: PublicPanditProfile) => {
     Alert.alert(
@@ -54,9 +75,14 @@ export function NearbyPanditsScreen() {
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Nearby Pandits</Text>
-          <Text style={styles.subtitle}>Verified pandits available for booking</Text>
+          <Text style={styles.title}>{serviceName ?? 'Nearby Pandits'}</Text>
+          <Text style={styles.subtitle}>
+            {serviceName
+              ? `Pandits offering ${serviceName}`
+              : 'Verified pandits available for booking'}
+          </Text>
         </View>
+        <PanditFiltersButton compact />
       </View>
 
       {panditsQuery.isLoading ? (
@@ -81,6 +107,8 @@ export function NearbyPanditsScreen() {
               pandit={item}
               index={index}
               variant="list"
+              serviceName={serviceName}
+              onPress={openPanditDetail}
               onBook={handleBook}
             />
           )}
@@ -96,9 +124,19 @@ export function NearbyPanditsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="person-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>No verified pandits yet</Text>
+              <Text style={styles.emptyTitle}>
+                {activeCount > 0
+                  ? 'No pandits match your filters'
+                  : serviceName
+                    ? 'No pandits for this service'
+                    : 'No verified pandits yet'}
+              </Text>
               <Text style={styles.emptySubtitle}>
-                Approved pandits will appear here once Super Admin verifies their profiles.
+                {activeCount > 0
+                  ? 'Try changing or clearing your filters to see more pandits.'
+                  : serviceName
+                    ? `No approved pandits have added ${serviceName} to their profile yet.`
+                    : 'Approved pandits will appear here once Super Admin verifies their profiles.'}
               </Text>
             </View>
           }

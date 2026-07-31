@@ -23,6 +23,53 @@ function pickCityName(body) {
   return value?.trim() || null;
 }
 
+const PUJA_SERVICE_OPTIONS = require('../constants/pujaServices');
+
+const ALLOWED_PUJA_NAMES = new Set(PUJA_SERVICE_OPTIONS);
+
+function parsePujaServices(raw) {
+  if (raw === undefined || raw === null) return { value: null, error: null };
+  if (!Array.isArray(raw)) {
+    return { value: null, error: 'pujaServices must be an array' };
+  }
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const item of raw) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    const price = Number(item?.price);
+
+    if (!name || !ALLOWED_PUJA_NAMES.has(name)) {
+      return { value: null, error: `Invalid puja service: ${name || 'unknown'}` };
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      return { value: null, error: `Invalid price for ${name}` };
+    }
+    if (seen.has(name)) {
+      return { value: null, error: `Duplicate puja service: ${name}` };
+    }
+
+    seen.add(name);
+    normalized.push({ name, price: Math.round(price) });
+  }
+
+  return { value: JSON.stringify(normalized), error: null };
+}
+
+function readPujaServices(row) {
+  if (!row?.puja_services) return [];
+  try {
+    const parsed =
+      typeof row.puja_services === 'string'
+        ? JSON.parse(row.puja_services)
+        : row.puja_services;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 async function saveUserProfileImage(userId, profileImage) {
   if (!profileImage) return;
   await pool.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
@@ -61,6 +108,7 @@ function formatPanditProfile(row) {
     bankName: row.bank_name,
     passbookImage: row.passbook_image,
     profileImage: row.pandit_profile_image || row.profile_image,
+    pujaServices: readPujaServices(row),
     rating: row.rating ? parseFloat(row.rating) : 0,
     totalReviews: row.total_reviews ?? 0,
     totalBookings: row.total_bookings ?? 0,
@@ -102,6 +150,7 @@ const PROFILE_SELECT = `
     pp.bank_name,
     pp.passbook_image,
     pp.profile_image AS pandit_profile_image,
+    pp.puja_services,
     pp.rating,
     pp.total_reviews,
     pp.total_bookings,
@@ -145,6 +194,8 @@ function formatPublicPanditProfile(row) {
     bio: profile.bio,
     experienceYears: profile.experienceYears,
     cityName: profile.cityName,
+    latitude: profile.latitude,
+    longitude: profile.longitude,
     liveLatitude: profile.liveLatitude,
     liveLongitude: profile.liveLongitude,
     liveLocationAt: profile.liveLocationAt,
@@ -158,26 +209,132 @@ function formatPublicPanditProfile(row) {
     sameDayBooking: profile.sameDayBooking,
     languages: profile.languages,
     languageCode: profile.languageCode,
+    pujaServices: profile.pujaServices,
+    performingSince: profile.performingSince,
   };
 }
 
 exports.listPublicProfiles = async (req, res) => {
   try {
+    const serviceName = req.query.service?.trim();
+
+    if (serviceName && !ALLOWED_PUJA_NAMES.has(serviceName)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid puja service name',
+      });
+    }
+
     const [rows] = await pool.query(
       `${PROFILE_SELECT}
        WHERE pp.status = 'approved'
        ORDER BY pp.is_verified DESC, pp.rating DESC, pp.created_at DESC`,
     );
 
+    let profiles = rows.map(formatPublicPanditProfile);
+
+    if (serviceName) {
+      profiles = profiles.filter((profile) =>
+        profile.pujaServices.some((service) => service.name === serviceName),
+      );
+    }
+
     return res.status(200).json({
       success: true,
-      data: rows.map(formatPublicPanditProfile),
+      data: profiles,
     });
   } catch (error) {
     console.error('List public pandit profiles error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error while fetching pandit profiles',
+    });
+  }
+};
+
+exports.listPopularServices = async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 20);
+
+    const [rows] = await pool.query(
+      `${PROFILE_SELECT}
+       WHERE pp.status = 'approved' AND pp.puja_services IS NOT NULL
+       ORDER BY pp.updated_at DESC`,
+    );
+
+    const entries = [];
+
+    for (const row of rows) {
+      const services = readPujaServices(row);
+      const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+
+      for (const service of services) {
+        entries.push({
+          name: service.name,
+          price: service.price,
+          updatedAt,
+        });
+      }
+    }
+
+    entries.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    const minPrices = new Map();
+    for (const entry of entries) {
+      const current = minPrices.get(entry.name);
+      if (current == null || entry.price < current) {
+        minPrices.set(entry.name, entry.price);
+      }
+    }
+
+    const seen = new Set();
+    const popular = [];
+
+    for (const entry of entries) {
+      if (seen.has(entry.name)) continue;
+      seen.add(entry.name);
+      popular.push({
+        name: entry.name,
+        minPrice: minPrices.get(entry.name),
+        lastAddedAt: new Date(entry.updatedAt).toISOString(),
+      });
+      if (popular.length >= limit) break;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: popular,
+    });
+  } catch (error) {
+    console.error('List popular puja services error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching popular puja services',
+    });
+  }
+};
+
+exports.getPublicProfileById = async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const profile = await fetchProfileById(profileId);
+
+    if (!profile || profile.status !== 'approved') {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: formatPublicPanditProfile(profile),
+    });
+  } catch (error) {
+    console.error('Get public pandit profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching pandit profile',
     });
   }
 };
@@ -236,6 +393,7 @@ exports.createProfile = async (req, res) => {
 
     const profileImageUrl = pickProfileImage(req.body);
     const cityName = pickCityName(req.body);
+    const pujaServicesInput = parsePujaServices(req.body.pujaServices ?? req.body.puja_services);
 
     if (!name?.trim()) {
       return res.status(400).json({
@@ -275,6 +433,13 @@ exports.createProfile = async (req, res) => {
       });
     }
 
+    if (pujaServicesInput.error) {
+      return res.status(400).json({
+        success: false,
+        message: pujaServicesInput.error,
+      });
+    }
+
     if (profileImageUrl) {
       await saveUserProfileImage(userId, profileImageUrl);
     }
@@ -283,8 +448,8 @@ exports.createProfile = async (req, res) => {
       `INSERT INTO pandit_profiles
        (user_id, name, gender, bio, experience_years, city_name, latitude, longitude,
         profile_image, aadhar_image, pandit_certificate_image, bank_account_holder, bank_account_number,
-        bank_ifsc, bank_name, passbook_image, is_available, same_day_booking, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        bank_ifsc, bank_name, passbook_image, puja_services, is_available, same_day_booking, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         userId,
         name.trim(),
@@ -302,6 +467,7 @@ exports.createProfile = async (req, res) => {
         bankIfsc?.trim()?.toUpperCase() || null,
         bankName?.trim() || null,
         passbookImage?.trim() || null,
+        pujaServicesInput.value,
         isAvailable !== undefined ? Boolean(isAvailable) : true,
         Boolean(sameDayBooking),
       ],
@@ -394,6 +560,12 @@ exports.updateMyProfile = async (req, res) => {
         ? pickCityName(req.body)
         : undefined;
 
+    const hasPujaServices =
+      req.body.pujaServices !== undefined || req.body.puja_services !== undefined;
+    const pujaServicesInput = hasPujaServices
+      ? parsePujaServices(req.body.pujaServices ?? req.body.puja_services)
+      : { value: undefined, error: null };
+
     const [existing] = await pool.query(
       'SELECT id FROM pandit_profiles WHERE user_id = ?',
       [userId],
@@ -410,6 +582,13 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid gender value',
+      });
+    }
+
+    if (pujaServicesInput.error) {
+      return res.status(400).json({
+        success: false,
+        message: pujaServicesInput.error,
       });
     }
 
@@ -441,6 +620,7 @@ exports.updateMyProfile = async (req, res) => {
         bank_ifsc = COALESCE(?, bank_ifsc),
         bank_name = COALESCE(?, bank_name),
         passbook_image = COALESCE(?, passbook_image),
+        puja_services = COALESCE(?, puja_services),
         is_available = COALESCE(?, is_available),
         is_online = COALESCE(?, is_online),
         same_day_booking = COALESCE(?, same_day_booking)
@@ -461,6 +641,7 @@ exports.updateMyProfile = async (req, res) => {
         bankIfsc?.trim()?.toUpperCase() ?? null,
         bankName?.trim() ?? null,
         passbookImage?.trim() ?? null,
+        pujaServicesInput.value ?? null,
         isAvailable !== undefined ? Boolean(isAvailable) : null,
         isOnline !== undefined ? Boolean(isOnline) : null,
         sameDayBooking !== undefined ? Boolean(sameDayBooking) : null,

@@ -8,8 +8,10 @@ import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
+import { PanditFiltersHost } from '@/components/PanditFiltersHost';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { PanditFiltersProvider } from '@/providers/PanditFiltersProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 
 export const unstable_settings = {
@@ -23,12 +25,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <AuthProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <AuthSessionHandler />
-            <AuthBootstrap />
-            <LiveLocationGate role="customer">
-              <LiveLocationTracker />
-              <Stack>
+          <PanditFiltersProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <AuthSessionHandler />
+              <AuthBootstrap />
+              <LiveLocationGate role="customer">
+                <LiveLocationTracker />
+                <PanditFiltersHost />
+                <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
                 <Stack.Screen name="sign-up" options={{ headerShown: false }} />
@@ -37,11 +41,14 @@ export default function RootLayout() {
                 <Stack.Screen name="create-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="nearby-pandits" options={{ headerShown: false }} />
+                <Stack.Screen name="all-puja-services" options={{ headerShown: false }} />
+                <Stack.Screen name="pandit/[id]" options={{ headerShown: false }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
               </Stack>
             </LiveLocationGate>
             <StatusBar style="auto" />
           </ThemeProvider>
+          </PanditFiltersProvider>
         </AuthProvider>
       </QueryProvider>
     </GestureHandlerRootView>

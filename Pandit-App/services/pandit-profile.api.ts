@@ -1,5 +1,10 @@
 import { apiClient } from '@/lib/axios';
 
+export type PujaService = {
+  name: string;
+  price: number;
+};
+
 export type PanditProfile = {
   id: number;
   userId: number;
@@ -20,6 +25,7 @@ export type PanditProfile = {
   bankIfsc: string | null;
   bankName: string | null;
   passbookImage: string | null;
+  pujaServices: PujaService[];
   rating: number;
   totalReviews: number;
   totalBookings: number;
@@ -57,6 +63,7 @@ export type CreatePanditProfilePayload = {
   bankIfsc?: string;
   bankName?: string;
   passbookImage?: string;
+  pujaServices?: PujaService[];
 };
 
 export type UpdatePanditProfilePayload = Partial<

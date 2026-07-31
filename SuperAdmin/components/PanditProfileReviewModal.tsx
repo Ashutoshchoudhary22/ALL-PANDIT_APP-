@@ -65,6 +65,10 @@ function DocumentCard({
   );
 }
 
+function formatPrice(price: number) {
+  return `₹${price.toLocaleString('en-IN')}`;
+}
+
 function ReviewContent({
   profile,
   onClose,
@@ -146,6 +150,29 @@ function ReviewContent({
             </View>
           </>
         ) : null}
+
+        <Text style={styles.sectionTitle}>Puja Services</Text>
+        <Text style={styles.sectionHint}>
+          Services and prices added by the pandit during profile creation.
+        </Text>
+        <View style={styles.sectionCard}>
+          {profile.pujaServices?.length ? (
+            profile.pujaServices.map((service, index) => (
+              <View
+                key={service.name}
+                style={[
+                  styles.serviceRow,
+                  index === profile.pujaServices.length - 1 && styles.serviceRowLast,
+                ]}
+              >
+                <Text style={styles.serviceName}>{service.name}</Text>
+                <Text style={styles.servicePrice}>{formatPrice(service.price)}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyServicesText}>No puja services added yet.</Text>
+          )}
+        </View>
 
         <Text style={styles.sectionTitle}>Bank Details</Text>
         <View style={styles.sectionCard}>
@@ -309,6 +336,19 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 11, fontWeight: '600', color: C.textLight, textTransform: 'uppercase' },
   infoValue: { marginTop: 4, fontSize: 14, fontWeight: '600', color: C.text },
   bioText: { fontSize: 14, lineHeight: 21, color: C.textMuted },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  serviceName: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
+  servicePrice: { fontSize: 14, fontWeight: '800', color: C.primary },
+  serviceRowLast: { borderBottomWidth: 0, paddingBottom: 0 },
+  emptyServicesText: { fontSize: 14, color: C.textMuted },
   docCard: {
     backgroundColor: C.card,
     borderRadius: 14,

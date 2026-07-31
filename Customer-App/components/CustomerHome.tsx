@@ -14,30 +14,30 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CloudImage } from '@/components/CloudImage';
+import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { PanditProfileCard } from '@/components/PanditProfileCard';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
+import { HOME_PUJA_CATEGORIES, getPujaServiceStyle } from '@/constants/puja-services';
+import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
+import { openPanditsForService } from '@/lib/pandit-navigation';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
+import { usePopularPujaServicesQuery } from '@/hooks/use-popular-puja-services';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { useAuth } from '@/providers/AuthProvider';
+import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
+import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
-const CATEGORIES = [
-  { id: '1', label: 'Marriage Puja', emoji: '💍', bg: '#FEE2E2', color: '#DC2626' },
-  { id: '2', label: 'Griha Pravesh', emoji: '🏠', bg: '#DBEAFE', color: '#2563EB' },
-  { id: '3', label: 'Satyanarayan Katha', emoji: '📖', bg: '#FCE7F3', color: '#DB2777' },
-  { id: '4', label: 'Havan', emoji: '🔥', bg: '#FFEDD5', color: '#EA580C' },
-  { id: '5', label: 'Rudrabhishek', emoji: '🕉️', bg: '#E0E7FF', color: '#4338CA' },
-  { id: '6', label: 'Sunderkand Path', emoji: '📿', bg: '#F3E8FF', color: '#9333EA' },
-  { id: '7', label: 'More', emoji: '⊞', bg: '#FEF9C3', color: '#CA8A04' },
-];
+function openPanditDetail(pandit: PublicPanditProfile) {
+  router.push(`/pandit/${pandit.id}`);
+}
 
-const POPULAR_SERVICES = [
-  { id: '1', name: 'Marriage Puja', price: '₹5,101', image: DEMO_IMAGES.serviceMarriage },
-  { id: '2', name: 'Griha Pravesh', price: '₹3,501', image: DEMO_IMAGES.serviceGriha },
-  { id: '3', name: 'Rudrabhishek', price: '₹2,101', image: DEMO_IMAGES.banner },
-  { id: '4', name: 'Satyanarayan Katha', price: '₹1,501', image: DEMO_IMAGES.avatar },
-];
+function openAllPujaServices() {
+  router.push('/all-puja-services');
+}
+
+const CATEGORIES = HOME_PUJA_CATEGORIES;
 
 const TRUST_FEATURES = [
   { icon: 'shield-checkmark' as const, title: 'Verified Pandits', desc: '100% Verified and Trusted' },
@@ -84,8 +84,18 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
   const { token, user } = useAuth();
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const panditsQuery = useApprovedPanditsQuery(Boolean(token));
+  const popularServicesQuery = usePopularPujaServicesQuery(Boolean(token), 10);
+  const { activeCount } = usePanditFilters();
   const approvedPandits = panditsQuery.data?.data ?? [];
+  const popularServices = popularServicesQuery.data?.data ?? [];
   const profile = profileQuery.data?.data;
+  const customerLatitude = profile?.liveLatitude ?? profile?.latitude ?? null;
+  const customerLongitude = profile?.liveLongitude ?? profile?.longitude ?? null;
+  const filteredPandits = useFilteredPandits({
+    pandits: approvedPandits,
+    customerLatitude,
+    customerLongitude,
+  });
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
   const location = getLocationLabel(profile);
@@ -158,10 +168,7 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
               style={styles.searchInput}
             />
           </View>
-          <Pressable style={styles.filterBtn}>
-            <Ionicons name="options-outline" size={20} color={C.primary} />
-            <Text style={styles.filterText}>Filters</Text>
-          </Pressable>
+          <PanditFiltersButton />
         </View>
 
         {/* Hero Banner */}
@@ -187,13 +194,24 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
         </View>
 
         {/* Categories */}
+        <SectionHeader title="Puja Services" />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesRow}
         >
           {CATEGORIES.map((cat) => (
-            <Pressable key={cat.id} style={styles.categoryItem}>
+            <Pressable
+              key={cat.id}
+              style={styles.categoryItem}
+              onPress={() => {
+                if (cat.label === 'More') {
+                  openAllPujaServices();
+                  return;
+                }
+                openPanditsForService(cat.label);
+              }}
+            >
               <View style={[styles.categoryIcon, { backgroundColor: cat.bg }]}>
                 <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
               </View>
@@ -214,12 +232,16 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
             <ActivityIndicator size="small" color={C.primary} />
             <Text style={styles.panditsLoadingText}>Loading verified pandits...</Text>
           </View>
-        ) : approvedPandits.length === 0 ? (
+        ) : filteredPandits.length === 0 ? (
           <View style={styles.panditsEmpty}>
             <Ionicons name="person-outline" size={32} color={C.textLight} />
-            <Text style={styles.panditsEmptyTitle}>No verified pandits yet</Text>
+            <Text style={styles.panditsEmptyTitle}>
+              {activeCount > 0 ? 'No pandits match your filters' : 'No verified pandits yet'}
+            </Text>
             <Text style={styles.panditsEmptyText}>
-              Approved pandits will appear here once Super Admin verifies their profiles.
+              {activeCount > 0
+                ? 'Try changing or clearing your filters to see more pandits.'
+                : 'Approved pandits will appear here once Super Admin verifies their profiles.'}
             </Text>
           </View>
         ) : (
@@ -228,29 +250,61 @@ export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.panditsRow}
           >
-            {approvedPandits.map((pandit, index) => (
-              <PanditProfileCard key={pandit.id} pandit={pandit} index={index} variant="carousel" />
+            {filteredPandits.map((pandit, index) => (
+              <PanditProfileCard
+                key={pandit.id}
+                pandit={pandit}
+                index={index}
+                variant="carousel"
+                onPress={openPanditDetail}
+              />
             ))}
           </ScrollView>
         )}
 
         {/* Popular Services */}
-        <SectionHeader title="Popular Services" />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.servicesRow}
-        >
-          {POPULAR_SERVICES.map((service) => (
-            <Pressable key={service.id} style={styles.serviceCard}>
-              <View style={styles.serviceImageWrap}>
-                <CloudImage source={service.image} preset="service" style={styles.serviceImage} />
-              </View>
-              <Text style={styles.serviceName}>{service.name}</Text>
-              <Text style={styles.servicePrice}>{service.price} onwards</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <SectionHeader title="Popular Services" onViewAll={openAllPujaServices} />
+        {popularServicesQuery.isLoading ? (
+          <View style={styles.panditsLoading}>
+            <ActivityIndicator size="small" color={C.primary} />
+            <Text style={styles.panditsLoadingText}>Loading latest services...</Text>
+          </View>
+        ) : popularServices.length === 0 ? (
+          <View style={styles.panditsEmpty}>
+            <Ionicons name="flame-outline" size={32} color={C.textLight} />
+            <Text style={styles.panditsEmptyTitle}>No services yet</Text>
+            <Text style={styles.panditsEmptyText}>
+              Latest puja services will appear here when pandits add them to their profiles.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.servicesRow}
+          >
+            {popularServices.map((service, index) => {
+              const style = getPujaServiceStyle(service.name, index);
+              return (
+                <Pressable
+                  key={service.name}
+                  style={styles.serviceCard}
+                  onPress={() => openPanditsForService(service.name)}
+                >
+                  <View style={[styles.serviceImageWrap, { backgroundColor: style.bg }]}>
+                    <Text style={styles.serviceEmoji}>{style.emoji}</Text>
+                  </View>
+                  <Text style={styles.serviceName} numberOfLines={2}>
+                    {service.name}
+                  </Text>
+                  <Text style={styles.servicePrice}>
+                    ₹{service.minPrice.toLocaleString('en-IN')} onwards
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Trust Features */}
         <ScrollView
@@ -529,10 +583,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  serviceImage: {
-    width: '100%',
-    height: '100%',
+  serviceEmoji: {
+    fontSize: 36,
   },
   serviceName: {
     fontSize: 13,

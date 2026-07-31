@@ -24,20 +24,31 @@ type PanditProfileCardProps = {
   pandit: PublicPanditProfile;
   index?: number;
   variant?: 'carousel' | 'list';
+  serviceName?: string;
+  onPress?: (pandit: PublicPanditProfile) => void;
   onBook?: (pandit: PublicPanditProfile) => void;
 };
+
+function getServicePrice(pandit: PublicPanditProfile, serviceName?: string) {
+  if (!serviceName) return null;
+  const match = pandit.pujaServices?.find((service) => service.name === serviceName);
+  return match?.price ?? null;
+}
 
 export function PanditProfileCard({
   pandit,
   index = 0,
   variant = 'carousel',
+  serviceName,
+  onPress,
   onBook,
 }: PanditProfileCardProps) {
   const imageSource = pandit.profileImage || FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
   const isList = variant === 'list';
+  const servicePrice = getServicePrice(pandit, serviceName);
 
-  return (
-    <View style={[styles.card, isList && styles.cardList]}>
+  const cardContent = (
+    <>
       <View style={[styles.imageWrap, isList && styles.imageWrapList]}>
         <CloudImage
           source={imageSource}
@@ -77,9 +88,11 @@ export function PanditProfileCard({
           {formatPanditLanguages(pandit)}
         </Text>
         <Text style={styles.experienceText}>
-          {pandit.experienceYears > 0
-            ? `${pandit.experienceYears}+ yrs experience`
-            : 'Available to book'}
+          {servicePrice != null
+            ? `₹${servicePrice.toLocaleString('en-IN')} for ${serviceName}`
+            : pandit.experienceYears > 0
+              ? `${pandit.experienceYears}+ yrs experience`
+              : 'Available to book'}
         </Text>
 
         {isList && onBook ? (
@@ -89,8 +102,21 @@ export function PanditProfileCard({
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        style={[styles.card, isList && styles.cardList]}
+        onPress={() => onPress(pandit)}
+      >
+        {cardContent}
+      </Pressable>
+    );
+  }
+
+  return <View style={[styles.card, isList && styles.cardList]}>{cardContent}</View>;
 }
 
 const styles = StyleSheet.create({

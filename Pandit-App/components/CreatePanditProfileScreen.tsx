@@ -17,7 +17,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ImageUploadField } from '@/components/ImageUploadField';
+import { PujaServicesField } from '@/components/PujaServicesField';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import {
+  normalizePujaServices,
+  PujaServiceDraft,
+  validatePujaServices,
+} from '@/constants/puja-services';
 import { useCreatePanditProfileMutation } from '@/hooks/use-pandit-profile';
 import { goToProfile } from '@/lib/auth-navigation';
 import { getCurrentAddress } from '@/lib/location';
@@ -52,6 +58,7 @@ export function CreatePanditProfileScreen() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
   const [bankName, setBankName] = useState('');
+  const [pujaServices, setPujaServices] = useState<PujaServiceDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
@@ -115,6 +122,12 @@ export function CreatePanditProfileScreen() {
       return;
     }
 
+    const pujaValidationError = validatePujaServices(pujaServices);
+    if (pujaValidationError) {
+      Alert.alert('Required', pujaValidationError);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -146,6 +159,7 @@ export function CreatePanditProfileScreen() {
         bankIfsc: bankIfsc.trim().toUpperCase(),
         bankName: bankName.trim(),
         passbookImage,
+        pujaServices: normalizePujaServices(pujaServices),
       });
 
       if (token && user) {
@@ -277,6 +291,15 @@ export function CreatePanditProfileScreen() {
                 Tap the button above to automatically capture your city and GPS coordinates.
               </Text>
             )}
+          </View>
+
+          <Text style={styles.sectionTitle}>Puja Services *</Text>
+          <View style={styles.card}>
+            <PujaServicesField
+              value={pujaServices}
+              onChange={setPujaServices}
+              disabled={isBusy}
+            />
           </View>
 
           <Text style={styles.sectionTitle}>Documents</Text>

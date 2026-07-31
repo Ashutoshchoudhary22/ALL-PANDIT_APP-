@@ -1,6 +1,11 @@
 import { PROFILE_ENDPOINTS } from '@/constants/profiles';
 import { apiClient } from '@/lib/axios';
 
+export type PujaService = {
+  name: string;
+  price: number;
+};
+
 export type PanditProfile = {
   id: number;
   userId: number;
@@ -24,6 +29,7 @@ export type PanditProfile = {
   bankAccountNumber: string | null;
   bankIfsc: string | null;
   bankName: string | null;
+  pujaServices: PujaService[];
   status: string;
   isVerified: boolean;
   isOnline: boolean;
