@@ -3,12 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --port 8083",
-    "start:clear": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --clear --port 8083",
+    "start": "node scripts/start-expo.js start --port 8083",
+    "start:clear": "node scripts/start-expo.js start --clear --port 8083",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --android --port 8083",
-    "ios": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --ios --port 8083",
-    "web": "node --max-old-space-size=8192 ./node_modules/expo/bin/cli start --web --port 8083",
+    "android": "node scripts/start-expo.js start --android --port 8083",
+    "ios": "node scripts/start-expo.js start --ios --port 8083",
+    "web": "node scripts/start-expo.js start --web --port 8083",
     "lint": "expo lint"
   },
   "dependencies": {

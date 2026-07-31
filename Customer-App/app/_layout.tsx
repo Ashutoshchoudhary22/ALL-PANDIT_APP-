@@ -36,6 +36,7 @@ export default function RootLayout() {
                 <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
                 <Stack.Screen name="create-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+                <Stack.Screen name="nearby-pandits" options={{ headerShown: false }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
               </Stack>
             </LiveLocationGate>

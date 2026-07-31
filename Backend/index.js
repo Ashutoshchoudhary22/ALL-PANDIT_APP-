@@ -7,6 +7,7 @@ const authRoutes = require('./routes/authRoutes');
 const customerProfileRoutes = require('./routes/customerProfileRoutes');
 const panditProfileRoutes = require('./routes/panditProfileRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customer-profiles', customerProfileRoutes);
 app.use('/api/pandit-profiles', panditProfileRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 5300;
 

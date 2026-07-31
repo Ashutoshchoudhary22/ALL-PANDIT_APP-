@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { ReactNode } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { useAdminDashboardStatsQuery } from '@/hooks/use-admin-stats';
 import { useAdminDrawer } from '@/providers/AdminDrawerProvider';
 
 type StatCardProps = {
@@ -21,6 +23,7 @@ type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   iconBg: string;
+  loading?: boolean;
 };
 
 type BookingStatus = 'Upcoming' | 'Completed' | 'Ongoing' | 'Cancelled' | 'Pending';
@@ -37,16 +40,17 @@ type RecentBooking = {
   status: BookingStatus;
 };
 
-const STAT_CARDS: StatCardProps[] = [
-  { label: 'Total Users', value: '24,786', trend: '12.5% vs last week', icon: 'people', iconColor: C.primary, iconBg: C.purpleBg },
-  { label: 'Total Pandits', value: '8,542', trend: '15.3% vs last week', icon: 'person', iconColor: C.success, iconBg: C.greenBg },
-  { label: 'Total Customers', value: '16,244', trend: '11.8% vs last week', icon: 'people-outline', iconColor: C.info, iconBg: C.blueBg },
+const STATIC_STAT_CARDS: StatCardProps[] = [
   { label: 'Total Bookings', value: '12,458', trend: '18.7% vs last week', icon: 'calendar', iconColor: C.warning, iconBg: C.orangeBg },
   { label: 'Total Revenue', value: '₹24,78,560', trend: '16.4% vs last week', icon: 'cash', iconColor: C.yellow, iconBg: C.yellowBg },
   { label: 'Platform Earnings', value: '₹4,78,560', trend: '14.2% vs last week', icon: 'trending-up', iconColor: C.pink, iconBg: C.pinkBg },
   { label: 'Pandit Payouts', value: '₹19,45,000', trend: '16.1% vs last week', icon: 'wallet', iconColor: C.cyan, iconBg: C.cyanBg },
   { label: 'Total Reviews', value: '3,245', trend: '9.6% vs last week', icon: 'star', iconColor: C.primary, iconBg: C.purpleBg },
 ];
+
+function formatCount(value: number) {
+  return value.toLocaleString('en-IN');
+}
 
 const BOOKING_TREND = [42, 58, 45, 72, 65, 88, 76];
 const BOOKING_LABELS = ['26 May', '27 May', '28 May', '29 May', '30 May', '31 May', '01 Jun'];
@@ -146,18 +150,19 @@ function SectionHeader({
   );
 }
 
-function StatCard({ label, value, trend, icon, iconColor, iconBg }: StatCardProps) {
+function StatCard({ label, value, trend, icon, iconColor, iconBg, loading }: StatCardProps) {
   return (
     <View style={styles.statCard}>
       <View style={[styles.statIconWrap, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={18} color={iconColor} />
       </View>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statTrend}>
-        <Text style={styles.trendUp}>↑ </Text>
-        {trend}
-      </Text>
+      {loading ? (
+        <ActivityIndicator style={styles.statLoader} size="small" color={C.primary} />
+      ) : (
+        <Text style={styles.statValue}>{value}</Text>
+      )}
+      <Text style={styles.statTrend}>{trend}</Text>
     </View>
   );
 }
@@ -352,6 +357,40 @@ export function SuperAdminDashboard({
 }: SuperAdminDashboardProps) {
   const insets = useSafeAreaInsets();
   const { openDrawer } = useAdminDrawer();
+  const statsQuery = useAdminDashboardStatsQuery();
+  const stats = statsQuery.data?.data;
+  const statsLoading = statsQuery.isLoading;
+
+  const statCards: StatCardProps[] = [
+    {
+      label: 'Total Users',
+      value: formatCount(stats?.totalUsers ?? 0),
+      trend: 'Customers + Pandits on platform',
+      icon: 'people',
+      iconColor: C.primary,
+      iconBg: C.purpleBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Total Pandits',
+      value: formatCount(stats?.totalPandits ?? 0),
+      trend: 'Registered pandit accounts',
+      icon: 'person',
+      iconColor: C.success,
+      iconBg: C.greenBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Total Customers',
+      value: formatCount(stats?.totalCustomers ?? 0),
+      trend: 'Registered customer accounts',
+      icon: 'people-outline',
+      iconColor: C.info,
+      iconBg: C.blueBg,
+      loading: statsLoading,
+    },
+    ...STATIC_STAT_CARDS,
+  ];
 
   return (
     <View style={styles.root}>
@@ -400,7 +439,7 @@ export function SuperAdminDashboard({
         </LinearGradient>
 
         <View style={styles.statsGrid}>
-          {STAT_CARDS.map((card) => (
+          {statCards.map((card) => (
             <StatCard key={card.label} {...card} />
           ))}
         </View>
@@ -612,6 +651,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: C.text,
+  },
+  statLoader: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
   statTrend: {
     marginTop: 6,

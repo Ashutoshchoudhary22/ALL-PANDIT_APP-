@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,11 +14,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CloudImage } from '@/components/CloudImage';
+import { PanditProfileCard } from '@/components/PanditProfileCard';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
+import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { useAuth } from '@/providers/AuthProvider';
-import { PublicPanditProfile } from '@/services/pandit-profile.api';
+import { CustomerProfile } from '@/services/customer-profile.api';
 
 const CATEGORIES = [
   { id: '1', label: 'Marriage Puja', emoji: '💍', bg: '#FEE2E2', color: '#DC2626' },
@@ -27,8 +31,6 @@ const CATEGORIES = [
   { id: '6', label: 'Sunderkand Path', emoji: '📿', bg: '#F3E8FF', color: '#9333EA' },
   { id: '7', label: 'More', emoji: '⊞', bg: '#FEF9C3', color: '#CA8A04' },
 ];
-
-const NEARBY_PANDITS_FALLBACK_IMAGES = [DEMO_IMAGES.pandit1, DEMO_IMAGES.pandit2, DEMO_IMAGES.pandit3];
 
 const POPULAR_SERVICES = [
   { id: '1', name: 'Marriage Puja', price: '₹5,101', image: DEMO_IMAGES.serviceMarriage },
@@ -45,77 +47,57 @@ const TRUST_FEATURES = [
 ];
 
 type CustomerHomeProps = {
-  customerName?: string;
-  location?: string;
   notificationCount?: number;
 };
+
+function getDisplayName(profile: CustomerProfile | undefined, mobile?: string | null, email?: string | null) {
+  if (profile) {
+    const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+    if (name) return name;
+  }
+  if (email) return email.split('@')[0]?.replace(/[._]/g, ' ') || 'Customer';
+  if (mobile) return mobile;
+  return 'Customer';
+}
+
+function getLocationLabel(profile: CustomerProfile | undefined) {
+  if (profile?.cityName) return profile.cityName;
+  if (profile?.address) return profile.address;
+  return 'Add your location';
+}
 
 function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Pressable onPress={onViewAll} hitSlop={8}>
-        <Text style={styles.viewAll}>View All {'>'}</Text>
-      </Pressable>
+      {onViewAll ? (
+        <Pressable onPress={onViewAll} hitSlop={8}>
+          <Text style={styles.viewAll}>View All {'>'}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-function formatLanguages(pandit: PublicPanditProfile) {
-  if (pandit.languages.length > 0) return pandit.languages.join(', ');
-  return pandit.languageCode || 'Hindi';
-}
-
-function PanditCard({ pandit, index }: { pandit: PublicPanditProfile; index: number }) {
-  const imageSource =
-    pandit.profileImage || NEARBY_PANDITS_FALLBACK_IMAGES[index % NEARBY_PANDITS_FALLBACK_IMAGES.length];
-
-  return (
-    <Pressable style={styles.panditCard}>
-      <View style={styles.panditImageWrap}>
-        <CloudImage source={imageSource} preset="panditCard" style={styles.panditImage} />
-        {pandit.isVerified ? (
-          <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={12} color="#fff" />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
-        ) : null}
-        <Pressable style={styles.favBtn}>
-          <Ionicons name="heart-outline" size={18} color={C.danger} />
-        </Pressable>
-      </View>
-      <Text style={styles.panditName}>{pandit.name}</Text>
-      <View style={styles.ratingRow}>
-        <Ionicons name="star" size={14} color={C.star} />
-        <Text style={styles.ratingText}>
-          {pandit.rating.toFixed(1)} ({pandit.totalReviews})
-        </Text>
-      </View>
-      <View style={styles.metaRow}>
-        <Ionicons name="location-outline" size={12} color={C.textMuted} />
-        <Text style={styles.metaText}>
-          {pandit.liveLatitude != null && pandit.liveLongitude != null
-            ? `Live: ${pandit.liveLatitude.toFixed(4)}, ${pandit.liveLongitude.toFixed(4)}`
-            : pandit.cityName || 'Location not set'}
-        </Text>
-      </View>
-      <Text style={styles.langText}>{formatLanguages(pandit)}</Text>
-      <Text style={styles.priceText}>
-        {pandit.experienceYears > 0 ? `${pandit.experienceYears}+ yrs experience` : 'Available to book'}
-      </Text>
-    </Pressable>
-  );
-}
-
-export function CustomerHome({
-  customerName = 'Rahul',
-  location = 'Indore, Madhya Pradesh',
-  notificationCount = 3,
-}: CustomerHomeProps) {
+export function CustomerHome({ notificationCount = 0 }: CustomerHomeProps) {
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const panditsQuery = useApprovedPanditsQuery(Boolean(token));
   const approvedPandits = panditsQuery.data?.data ?? [];
+  const profile = profileQuery.data?.data;
+
+  const customerName = getDisplayName(profile, user?.mobile, user?.email);
+  const location = getLocationLabel(profile);
+  const avatarSource = profile?.profileImage || user?.profileImage || DEMO_IMAGES.customer;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        void profileQuery.refetch();
+      }
+    }, [token, profileQuery.refetch]),
+  );
 
   return (
     <View style={styles.root}>
@@ -130,22 +112,27 @@ export function CustomerHome({
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <Pressable style={styles.headerLeft} onPress={() => router.push('/(tabs)/profile')}>
             <CloudImage
-              source={DEMO_IMAGES.customer}
+              source={avatarSource}
               preset="avatar"
               style={styles.avatar}
             />
             <View style={styles.headerText}>
               <Text style={styles.greeting}>Namaste, {customerName} 🙏</Text>
               <Text style={styles.subGreeting}>Welcome to Pandit Booking</Text>
-              <Pressable style={styles.locationRow}>
+              <Pressable
+                style={styles.locationRow}
+                onPress={() => router.push('/edit-profile')}
+              >
                 <Ionicons name="location" size={14} color={C.primary} />
-                <Text style={styles.locationText}>{location}</Text>
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {location}
+                </Text>
                 <Ionicons name="chevron-down" size={14} color={C.textMuted} />
               </Pressable>
             </View>
-          </View>
+          </Pressable>
           <View style={styles.headerRight}>
             <Pressable style={styles.iconBtn}>
               <Ionicons name="notifications-outline" size={24} color={C.text} />
@@ -187,7 +174,10 @@ export function CustomerHome({
               • Verified Pandits • Transparent Pricing{'\n'}
               • Easy Booking • On-time Service
             </Text>
-            <Pressable style={styles.bookNowBtn}>
+            <Pressable
+              style={styles.bookNowBtn}
+              onPress={() => router.push('/nearby-pandits')}
+            >
               <Text style={styles.bookNowText}>Book Now</Text>
             </Pressable>
           </View>
@@ -215,7 +205,10 @@ export function CustomerHome({
         </ScrollView>
 
         {/* Nearby Pandits */}
-        <SectionHeader title="Nearby Pandits" />
+        <SectionHeader
+          title="Nearby Pandits"
+          onViewAll={token ? () => router.push('/nearby-pandits') : undefined}
+        />
         {panditsQuery.isLoading ? (
           <View style={styles.panditsLoading}>
             <ActivityIndicator size="small" color={C.primary} />
@@ -236,7 +229,7 @@ export function CustomerHome({
             contentContainerStyle={styles.panditsRow}
           >
             {approvedPandits.map((pandit, index) => (
-              <PanditCard key={pandit.id} pandit={pandit} index={index} />
+              <PanditProfileCard key={pandit.id} pandit={pandit} index={index} variant="carousel" />
             ))}
           </ScrollView>
         )}
@@ -325,6 +318,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   locationText: {
+    flex: 1,
     fontSize: 12,
     color: C.textMuted,
     fontWeight: '500',
@@ -520,92 +514,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: C.textMuted,
     textAlign: 'center',
-  },
-  panditCard: {
-    width: 160,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  panditImageWrap: {
-    position: 'relative',
-    marginBottom: 8,
-  },
-  panditImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    backgroundColor: C.border,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: C.success,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  verifiedText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  favBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  panditName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: C.text,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: C.textMuted,
-    fontWeight: '500',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    color: C.textMuted,
-  },
-  langText: {
-    fontSize: 11,
-    color: C.textLight,
-    marginTop: 2,
-  },
-  priceText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: C.success,
-    marginTop: 6,
   },
   servicesRow: {
     gap: 12,
