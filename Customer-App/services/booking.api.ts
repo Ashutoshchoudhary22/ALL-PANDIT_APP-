@@ -30,6 +30,8 @@ export type Booking = {
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   status: BookingStatus;
+  needsReview?: boolean;
+  reviewRating?: number | null;
   sessionOtp?: string;
   sessionOtpPurpose?: 'start' | 'finish';
   sessionOtpHint?: string;
@@ -109,5 +111,16 @@ export async function cancelBookingApi(bookingId: number) {
 
 export async function getMyBookingsApi() {
   const { data } = await apiClient.get<{ success: boolean; data: Booking[] }>('/api/bookings/me');
+  return data;
+}
+
+export async function submitBookingReviewApi(
+  bookingId: number,
+  payload: { rating: number; comment?: string },
+) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: Booking }>(
+    `/api/bookings/${bookingId}/review`,
+    payload,
+  );
   return data;
 }

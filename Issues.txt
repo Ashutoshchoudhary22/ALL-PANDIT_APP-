@@ -1,3 +1,5 @@
 1.customer--->Create-Profile---> Address(make Non-editable)
 2.Login Page non-redirectable when the user is login.
-3.
+3.in signup page user not enter the number of digits les than 10 or greater than 10.
+4.If pandit can edit his profile so it can go to first super-admin approval and after that it can update in the app.
+5.add platform ,taxes ,and coupon amount on book now.

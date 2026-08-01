@@ -135,11 +135,29 @@ async function notifyCustomerFinishOtpSent(io, bookingId) {
   return payload;
 }
 
+async function notifyCustomerReviewRequest(io, bookingId) {
+  if (!io) return null;
+
+  const row = await fetchBookingNotificationRow(bookingId);
+  if (!row?.customer_id) return null;
+
+  const payload = {
+    type: 'booking:review_request',
+    title: 'Rate Your Puja Experience',
+    message: `How was your ${row.service_name} with ${row.pandit_name || 'pandit ji'}? Share a rating and review.`,
+    booking: formatCustomerBookingNotification(row),
+  };
+
+  io.to(`customer:${row.customer_id}`).emit('booking:review_request', payload);
+  return payload;
+}
+
 module.exports = {
   notifyPanditNewBooking,
   notifyCustomerBookingApproved,
   notifyPanditBookingPaymentConfirmed,
   notifyCustomerFinishOtpSent,
+  notifyCustomerReviewRequest,
   formatPanditBookingNotification,
   formatCustomerBookingNotification,
 };

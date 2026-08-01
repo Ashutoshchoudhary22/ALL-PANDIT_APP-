@@ -5,6 +5,7 @@ import {
   createBookingApi,
   getMyBookingsApi,
   retryBookingPaymentApi,
+  submitBookingReviewApi,
   verifyBookingPaymentApi,
   CreateBookingPayload,
   VerifyBookingPaymentPayload,
@@ -55,5 +56,23 @@ export function useMyBookingsQuery(enabled = true) {
     queryKey: ['bookings', 'me'],
     queryFn: getMyBookingsApi,
     enabled,
+  });
+}
+
+export function useSubmitBookingReviewMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      bookingId,
+      rating,
+      comment,
+    }: {
+      bookingId: number;
+      rating: number;
+      comment?: string;
+    }) => submitBookingReviewApi(bookingId, { rating, comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+    },
   });
 }

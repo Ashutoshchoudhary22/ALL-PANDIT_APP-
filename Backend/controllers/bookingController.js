@@ -12,6 +12,7 @@ const {
   notifyCustomerBookingApproved,
   notifyPanditBookingPaymentConfirmed,
   notifyCustomerFinishOtpSent,
+  notifyCustomerReviewRequest,
 } = require('../services/bookingNotifications');
 
 const SAMAGRI_RATE = 0.2;
@@ -71,6 +72,8 @@ function formatBooking(row, { includeSessionOtp = false } = {}) {
     remainingPaymentMethod: row.remaining_payment_method || null,
     advancePaidAt: row.advance_paid_at || null,
     completedAt: row.completed_at || null,
+    needsReview: row.status === 'completed' && !row.review_id,
+    reviewRating: row.review_rating != null ? Number(row.review_rating) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -793,9 +796,10 @@ exports.getMyBookings = async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT b.*, pp.name AS pandit_name
+      `SELECT b.*, pp.name AS pandit_name, br.id AS review_id, br.rating AS review_rating
        FROM bookings b
        INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+       LEFT JOIN booking_reviews br ON br.booking_id = b.id
        WHERE b.customer_id = ?
        ORDER BY b.booking_date DESC, b.booking_time DESC`,
       [req.user.id],
@@ -1027,6 +1031,8 @@ exports.completeBookingCash = async (req, res) => {
     );
 
     const row = await fetchBookingById(bookingId);
+    await notifyCustomerReviewRequest(req.app.get('io'), bookingId);
+
     return res.status(200).json({
       success: true,
       message: 'Booking completed. Remaining amount marked as received in cash.',
@@ -1188,6 +1194,8 @@ exports.verifyRemainingPayment = async (req, res) => {
     );
 
     const row = await fetchBookingById(bookingIdNum);
+    await notifyCustomerReviewRequest(req.app.get('io'), bookingIdNum);
+
     return res.status(200).json({
       success: true,
       message: 'Remaining payment successful! Booking is completed.',
@@ -1198,6 +1206,106 @@ exports.verifyRemainingPayment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while verifying remaining payment',
+    });
+  }
+};
+
+exports.submitBookingReview = async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can submit reviews',
+      });
+    }
+
+    const bookingId = Number(req.params.id);
+    const rating = Number(req.body.rating);
+    const comment = req.body.comment?.trim() || null;
+
+    if (!Number.isFinite(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking id' });
+    }
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5',
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT b.*, pp.name AS pandit_name
+       FROM bookings b
+       INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+       WHERE b.id = ? AND b.customer_id = ?`,
+      [bookingId, req.user.id],
+    );
+    const booking = rows[0];
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'You can review only completed bookings',
+      });
+    }
+
+    const [existing] = await pool.query(
+      `SELECT id FROM booking_reviews WHERE booking_id = ?`,
+      [bookingId],
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Review already submitted for this booking',
+      });
+    }
+
+    await pool.query(
+      `INSERT INTO booking_reviews (booking_id, customer_id, pandit_profile_id, rating, comment)
+       VALUES (?, ?, ?, ?, ?)`,
+      [bookingId, req.user.id, booking.pandit_profile_id, rating, comment],
+    );
+
+    await pool.query(
+      `UPDATE pandit_profiles pp
+       SET rating = (
+             SELECT ROUND(AVG(br.rating), 2)
+             FROM booking_reviews br
+             WHERE br.pandit_profile_id = pp.id
+           ),
+           total_reviews = (
+             SELECT COUNT(*)
+             FROM booking_reviews br
+             WHERE br.pandit_profile_id = pp.id
+           )
+       WHERE pp.id = ?`,
+      [booking.pandit_profile_id],
+    );
+
+    const [updatedRows] = await pool.query(
+      `SELECT b.*, pp.name AS pandit_name, br.id AS review_id, br.rating AS review_rating
+       FROM bookings b
+       INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+       LEFT JOIN booking_reviews br ON br.booking_id = b.id
+       WHERE b.id = ?`,
+      [bookingId],
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Thank you for your review!',
+      data: formatBooking(updatedRows[0]),
+    });
+  } catch (error) {
+    console.error('Submit booking review error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while submitting review',
     });
   }
 };

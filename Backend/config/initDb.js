@@ -193,6 +193,22 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'advance_paid_at', 'DATETIME NULL');
     await ensureColumn(connection, 'bookings', 'completed_at', 'DATETIME NULL');
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS booking_reviews (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        booking_id BIGINT UNSIGNED NOT NULL UNIQUE,
+        customer_id BIGINT UNSIGNED NOT NULL,
+        pandit_profile_id BIGINT UNSIGNED NOT NULL,
+        rating TINYINT UNSIGNED NOT NULL,
+        comment TEXT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (pandit_profile_id) REFERENCES pandit_profiles(id) ON DELETE CASCADE,
+        CHECK (rating BETWEEN 1 AND 5)
+      )
+    `);
+
     try {
       await connection.query(`
         ALTER TABLE bookings

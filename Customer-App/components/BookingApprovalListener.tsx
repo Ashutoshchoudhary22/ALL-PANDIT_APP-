@@ -82,6 +82,33 @@ export function BookingApprovalListener() {
       );
     });
 
+    socket.on('booking:review_request', (payload: CustomerBookingNotification) => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+
+      addNotification({
+        id: `booking-review-${payload.booking.id}`,
+        type: 'booking:review_request',
+        title: payload.title || 'Rate Your Puja Experience',
+        message: payload.message,
+        bookingId: payload.booking.id,
+        read: false,
+        createdAt: payload.booking.updatedAt || new Date().toISOString(),
+        booking: payload.booking,
+      });
+
+      Alert.alert(
+        payload.title || 'Rate Your Puja Experience',
+        payload.message || 'Please share your rating for the completed puja.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Rate Now',
+            onPress: () => router.push('/(tabs)/home'),
+          },
+        ],
+      );
+    });
+
     socket.on('connect_error', (error) => {
       console.warn('Customer socket connect error:', error.message);
     });

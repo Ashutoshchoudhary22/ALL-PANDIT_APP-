@@ -17,6 +17,7 @@ router.post('/pandit/:id/verify-finish-otp', authMiddleware, bookingController.v
 router.post('/pandit/:id/complete-cash', authMiddleware, bookingController.completeBookingCash);
 router.post('/pandit/:id/retry-remaining-payment', authMiddleware, bookingController.retryRemainingPayment);
 router.get('/me', authMiddleware, bookingController.getMyBookings);
+router.post('/:id/review', authMiddleware, bookingController.submitBookingReview);
 router.post('/:id/cancel', authMiddleware, bookingController.cancelBooking);
 router.post('/:id/retry-payment', authMiddleware, bookingController.retryBookingPayment);
 

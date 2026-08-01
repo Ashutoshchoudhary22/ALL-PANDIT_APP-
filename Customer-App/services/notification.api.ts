@@ -2,7 +2,7 @@ import { Booking } from '@/services/booking.api';
 
 export type CustomerNotification = {
   id: string;
-  type: 'booking:approved' | 'booking:finish_otp';
+  type: 'booking:approved' | 'booking:finish_otp' | 'booking:review_request';
   title: string;
   message: string;
   bookingId: number;
@@ -12,7 +12,7 @@ export type CustomerNotification = {
 };
 
 export type CustomerBookingNotification = {
-  type: 'booking:approved' | 'booking:finish_otp';
+  type: 'booking:approved' | 'booking:finish_otp' | 'booking:review_request';
   title: string;
   message: string;
   booking: {
@@ -25,6 +25,19 @@ export type CustomerBookingNotification = {
     createdAt?: string;
   };
 };
+
+export function notificationFromReviewRequest(booking: Booking): CustomerNotification {
+  return {
+    id: `booking-review-${booking.id}`,
+    type: 'booking:review_request',
+    title: 'Rate Your Puja Experience',
+    message: `How was your ${booking.serviceName} with ${booking.panditName}? Share a rating and review.`,
+    bookingId: booking.id,
+    read: false,
+    createdAt: booking.completedAt || booking.updatedAt || booking.createdAt,
+    booking,
+  };
+}
 
 export function notificationFromBooking(booking: Booking): CustomerNotification {
   return {

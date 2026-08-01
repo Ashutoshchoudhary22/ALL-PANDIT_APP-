@@ -102,6 +102,11 @@ export function EditCustomerProfileScreen() {
       return;
     }
 
+    if (!address.trim()) {
+      Alert.alert('Location required', 'Please tap Use Current Location to fetch your address.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -212,13 +217,14 @@ export function EditCustomerProfileScreen() {
                 </Pressable>
               </View>
               <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="House no, street, city, state, pincode"
+                style={[styles.input, styles.inputMultiline, styles.inputReadOnly]}
+                placeholder="Tap Use Current Location to fetch address"
                 placeholderTextColor={C.textLight}
                 value={address}
-                onChangeText={setAddress}
+                editable={false}
                 multiline
               />
+              <Text style={styles.addressHint}>Address can only be updated using your current location.</Text>
             </View>
 
             <Pressable
@@ -338,6 +344,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
+  inputReadOnly: {
+    backgroundColor: '#F3F4F6',
+    color: C.textMuted,
+  },
+  addressHint: {
+    marginTop: 6,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.textLight,
+  },
   genderRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   genderChip: {
     paddingHorizontal: 14,

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,11 +17,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudImage } from '@/components/CloudImage';
 import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { PanditProfileCard } from '@/components/PanditProfileCard';
+import { ReviewPromptBanner } from '@/components/ReviewPromptBanner';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { HOME_PUJA_CATEGORIES, getPujaServiceStyle } from '@/constants/puja-services';
 import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
+import { useSubmitBookingReviewMutation } from '@/hooks/use-bookings';
+import { usePendingReviewPrompts } from '@/hooks/use-pending-reviews';
 import { openPanditsForService } from '@/lib/pandit-navigation';
+import { dismissReviewPrompt } from '@/lib/review-prompt-storage';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
 import { usePopularPujaServicesQuery } from '@/hooks/use-popular-puja-services';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
@@ -105,6 +110,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
     customerLatitude,
     customerLongitude,
   });
+  const reviewPrompts = usePendingReviewPrompts(Boolean(token));
+  const submitReview = useSubmitBookingReviewMutation();
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
   const location = getLocationLabel(profile);
@@ -114,8 +121,36 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
     useCallback(() => {
       if (token) {
         void profileQuery.refetch();
+        void reviewPrompts.refetch();
+        void reviewPrompts.refreshDismissed();
       }
-    }, [token, profileQuery.refetch]),
+    }, [token, profileQuery.refetch, reviewPrompts.refetch, reviewPrompts.refreshDismissed]),
+  );
+
+  const handleDismissReview = useCallback(async () => {
+    const booking = reviewPrompts.featuredReview;
+    if (!booking || !user?.id) return;
+    await dismissReviewPrompt(user.id, booking.id);
+    reviewPrompts.markDismissedLocally(booking.id);
+  }, [reviewPrompts, user?.id]);
+
+  const handleSubmitReview = useCallback(
+    async (payload: { rating: number; comment: string }) => {
+      const booking = reviewPrompts.featuredReview;
+      if (!booking) return;
+      try {
+        const response = await submitReview.mutateAsync({
+          bookingId: booking.id,
+          rating: payload.rating,
+          comment: payload.comment || undefined,
+        });
+        Alert.alert('Thank You!', response.message);
+        void reviewPrompts.refetch();
+      } catch (error) {
+        Alert.alert('Error', error instanceof Error ? error.message : 'Could not submit review');
+      }
+    },
+    [reviewPrompts, submitReview],
   );
 
   return (
@@ -166,6 +201,15 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
             </Pressable>
           </View>
         </View>
+
+        {reviewPrompts.featuredReview ? (
+          <ReviewPromptBanner
+            booking={reviewPrompts.featuredReview}
+            submitting={submitReview.isPending}
+            onDismiss={handleDismissReview}
+            onSubmit={handleSubmitReview}
+          />
+        ) : null}
 
         {/* Search */}
         <View style={styles.searchRow}>
