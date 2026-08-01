@@ -69,6 +69,8 @@ function formatBooking(row, { includeSessionOtp = false } = {}) {
     startedAt: row.started_at || null,
     finishRequestedAt: row.finish_requested_at || null,
     remainingPaymentMethod: row.remaining_payment_method || null,
+    advancePaidAt: row.advance_paid_at || null,
+    completedAt: row.completed_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -408,7 +410,7 @@ exports.verifyBookingPayment = async (req, res) => {
     await pool.query(
       `UPDATE bookings
        SET razorpay_payment_id = ?, payment_status = 'advance_paid', status = 'confirmed',
-           start_otp = ?, start_otp_expires_at = ?, updated_at = NOW()
+           start_otp = ?, start_otp_expires_at = ?, advance_paid_at = NOW(), updated_at = NOW()
        WHERE id = ?`,
       [razorpayPaymentId, startOtp, expiresAt, bookingId],
     );
@@ -1019,7 +1021,7 @@ exports.completeBookingCash = async (req, res) => {
     await pool.query(
       `UPDATE bookings
        SET status = 'completed', payment_status = 'fully_paid', remaining_payment_method = 'cash',
-           updated_at = NOW()
+           completed_at = NOW(), updated_at = NOW()
        WHERE id = ?`,
       [bookingId],
     );
@@ -1180,7 +1182,7 @@ exports.verifyRemainingPayment = async (req, res) => {
     await pool.query(
       `UPDATE bookings
        SET razorpay_remaining_payment_id = ?, payment_status = 'fully_paid', status = 'completed',
-           remaining_payment_method = 'online', updated_at = NOW()
+           remaining_payment_method = 'online', completed_at = NOW(), updated_at = NOW()
        WHERE id = ?`,
       [razorpayPaymentId, bookingIdNum],
     );

@@ -190,6 +190,8 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'remaining_payment_method', "ENUM('cash','online') NULL");
     await ensureColumn(connection, 'bookings', 'razorpay_remaining_order_id', 'VARCHAR(100) NULL');
     await ensureColumn(connection, 'bookings', 'razorpay_remaining_payment_id', 'VARCHAR(100) NULL');
+    await ensureColumn(connection, 'bookings', 'advance_paid_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'completed_at', 'DATETIME NULL');
 
     try {
       await connection.query(`

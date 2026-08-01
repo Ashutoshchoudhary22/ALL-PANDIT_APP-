@@ -32,6 +32,8 @@ export type PanditBooking = {
   startedAt: string | null;
   finishRequestedAt: string | null;
   remainingPaymentMethod: 'cash' | 'online' | null;
+  advancePaidAt: string | null;
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
