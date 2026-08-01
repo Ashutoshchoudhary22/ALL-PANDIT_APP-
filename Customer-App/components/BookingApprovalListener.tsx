@@ -55,6 +55,33 @@ export function BookingApprovalListener() {
       );
     });
 
+    socket.on('booking:finish_otp', (payload: CustomerBookingNotification) => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+
+      addNotification({
+        id: `booking-finish-otp-${payload.booking.id}-${Date.now()}`,
+        type: 'booking:finish_otp',
+        title: payload.title || 'Puja Completion OTP',
+        message: payload.message,
+        bookingId: payload.booking.id,
+        read: false,
+        createdAt: payload.booking.updatedAt || new Date().toISOString(),
+        booking: payload.booking,
+      });
+
+      Alert.alert(
+        payload.title || 'Puja Completion OTP',
+        payload.message || 'Check your email for the OTP and share it with pandit ji.',
+        [
+          { text: 'OK' },
+          {
+            text: 'View Bookings',
+            onPress: () => router.push('/(tabs)/bookings'),
+          },
+        ],
+      );
+    });
+
     socket.on('connect_error', (error) => {
       console.warn('Customer socket connect error:', error.message);
     });

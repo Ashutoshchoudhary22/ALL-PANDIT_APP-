@@ -2,7 +2,7 @@ import { Booking } from '@/services/booking.api';
 
 export type CustomerNotification = {
   id: string;
-  type: 'booking:approved';
+  type: 'booking:approved' | 'booking:finish_otp';
   title: string;
   message: string;
   bookingId: number;
@@ -12,7 +12,7 @@ export type CustomerNotification = {
 };
 
 export type CustomerBookingNotification = {
-  type: 'booking:approved';
+  type: 'booking:approved' | 'booking:finish_otp';
   title: string;
   message: string;
   booking: {

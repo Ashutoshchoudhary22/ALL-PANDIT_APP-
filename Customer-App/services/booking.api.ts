@@ -1,6 +1,13 @@
 import { apiClient } from '@/lib/axios';
 
-export type BookingStatus = 'payment_pending' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type BookingStatus =
+  | 'payment_pending'
+  | 'pending'
+  | 'confirmed'
+  | 'in_progress'
+  | 'awaiting_payment'
+  | 'cancelled'
+  | 'completed';
 export type PaymentStatus = 'pending' | 'advance_paid' | 'fully_paid';
 
 export type Booking = {
@@ -23,6 +30,9 @@ export type Booking = {
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   status: BookingStatus;
+  sessionOtp?: string;
+  sessionOtpPurpose?: 'start' | 'finish';
+  sessionOtpHint?: string;
   createdAt: string;
   updatedAt: string;
 };

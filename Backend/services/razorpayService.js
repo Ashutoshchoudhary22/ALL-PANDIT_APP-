@@ -89,9 +89,42 @@ function verifyPaymentSignature({ orderId, paymentId, signature }) {
   return expectedSignature === signature;
 }
 
+async function createRemainingOrder({ bookingId, remainingAmount, customerName, serviceName }) {
+  const amountPaise = toPaise(remainingAmount);
+
+  const client = getClient();
+  try {
+    const order = await client.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `bk${bookingId}r${Date.now().toString().slice(-7)}`.slice(0, 40),
+      notes: {
+        booking_id: String(bookingId),
+        payment_type: 'remaining',
+        service_name: serviceName || '',
+        customer_name: customerName || '',
+      },
+    });
+
+    return {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      remainingAmount,
+    };
+  } catch (error) {
+    const message = getRazorpayErrorMessage(error);
+    const wrapped = new Error(message);
+    wrapped.cause = error;
+    throw wrapped;
+  }
+}
+
 module.exports = {
   ADVANCE_RATE,
   calculateAdvanceAmount,
   createAdvanceOrder,
+  createRemainingOrder,
   verifyPaymentSignature,
 };

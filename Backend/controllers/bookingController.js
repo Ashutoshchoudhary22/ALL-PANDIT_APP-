@@ -2,14 +2,49 @@ const pool = require('../config/db');
 const {
   calculateAdvanceAmount,
   createAdvanceOrder,
+  createRemainingOrder,
   verifyPaymentSignature,
 } = require('../services/razorpayService');
-const { notifyPanditNewBooking, notifyCustomerBookingApproved, notifyPanditBookingPaymentConfirmed } = require('../services/bookingNotifications');
+const { sendBookingOtpEmail } = require('../config/mailer');
+const generateOtp = require('../utils/generateOtp');
+const {
+  notifyPanditNewBooking,
+  notifyCustomerBookingApproved,
+  notifyPanditBookingPaymentConfirmed,
+  notifyCustomerFinishOtpSent,
+} = require('../services/bookingNotifications');
 
 const SAMAGRI_RATE = 0.2;
+const OTP_TTL_MINUTES = 10;
 
-function formatBooking(row) {
+function otpExpiresAt() {
+  return new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+}
+
+function isOtpExpired(expiresAt) {
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() < Date.now();
+}
+
+async function fetchCustomerContact(customerId) {
+  const [rows] = await pool.query(
+    `SELECT cp.first_name, cp.last_name, u.email, u.mobile
+     FROM users u
+     LEFT JOIN customer_profiles cp ON cp.customer_id = u.id
+     WHERE u.id = ?`,
+    [customerId],
+  );
+  const row = rows[0] || {};
+  const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
   return {
+    name: name || 'Customer',
+    email: row.email || null,
+    mobile: row.mobile || null,
+  };
+}
+
+function formatBooking(row, { includeSessionOtp = false } = {}) {
+  const booking = {
     id: row.id,
     customerId: row.customer_id,
     panditProfileId: row.pandit_profile_id,
@@ -31,9 +66,35 @@ function formatBooking(row) {
     razorpayOrderId: row.razorpay_order_id || null,
     razorpayPaymentId: row.razorpay_payment_id || null,
     status: row.status,
+    startedAt: row.started_at || null,
+    finishRequestedAt: row.finish_requested_at || null,
+    remainingPaymentMethod: row.remaining_payment_method || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+
+  if (includeSessionOtp) {
+    if (
+      row.status === 'confirmed' &&
+      row.start_otp &&
+      !isOtpExpired(row.start_otp_expires_at)
+    ) {
+      booking.sessionOtp = row.start_otp;
+      booking.sessionOtpPurpose = 'start';
+      booking.sessionOtpHint = 'Share this OTP with pandit ji when they arrive to start the puja.';
+    } else if (
+      row.status === 'in_progress' &&
+      row.finish_otp &&
+      !isOtpExpired(row.finish_otp_expires_at)
+    ) {
+      booking.sessionOtp = row.finish_otp;
+      booking.sessionOtpPurpose = 'finish';
+      booking.sessionOtpHint =
+        'Share this OTP with pandit ji after puja is completed for remaining payment.';
+    }
+  }
+
+  return booking;
 }
 
 function normalizeTime(value) {
@@ -341,20 +402,31 @@ exports.verifyBookingPayment = async (req, res) => {
       });
     }
 
+    const startOtp = generateOtp();
+    const expiresAt = otpExpiresAt();
+
     await pool.query(
       `UPDATE bookings
-       SET razorpay_payment_id = ?, payment_status = 'advance_paid', status = 'confirmed', updated_at = NOW()
+       SET razorpay_payment_id = ?, payment_status = 'advance_paid', status = 'confirmed',
+           start_otp = ?, start_otp_expires_at = ?, updated_at = NOW()
        WHERE id = ?`,
-      [razorpayPaymentId, bookingId],
+      [razorpayPaymentId, startOtp, expiresAt, bookingId],
     );
+
+    const customer = await fetchCustomerContact(booking.customer_id);
+    if (customer.email) {
+      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start');
+    } else {
+      console.log(`[DEV] Start OTP for booking ${bookingId}: ${startOtp}`);
+    }
 
     const row = await fetchBookingById(bookingId);
     await notifyPanditBookingPaymentConfirmed(req.app.get('io'), bookingId);
 
     return res.status(200).json({
       success: true,
-      message: 'Payment successful! Your booking is confirmed.',
-      data: formatBooking(row),
+      message: 'Payment successful! Start OTP sent to your email. Share it with pandit ji on arrival.',
+      data: formatBooking(row, { includeSessionOtp: true }),
     });
   } catch (error) {
     console.error('Verify booking payment error:', error);
@@ -626,7 +698,7 @@ exports.getPanditBookings = async (req, res) => {
        LEFT JOIN customer_profiles cp ON cp.customer_id = b.customer_id
        LEFT JOIN users u ON u.id = b.customer_id
        WHERE pp.user_id = ?
-         AND b.status IN ('payment_pending', 'confirmed', 'completed', 'cancelled')
+         AND b.status IN ('payment_pending', 'confirmed', 'in_progress', 'awaiting_payment', 'completed', 'cancelled')
        ORDER BY b.updated_at DESC, b.booking_date DESC, b.booking_time DESC`,
       [req.user.id],
     );
@@ -729,13 +801,401 @@ exports.getMyBookings = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows.map(formatBooking),
+      data: rows.map((row) => formatBooking(row, { includeSessionOtp: true })),
     });
   } catch (error) {
     console.error('Get my bookings error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error while fetching bookings',
+    });
+  }
+};
+
+exports.startBookingPuja = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({ success: false, message: 'Only pandits can start a puja' });
+    }
+
+    const bookingId = Number(req.params.id);
+    const { otp } = req.body;
+
+    if (!Number.isFinite(bookingId) || !otp?.trim()) {
+      return res.status(400).json({ success: false, message: 'Booking id and OTP are required' });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingId))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+    const booking = rows[0];
+
+    if (!booking || booking.status !== 'confirmed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only confirmed bookings can be started',
+      });
+    }
+
+    if (!booking.start_otp || booking.start_otp !== otp.trim()) {
+      return res.status(400).json({ success: false, message: 'Invalid start OTP' });
+    }
+
+    if (isOtpExpired(booking.start_otp_expires_at)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start OTP has expired. Ask customer to check their email.',
+      });
+    }
+
+    await pool.query(
+      `UPDATE bookings
+       SET status = 'in_progress', start_otp = NULL, start_otp_expires_at = NULL,
+           started_at = NOW(), updated_at = NOW()
+       WHERE id = ?`,
+      [bookingId],
+    );
+
+    const row = await fetchBookingById(bookingId);
+    return res.status(200).json({
+      success: true,
+      message: 'Puja started successfully.',
+      data: formatBooking(row),
+    });
+  } catch (error) {
+    console.error('Start booking puja error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while starting puja' });
+  }
+};
+
+exports.requestFinishBookingPuja = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({ success: false, message: 'Only pandits can finish a puja' });
+    }
+
+    const bookingId = Number(req.params.id);
+    if (!Number.isFinite(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking id' });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingId))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+    const booking = rows[0];
+
+    if (!booking || booking.status !== 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only in-progress bookings can be finished',
+      });
+    }
+
+    if (booking.finish_otp && !isOtpExpired(booking.finish_otp_expires_at)) {
+      return res.status(200).json({
+        success: true,
+        message: 'Finish OTP already sent to customer. Ask them for the OTP.',
+        data: formatBooking(await fetchBookingById(bookingId)),
+      });
+    }
+
+    const finishOtp = generateOtp();
+    const expiresAt = otpExpiresAt();
+    const customer = await fetchCustomerContact(booking.customer_id);
+
+    await pool.query(
+      `UPDATE bookings
+       SET finish_otp = ?, finish_otp_expires_at = ?, finish_requested_at = NOW(), updated_at = NOW()
+       WHERE id = ?`,
+      [finishOtp, expiresAt, bookingId],
+    );
+
+    if (customer.email) {
+      await sendBookingOtpEmail(customer.email, customer.name, finishOtp, 'finish');
+    } else {
+      console.log(`[DEV] Finish OTP for booking ${bookingId}: ${finishOtp}`);
+    }
+
+    await notifyCustomerFinishOtpSent(req.app.get('io'), bookingId);
+
+    const row = await fetchBookingById(bookingId);
+    return res.status(200).json({
+      success: true,
+      message: 'Finish OTP sent to customer email. Ask them to share it with you.',
+      data: formatBooking(row),
+    });
+  } catch (error) {
+    console.error('Request finish booking puja error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while finishing puja' });
+  }
+};
+
+exports.verifyFinishBookingOtp = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({ success: false, message: 'Only pandits can verify finish OTP' });
+    }
+
+    const bookingId = Number(req.params.id);
+    const { otp } = req.body;
+
+    if (!Number.isFinite(bookingId) || !otp?.trim()) {
+      return res.status(400).json({ success: false, message: 'Booking id and OTP are required' });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingId))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+    const booking = rows[0];
+
+    if (!booking || booking.status !== 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is not in progress',
+      });
+    }
+
+    if (!booking.finish_otp || booking.finish_otp !== otp.trim()) {
+      return res.status(400).json({ success: false, message: 'Invalid finish OTP' });
+    }
+
+    if (isOtpExpired(booking.finish_otp_expires_at)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Finish OTP has expired. Tap Finish Puja again to resend.',
+      });
+    }
+
+    await pool.query(
+      `UPDATE bookings
+       SET status = 'awaiting_payment', finish_otp = NULL, finish_otp_expires_at = NULL, updated_at = NOW()
+       WHERE id = ?`,
+      [bookingId],
+    );
+
+    const row = await fetchBookingById(bookingId);
+    return res.status(200).json({
+      success: true,
+      message: 'OTP verified. Collect remaining 60% via cash or online payment.',
+      data: formatBooking(row),
+    });
+  } catch (error) {
+    console.error('Verify finish booking OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while verifying OTP' });
+  }
+};
+
+exports.completeBookingCash = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({ success: false, message: 'Only pandits can complete bookings' });
+    }
+
+    const bookingId = Number(req.params.id);
+    if (!Number.isFinite(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking id' });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingId))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+    const booking = rows[0];
+
+    if (!booking || booking.status !== 'awaiting_payment') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is not ready for remaining payment collection',
+      });
+    }
+
+    await pool.query(
+      `UPDATE bookings
+       SET status = 'completed', payment_status = 'fully_paid', remaining_payment_method = 'cash',
+           updated_at = NOW()
+       WHERE id = ?`,
+      [bookingId],
+    );
+
+    const row = await fetchBookingById(bookingId);
+    return res.status(200).json({
+      success: true,
+      message: 'Booking completed. Remaining amount marked as received in cash.',
+      data: formatBooking(row),
+    });
+  } catch (error) {
+    console.error('Complete booking cash error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while completing booking' });
+  }
+};
+
+exports.retryRemainingPayment = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only pandits can initiate remaining payment',
+      });
+    }
+
+    const bookingId = Number(req.params.id);
+    if (!Number.isFinite(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking id' });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingId))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT b.*, pp.name AS pandit_name
+       FROM bookings b
+       INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+       WHERE b.id = ?`,
+      [bookingId],
+    );
+    const booking = rows[0];
+
+    if (!booking || booking.status !== 'awaiting_payment') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is not ready for online remaining payment',
+      });
+    }
+
+    if (booking.payment_status === 'fully_paid') {
+      return res.status(400).json({ success: false, message: 'Booking is already fully paid' });
+    }
+
+    const customer = await fetchCustomerContact(booking.customer_id);
+    const payment = await createRemainingOrder({
+      bookingId,
+      remainingAmount: Number(booking.remaining_amount),
+      customerName: customer.name,
+      serviceName: booking.service_name,
+    });
+
+    await pool.query(
+      `UPDATE bookings SET razorpay_remaining_order_id = ?, updated_at = NOW() WHERE id = ?`,
+      [payment.orderId, bookingId],
+    );
+
+    const row = await fetchBookingById(bookingId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Complete remaining 60% payment via Razorpay',
+      data: formatBooking(row),
+      payment: {
+        orderId: payment.orderId,
+        amount: payment.amount,
+        currency: payment.currency,
+        keyId: payment.keyId,
+        remainingAmount: payment.remainingAmount,
+      },
+      customer: {
+        name: customer.name || undefined,
+        email: customer.email || undefined,
+        contact: customer.mobile || undefined,
+      },
+    });
+  } catch (error) {
+    console.error('Retry remaining payment error:', error.cause || error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Could not initiate remaining payment.',
+    });
+  }
+};
+
+exports.verifyRemainingPayment = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only pandits can verify remaining payment',
+      });
+    }
+
+    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    const bookingIdNum = Number(bookingId);
+    if (!Number.isFinite(bookingIdNum) || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification details are required',
+      });
+    }
+
+    if (!(await panditOwnsBooking(req.user.id, bookingIdNum))) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const [rows] = await pool.query(`SELECT * FROM bookings WHERE id = ?`, [bookingIdNum]);
+    const booking = rows[0];
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.payment_status === 'fully_paid') {
+      return res.status(200).json({
+        success: true,
+        message: 'Remaining payment already verified',
+        data: formatBooking(await fetchBookingById(bookingIdNum)),
+      });
+    }
+
+    if (booking.status !== 'awaiting_payment') {
+      return res.status(400).json({
+        success: false,
+        message: 'This booking is not awaiting remaining payment',
+      });
+    }
+
+    if (booking.razorpay_remaining_order_id !== razorpayOrderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment order does not match this booking',
+      });
+    }
+
+    const isValid = verifyPaymentSignature({
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+    });
+
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed' });
+    }
+
+    await pool.query(
+      `UPDATE bookings
+       SET razorpay_remaining_payment_id = ?, payment_status = 'fully_paid', status = 'completed',
+           remaining_payment_method = 'online', updated_at = NOW()
+       WHERE id = ?`,
+      [razorpayPaymentId, bookingIdNum],
+    );
+
+    const row = await fetchBookingById(bookingIdNum);
+    return res.status(200).json({
+      success: true,
+      message: 'Remaining payment successful! Booking is completed.',
+      data: formatBooking(row),
+    });
+  } catch (error) {
+    console.error('Verify remaining payment error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while verifying remaining payment',
     });
   }
 };

@@ -1,0 +1,3 @@
+1.customer--->Create-Profile---> Address(make Non-editable)
+2.Login Page non-redirectable when the user is login.
+3.

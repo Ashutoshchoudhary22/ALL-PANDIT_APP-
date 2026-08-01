@@ -181,11 +181,20 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'razorpay_payment_id', 'VARCHAR(100) NULL');
     await ensureColumn(connection, 'bookings', 'latitude', 'DECIMAL(10,8) NULL');
     await ensureColumn(connection, 'bookings', 'longitude', 'DECIMAL(11,8) NULL');
+    await ensureColumn(connection, 'bookings', 'start_otp', 'VARCHAR(6) NULL');
+    await ensureColumn(connection, 'bookings', 'start_otp_expires_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'finish_otp', 'VARCHAR(6) NULL');
+    await ensureColumn(connection, 'bookings', 'finish_otp_expires_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'started_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'finish_requested_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'remaining_payment_method', "ENUM('cash','online') NULL");
+    await ensureColumn(connection, 'bookings', 'razorpay_remaining_order_id', 'VARCHAR(100) NULL');
+    await ensureColumn(connection, 'bookings', 'razorpay_remaining_payment_id', 'VARCHAR(100) NULL');
 
     try {
       await connection.query(`
         ALTER TABLE bookings
-        MODIFY COLUMN status ENUM('payment_pending','pending','confirmed','cancelled','completed') DEFAULT 'payment_pending'
+        MODIFY COLUMN status ENUM('payment_pending','pending','confirmed','in_progress','awaiting_payment','cancelled','completed') DEFAULT 'payment_pending'
       `);
     } catch (error) {
       if (!String(error.message).includes('Duplicate')) {

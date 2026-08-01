@@ -37,6 +37,13 @@ const STATUS_STYLES: Record<
   payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C', icon: 'card-outline' },
   pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
   confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D', icon: 'checkmark-circle-outline' },
+  in_progress: { label: 'In Progress', bg: '#FEF3C7', text: '#B45309', icon: 'play-circle-outline' },
+  awaiting_payment: {
+    label: 'Awaiting Payment',
+    bg: '#FFEDD5',
+    text: '#C2410C',
+    icon: 'cash-outline',
+  },
   cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline' },
   completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8', icon: 'checkmark-done-outline' },
 };
@@ -112,6 +119,19 @@ const BookingCard = memo(function BookingCard({
         <View style={styles.noteBox}>
           <Text style={styles.noteLabel}>Special Requirements</Text>
           <Text style={styles.noteText}>{booking.specialRequirements}</Text>
+        </View>
+      ) : null}
+
+      {booking.sessionOtp ? (
+        <View style={styles.otpBox}>
+          <Text style={styles.otpLabel}>
+            {booking.sessionOtpPurpose === 'finish' ? 'Finish Puja OTP' : 'Start Puja OTP'}
+          </Text>
+          <Text style={styles.otpValue}>{booking.sessionOtp}</Text>
+          <Text style={styles.otpHint}>
+            {booking.sessionOtpHint ||
+              'Share this OTP with pandit ji. Also sent to your email.'}
+          </Text>
         </View>
       ) : null}
 
@@ -328,7 +348,10 @@ export function CustomerBookingsScreen() {
       });
 
       setPaymentSession(null);
-      Alert.alert('Booking Confirmed', 'Your booking is confirmed. 40% advance payment was successful.');
+      Alert.alert(
+        'Booking Confirmed',
+        '40% advance paid. Start OTP sent to your email — share it with pandit ji on arrival.',
+      );
       void bookingsQuery.refetch();
     } catch (error) {
       setPaymentSession(null);
@@ -606,6 +629,36 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#92400E',
     fontWeight: '600',
+  },
+  otpBox: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    alignItems: 'center',
+  },
+  otpLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C2410C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  otpValue: {
+    marginTop: 8,
+    fontSize: 32,
+    fontWeight: '800',
+    color: C.primary,
+    letterSpacing: 6,
+  },
+  otpHint: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.textMuted,
+    textAlign: 'center',
   },
   centerState: {
     flex: 1,

@@ -21,16 +21,49 @@ export type PanditBooking = {
   advanceAmount: number;
   remainingAmount: number;
   paymentStatus: 'pending' | 'advance_paid' | 'fully_paid';
-  status: 'payment_pending' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status:
+    | 'payment_pending'
+    | 'pending'
+    | 'confirmed'
+    | 'in_progress'
+    | 'awaiting_payment'
+    | 'cancelled'
+    | 'completed';
+  startedAt: string | null;
+  finishRequestedAt: string | null;
+  remainingPaymentMethod: 'cash' | 'online' | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type PanditBookingNotification = {
-  type: 'booking:new' | 'booking:confirmed';
-  title: string;
+export type BookingPaymentDetails = {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  remainingAmount?: number;
+  advanceAmount?: number;
+};
+
+export type BookingCustomerPrefill = {
+  name?: string;
+  email?: string;
+  contact?: string;
+};
+
+export type RemainingPaymentResponse = {
+  success: boolean;
   message: string;
-  booking: PanditBooking;
+  data: PanditBooking;
+  payment?: BookingPaymentDetails;
+  customer?: BookingCustomerPrefill;
+};
+
+export type VerifyRemainingPaymentPayload = {
+  bookingId: number;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
 };
 
 export async function getPanditBookingsApi() {
@@ -57,6 +90,51 @@ export async function approvePanditBookingApi(bookingId: number) {
 export async function rejectPanditBookingApi(bookingId: number) {
   const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
     `/api/bookings/pandit/${bookingId}/reject`,
+  );
+  return data;
+}
+
+export async function startBookingPujaApi(bookingId: number, otp: string) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/start`,
+    { otp },
+  );
+  return data;
+}
+
+export async function requestFinishBookingPujaApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/request-finish`,
+  );
+  return data;
+}
+
+export async function verifyFinishBookingOtpApi(bookingId: number, otp: string) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/verify-finish-otp`,
+    { otp },
+  );
+  return data;
+}
+
+export async function completeBookingCashApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    `/api/bookings/pandit/${bookingId}/complete-cash`,
+  );
+  return data;
+}
+
+export async function retryRemainingPaymentApi(bookingId: number) {
+  const { data } = await apiClient.post<RemainingPaymentResponse>(
+    `/api/bookings/pandit/${bookingId}/retry-remaining-payment`,
+  );
+  return data;
+}
+
+export async function verifyRemainingPaymentApi(payload: VerifyRemainingPaymentPayload) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: PanditBooking }>(
+    '/api/bookings/verify-remaining-payment',
+    payload,
   );
   return data;
 }

@@ -118,10 +118,28 @@ async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
   return payload;
 }
 
+async function notifyCustomerFinishOtpSent(io, bookingId) {
+  if (!io) return null;
+
+  const row = await fetchBookingNotificationRow(bookingId);
+  if (!row?.customer_id) return null;
+
+  const payload = {
+    type: 'booking:finish_otp',
+    title: 'Puja Completion OTP',
+    message: `Your ${row.service_name} puja is complete. Check your email for the OTP and share it with pandit ji.`,
+    booking: formatCustomerBookingNotification(row),
+  };
+
+  io.to(`customer:${row.customer_id}`).emit('booking:finish_otp', payload);
+  return payload;
+}
+
 module.exports = {
   notifyPanditNewBooking,
   notifyCustomerBookingApproved,
   notifyPanditBookingPaymentConfirmed,
+  notifyCustomerFinishOtpSent,
   formatPanditBookingNotification,
   formatCustomerBookingNotification,
 };
