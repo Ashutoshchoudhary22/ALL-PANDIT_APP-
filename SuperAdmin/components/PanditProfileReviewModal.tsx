@@ -17,8 +17,9 @@ import { DashboardColors as C } from '@/constants/dashboard-theme';
 import {
   usePanditProfileQuery,
   useUpdatePanditProfileStatusMutation,
+  useUpdatePanditProfileUpdateRequestMutation,
 } from '@/hooks/use-admin-profiles';
-import { PanditProfile } from '@/services/admin-profiles.api';
+import { PanditProfile, PendingPanditProfile } from '@/services/admin-profiles.api';
 
 type PanditProfileReviewModalProps = {
   profileId: number | null;
@@ -78,10 +79,15 @@ function ReviewContent({
 }) {
   const insets = useSafeAreaInsets();
   const statusMutation = useUpdatePanditProfileStatusMutation();
+  const updateRequestMutation = useUpdatePanditProfileUpdateRequestMutation();
   const [preview, setPreview] = useState<{ uri: string; label: string } | null>(null);
 
-  const isPending = profile.status === 'pending';
-  const isBusy = statusMutation.isPending;
+  const isInitialPending = profile.status === 'pending';
+  const isUpdatePending = profile.updateRequestStatus === 'pending' && profile.pendingProfile;
+  const reviewData: PendingPanditProfile | PanditProfile = isUpdatePending
+    ? profile.pendingProfile!
+    : profile;
+  const isBusy = statusMutation.isPending || updateRequestMutation.isPending;
 
   const handleStatusUpdate = (status: 'approved' | 'rejected') => {
     const title = status === 'approved' ? 'Approve Profile' : 'Reject Profile';
@@ -113,26 +119,66 @@ function ReviewContent({
     ]);
   };
 
+  const handleUpdateRequest = (action: 'approve' | 'reject') => {
+    const title = action === 'approve' ? 'Approve Profile Update' : 'Reject Profile Update';
+    const message =
+      action === 'approve'
+        ? `Publish ${profile.name}'s profile changes?`
+        : `Reject ${profile.name}'s profile changes?`;
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: action === 'approve' ? 'Approve' : 'Reject',
+        style: action === 'approve' ? 'default' : 'destructive',
+        onPress: () => {
+          updateRequestMutation.mutate(
+            { profileId: profile.id, action },
+            {
+              onSuccess: (response) => {
+                Alert.alert('Success', response.message || 'Update reviewed');
+                onClose();
+              },
+              onError: (error) => {
+                Alert.alert('Error', error instanceof Error ? error.message : 'Update failed');
+              },
+            },
+          );
+        },
+      },
+    ]);
+  };
+
   return (
     <>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
       >
+        {isUpdatePending ? (
+          <View style={styles.updateBanner}>
+            <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
+            <Text style={styles.updateBannerText}>
+              Reviewing proposed profile update. Current live profile stays visible to customers until
+              you approve.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.profileHeader}>
-          {profile.profileImage ? (
-            <Image source={{ uri: profile.profileImage }} style={styles.avatar} contentFit="cover" />
+          {reviewData.profileImage ? (
+            <Image source={{ uri: reviewData.profileImage }} style={styles.avatar} contentFit="cover" />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarText}>{profile.name.charAt(0)}</Text>
+              <Text style={styles.avatarText}>{reviewData.name.charAt(0)}</Text>
             </View>
           )}
           <View style={styles.profileHeaderText}>
-            <Text style={styles.name}>{profile.name}</Text>
+            <Text style={styles.name}>{reviewData.name}</Text>
             <Text style={styles.subMeta}>
-              {profile.gender} • {profile.experienceYears} yrs experience
+              {reviewData.gender} • {reviewData.experienceYears} yrs experience
             </Text>
-            <Text style={styles.subMeta}>{profile.cityName || 'City not set'}</Text>
+            <Text style={styles.subMeta}>{reviewData.cityName || 'City not set'}</Text>
           </View>
         </View>
 
@@ -142,27 +188,29 @@ function ReviewContent({
           <InfoRow label="Email" value={profile.email} />
         </View>
 
-        {profile.bio ? (
+        {reviewData.bio ? (
           <>
             <Text style={styles.sectionTitle}>Bio</Text>
             <View style={styles.sectionCard}>
-              <Text style={styles.bioText}>{profile.bio}</Text>
+              <Text style={styles.bioText}>{reviewData.bio}</Text>
             </View>
           </>
         ) : null}
 
         <Text style={styles.sectionTitle}>Puja Services</Text>
         <Text style={styles.sectionHint}>
-          Services and prices added by the pandit during profile creation.
+          {isUpdatePending
+            ? 'Updated services and prices submitted by the pandit.'
+            : 'Services and prices added by the pandit during profile creation.'}
         </Text>
         <View style={styles.sectionCard}>
-          {profile.pujaServices?.length ? (
-            profile.pujaServices.map((service, index) => (
+          {reviewData.pujaServices?.length ? (
+            reviewData.pujaServices.map((service, index) => (
               <View
                 key={service.name}
                 style={[
                   styles.serviceRow,
-                  index === profile.pujaServices.length - 1 && styles.serviceRowLast,
+                  index === reviewData.pujaServices.length - 1 && styles.serviceRowLast,
                 ]}
               >
                 <Text style={styles.serviceName}>{service.name}</Text>
@@ -176,10 +224,10 @@ function ReviewContent({
 
         <Text style={styles.sectionTitle}>Bank Details</Text>
         <View style={styles.sectionCard}>
-          <InfoRow label="Account Holder" value={profile.bankAccountHolder} />
-          <InfoRow label="Account Number" value={profile.bankAccountNumber} />
-          <InfoRow label="IFSC" value={profile.bankIfsc} />
-          <InfoRow label="Bank Name" value={profile.bankName} />
+          <InfoRow label="Account Holder" value={reviewData.bankAccountHolder} />
+          <InfoRow label="Account Number" value={reviewData.bankAccountNumber} />
+          <InfoRow label="IFSC" value={reviewData.bankIfsc} />
+          <InfoRow label="Bank Name" value={reviewData.bankName} />
         </View>
 
         <Text style={styles.sectionTitle}>Documents</Text>
@@ -187,28 +235,55 @@ function ReviewContent({
 
         <DocumentCard
           label="Profile Photo"
-          uri={profile.profileImage}
+          uri={reviewData.profileImage}
           onPress={(uri, label) => setPreview({ uri, label })}
         />
         <DocumentCard
           label="Aadhar Card"
-          uri={profile.aadharImage}
+          uri={reviewData.aadharImage}
           onPress={(uri, label) => setPreview({ uri, label })}
         />
         <DocumentCard
           label="Pandit Certificate"
-          uri={profile.panditCertificateImage}
+          uri={reviewData.panditCertificateImage}
           onPress={(uri, label) => setPreview({ uri, label })}
         />
         <DocumentCard
           label="Passbook / Cancelled Cheque"
-          uri={profile.passbookImage}
+          uri={reviewData.passbookImage}
           onPress={(uri, label) => setPreview({ uri, label })}
         />
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        {isPending || profile.status === 'rejected' ? (
+        {isUpdatePending ? (
+          <>
+            <Pressable
+              style={[styles.approveBtn, isBusy && styles.btnDisabled]}
+              onPress={() => handleUpdateRequest('approve')}
+              disabled={isBusy}
+            >
+              {isBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.approveText}>Approve Update</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              style={[styles.rejectBtn, isBusy && styles.btnDisabled]}
+              onPress={() => handleUpdateRequest('reject')}
+              disabled={isBusy}
+            >
+              <Ionicons name="close-circle" size={20} color={C.danger} />
+              <Text style={styles.rejectText}>Reject Update</Text>
+            </Pressable>
+          </>
+        ) : null}
+
+        {!isUpdatePending && (isInitialPending || profile.status === 'rejected') ? (
           <Pressable
             style={[styles.approveBtn, isBusy && styles.btnDisabled]}
             onPress={() => handleStatusUpdate('approved')}
@@ -225,7 +300,7 @@ function ReviewContent({
           </Pressable>
         ) : null}
 
-        {isPending || profile.status === 'approved' ? (
+        {!isUpdatePending && (isInitialPending || profile.status === 'approved') ? (
           <Pressable
             style={[styles.rejectBtn, isBusy && styles.btnDisabled]}
             onPress={() => handleStatusUpdate('rejected')}
@@ -316,6 +391,18 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#fff', fontWeight: '700' },
   content: { padding: 16 },
+  updateBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#DBEAFE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  updateBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#1E3A8A', fontWeight: '500' },
   profileHeader: { flexDirection: 'row', gap: 14, marginBottom: 8 },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: C.border },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleBg },

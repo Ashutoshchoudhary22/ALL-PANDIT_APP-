@@ -5,6 +5,27 @@ export type PujaService = {
   price: number;
 };
 
+export type PendingPanditProfile = {
+  name: string;
+  gender: 'male' | 'female' | 'other';
+  bio: string | null;
+  experienceYears: number;
+  cityName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  profileImage: string | null;
+  aadharImage: string | null;
+  panditCertificateImage: string | null;
+  bankAccountHolder: string | null;
+  bankAccountNumber: string | null;
+  bankIfsc: string | null;
+  bankName: string | null;
+  passbookImage: string | null;
+  pujaServices: PujaService[];
+  languageCode?: string;
+  submittedAt?: string | null;
+};
+
 export type PanditProfile = {
   id: number;
   userId: number;
@@ -34,6 +55,8 @@ export type PanditProfile = {
   isAvailable: boolean;
   sameDayBooking: boolean;
   status: 'pending' | 'approved' | 'rejected' | 'blocked';
+  updateRequestStatus?: 'none' | 'pending' | 'rejected';
+  pendingProfile?: PendingPanditProfile | null;
   mobile: string;
   email: string | null;
   profileImage: string | null;

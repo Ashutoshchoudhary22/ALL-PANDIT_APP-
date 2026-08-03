@@ -41,23 +41,24 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
 ];
 
 function initFormFromProfile(profile: PanditProfile) {
+  const source = profile.pendingProfile ?? profile;
   return {
-    name: profile.name,
-    gender: profile.gender,
-    bio: profile.bio || '',
-    experienceYears: String(profile.experienceYears),
-    cityName: profile.cityName || '',
-    latitude: profile.latitude != null ? profile.latitude.toFixed(6) : '',
-    longitude: profile.longitude != null ? profile.longitude.toFixed(6) : '',
-    profilePhoto: profile.profileImage,
-    aadhar: profile.aadharImage,
-    panditCert: profile.panditCertificateImage,
-    passbook: profile.passbookImage,
-    bankAccountHolder: profile.bankAccountHolder || '',
-    bankAccountNumber: profile.bankAccountNumber || '',
-    bankIfsc: profile.bankIfsc || '',
-    bankName: profile.bankName || '',
-    pujaServices: toPujaServiceDrafts(profile.pujaServices),
+    name: source.name,
+    gender: source.gender,
+    bio: source.bio || '',
+    experienceYears: String(source.experienceYears),
+    cityName: source.cityName || '',
+    latitude: source.latitude != null ? source.latitude.toFixed(6) : '',
+    longitude: source.longitude != null ? source.longitude.toFixed(6) : '',
+    profilePhoto: source.profileImage,
+    aadhar: source.aadharImage,
+    panditCert: source.panditCertificateImage,
+    passbook: source.passbookImage,
+    bankAccountHolder: source.bankAccountHolder || '',
+    bankAccountNumber: source.bankAccountNumber || '',
+    bankIfsc: source.bankIfsc || '',
+    bankName: source.bankName || '',
+    pujaServices: toPujaServiceDrafts(source.pujaServices),
   };
 }
 
@@ -153,7 +154,7 @@ export function EditPanditProfileScreen() {
           passbook: passbookUri,
         });
 
-      await updateMutation.mutateAsync({
+      const response = await updateMutation.mutateAsync({
         name: name.trim(),
         gender,
         bio: bio.trim() || undefined,
@@ -172,11 +173,11 @@ export function EditPanditProfileScreen() {
         pujaServices: normalizePujaServices(pujaServices),
       });
 
-      if (token && user && profileImage) {
+      if (token && user && profileImage && profile?.status !== 'approved') {
         await signIn(token, { ...user, profileImage });
       }
 
-      Alert.alert('Success', 'Profile updated successfully.', [
+      Alert.alert('Success', response.message || 'Profile updated successfully.', [
         { text: 'OK', onPress: () => goToProfile() },
       ]);
     } catch (error) {
@@ -222,6 +223,25 @@ export function EditPanditProfileScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         >
+          {profile?.status === 'approved' ? (
+            <View style={styles.approvalInfoBanner}>
+              <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
+              <Text style={styles.approvalInfoText}>
+                Profile changes go to Super Admin for approval before customers can see them.
+              </Text>
+            </View>
+          ) : null}
+
+          {profile?.updateRequestStatus === 'pending' ? (
+            <View style={styles.pendingUpdateBanner}>
+              <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+              <Text style={styles.pendingUpdateText}>
+                You already have changes waiting for admin approval. Submitting again will replace that
+                request.
+              </Text>
+            </View>
+          ) : null}
+
           <Text style={styles.sectionTitle}>Basic Information</Text>
           <View style={styles.card}>
             <ImageUploadField
@@ -390,6 +410,30 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 36 },
   content: { paddingHorizontal: 16, paddingTop: 8 },
   sectionTitle: { marginTop: 20, marginBottom: 10, fontSize: 16, fontWeight: '800', color: C.text },
+  approvalInfoBanner: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  approvalInfoText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#1E3A8A', fontWeight: '500' },
+  pendingUpdateBanner: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  pendingUpdateText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#92400E', fontWeight: '500' },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,

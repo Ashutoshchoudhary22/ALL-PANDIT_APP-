@@ -169,6 +169,26 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
         ) : null}
       </View>
 
+      {profile.updateRequestStatus === 'pending' ? (
+        <View style={styles.updatePendingBanner}>
+          <Ionicons name="hourglass-outline" size={18} color="#1D4ED8" />
+          <Text style={styles.updatePendingBannerText}>
+            Your profile changes are submitted for Super Admin approval. Customers will continue to
+            see your current profile until approved.
+          </Text>
+        </View>
+      ) : null}
+
+      {profile.updateRequestStatus === 'rejected' ? (
+        <View style={styles.rejectedBanner}>
+          <Ionicons name="close-circle-outline" size={18} color={C.danger} />
+          <Text style={styles.rejectedBannerText}>
+            Your last profile update was rejected. Edit and submit again, or your current live profile
+            stays unchanged.
+          </Text>
+        </View>
+      ) : null}
+
       {profile.status === 'pending' ? (
         <View style={styles.pendingBanner}>
           <Ionicons name="time-outline" size={18} color="#D97706" />
@@ -584,6 +604,18 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   pendingBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#92400E', fontWeight: '500' },
+  updatePendingBanner: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  updatePendingBannerText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#1E3A8A', fontWeight: '500' },
   rejectedBanner: {
     marginTop: 12,
     flexDirection: 'row',

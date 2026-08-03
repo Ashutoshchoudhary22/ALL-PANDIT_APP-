@@ -6,6 +6,27 @@ export type PujaService = {
   price: number;
 };
 
+export type PendingPanditProfile = {
+  name: string;
+  gender: string;
+  bio: string | null;
+  experienceYears: number;
+  cityName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  profileImage: string | null;
+  aadharImage: string | null;
+  panditCertificateImage: string | null;
+  passbookImage: string | null;
+  bankAccountHolder: string | null;
+  bankAccountNumber: string | null;
+  bankIfsc: string | null;
+  bankName: string | null;
+  pujaServices: PujaService[];
+  languageCode?: string;
+  submittedAt?: string | null;
+};
+
 export type PanditProfile = {
   id: number;
   userId: number;
@@ -31,6 +52,9 @@ export type PanditProfile = {
   bankName: string | null;
   pujaServices: PujaService[];
   status: string;
+  updateRequestStatus?: 'none' | 'pending' | 'rejected';
+  pendingChanges?: Record<string, unknown> | null;
+  pendingProfile?: PendingPanditProfile | null;
   isVerified: boolean;
   isOnline: boolean;
   rating: number;
@@ -85,6 +109,19 @@ export async function updatePanditProfileStatusApi(profileId: number, status: Pa
   const { data } = await apiClient.patch<ItemResponse<PanditProfile>>(
     `${PROFILE_ENDPOINTS.panditProfiles}/${profileId}/status`,
     { status },
+  );
+  return data;
+}
+
+export type PanditProfileUpdateAction = 'approve' | 'reject';
+
+export async function updatePanditProfileUpdateRequestApi(
+  profileId: number,
+  action: PanditProfileUpdateAction,
+) {
+  const { data } = await apiClient.patch<ItemResponse<PanditProfile>>(
+    `${PROFILE_ENDPOINTS.panditProfiles}/${profileId}/update-request`,
+    { action },
   );
   return data;
 }

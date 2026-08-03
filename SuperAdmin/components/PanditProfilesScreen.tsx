@@ -21,6 +21,7 @@ import { DashboardColors as C } from '@/constants/dashboard-theme';
 import {
   usePanditProfilesQuery,
   useUpdatePanditProfileStatusMutation,
+  useUpdatePanditProfileUpdateRequestMutation,
 } from '@/hooks/use-admin-profiles';
 import { PanditProfile } from '@/services/admin-profiles.api';
 
@@ -36,17 +37,39 @@ function statusStyle(status: string) {
   }
 }
 
+function updateRequestStyle(status?: string) {
+  if (status === 'pending') {
+    return { bg: '#DBEAFE', text: '#1D4ED8', label: 'Update Pending' };
+  }
+  if (status === 'rejected') {
+    return { bg: '#FEE2E2', text: '#DC2626', label: 'Update Rejected' };
+  }
+  return null;
+}
+
 type PanditProfileRowProps = {
   profile: PanditProfile;
   onView: (profileId: number) => void;
   onApprove: (profile: PanditProfile) => void;
   onReject: (profile: PanditProfile) => void;
+  onApproveUpdate: (profile: PanditProfile) => void;
+  onRejectUpdate: (profile: PanditProfile) => void;
   updating: boolean;
 };
 
-function PanditProfileRow({ profile, onView, onApprove, onReject, updating }: PanditProfileRowProps) {
+function PanditProfileRow({
+  profile,
+  onView,
+  onApprove,
+  onReject,
+  onApproveUpdate,
+  onRejectUpdate,
+  updating,
+}: PanditProfileRowProps) {
   const badge = statusStyle(profile.status);
-  const isPending = profile.status === 'pending';
+  const updateBadge = updateRequestStyle(profile.updateRequestStatus);
+  const isPendingInitial = profile.status === 'pending';
+  const isUpdatePending = profile.updateRequestStatus === 'pending';
 
   return (
     <View style={styles.row}>
@@ -81,10 +104,15 @@ function PanditProfileRow({ profile, onView, onApprove, onReject, updating }: Pa
           <View style={[styles.badge, { backgroundColor: badge.bg }]}>
             <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
           </View>
+          {updateBadge ? (
+            <View style={[styles.badge, { backgroundColor: updateBadge.bg }]}>
+              <Text style={[styles.badgeText, { color: updateBadge.text }]}>{updateBadge.label}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
-      {isPending ? (
+      {isPendingInitial ? (
         <View style={styles.decisionRow}>
           <Pressable
             style={[styles.approveChip, updating && styles.chipDisabled]}
@@ -92,7 +120,7 @@ function PanditProfileRow({ profile, onView, onApprove, onReject, updating }: Pa
             disabled={updating}
           >
             <Ionicons name="checkmark" size={16} color="#fff" />
-            <Text style={styles.approveChipText}>Approve</Text>
+            <Text style={styles.approveChipText}>Approve Profile</Text>
           </Pressable>
           <Pressable
             style={[styles.rejectChip, updating && styles.chipDisabled]}
@@ -104,6 +132,27 @@ function PanditProfileRow({ profile, onView, onApprove, onReject, updating }: Pa
           </Pressable>
         </View>
       ) : null}
+
+      {isUpdatePending ? (
+        <View style={styles.decisionRow}>
+          <Pressable
+            style={[styles.approveChip, updating && styles.chipDisabled]}
+            onPress={() => onApproveUpdate(profile)}
+            disabled={updating}
+          >
+            <Ionicons name="checkmark" size={16} color="#fff" />
+            <Text style={styles.approveChipText}>Approve Update</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.rejectChip, updating && styles.chipDisabled]}
+            onPress={() => onRejectUpdate(profile)}
+            disabled={updating}
+          >
+            <Ionicons name="close" size={16} color={C.danger} />
+            <Text style={styles.rejectChipText}>Reject Update</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -112,8 +161,10 @@ export function PanditProfilesScreen() {
   const insets = useSafeAreaInsets();
   const query = usePanditProfilesQuery();
   const statusMutation = useUpdatePanditProfileStatusMutation();
+  const updateRequestMutation = useUpdatePanditProfileUpdateRequestMutation();
   const [reviewProfileId, setReviewProfileId] = useState<number | null>(null);
   const profiles = query.data?.data ?? [];
+  const updating = statusMutation.isPending || updateRequestMutation.isPending;
 
   const confirmStatusUpdate = (profile: PanditProfile, status: 'approved' | 'rejected') => {
     const title = status === 'approved' ? 'Approve Profile' : 'Reject Profile';
@@ -132,6 +183,32 @@ export function PanditProfilesScreen() {
             { profileId: profile.id, status },
             {
               onSuccess: (response) => Alert.alert('Success', response.message || 'Status updated'),
+              onError: (error) =>
+                Alert.alert('Error', error instanceof Error ? error.message : 'Update failed'),
+            },
+          );
+        },
+      },
+    ]);
+  };
+
+  const confirmUpdateRequest = (profile: PanditProfile, action: 'approve' | 'reject') => {
+    const title = action === 'approve' ? 'Approve Profile Update' : 'Reject Profile Update';
+    const message =
+      action === 'approve'
+        ? `Publish ${profile.name}'s profile changes for all customers?`
+        : `Reject ${profile.name}'s profile changes? Current live profile will stay unchanged.`;
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: action === 'approve' ? 'Approve' : 'Reject',
+        style: action === 'approve' ? 'default' : 'destructive',
+        onPress: () => {
+          updateRequestMutation.mutate(
+            { profileId: profile.id, action },
+            {
+              onSuccess: (response) => Alert.alert('Success', response.message || 'Update reviewed'),
               onError: (error) =>
                 Alert.alert('Error', error instanceof Error ? error.message : 'Update failed'),
             },
@@ -168,7 +245,9 @@ export function PanditProfilesScreen() {
               onView={setReviewProfileId}
               onApprove={(profile) => confirmStatusUpdate(profile, 'approved')}
               onReject={(profile) => confirmStatusUpdate(profile, 'rejected')}
-              updating={statusMutation.isPending}
+              onApproveUpdate={(profile) => confirmUpdateRequest(profile, 'approve')}
+              onRejectUpdate={(profile) => confirmUpdateRequest(profile, 'reject')}
+              updating={updating}
             />
           )}
           contentContainerStyle={[

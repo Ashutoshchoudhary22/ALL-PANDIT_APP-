@@ -75,6 +75,150 @@ function readPujaServices(row) {
   }
 }
 
+function readPendingChanges(row) {
+  if (!row?.pending_changes) return null;
+  try {
+    const parsed =
+      typeof row.pending_changes === 'string'
+        ? JSON.parse(row.pending_changes)
+        : row.pending_changes;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildPendingSnapshot(row, body, options = {}) {
+  const current = formatPanditProfile(row);
+  const {
+    profileImageUrl,
+    cityName,
+    pujaServicesValue,
+    languageCode,
+  } = options;
+
+  const pujaServices =
+    pujaServicesValue !== undefined
+      ? readPujaServices({ puja_services: pujaServicesValue })
+      : current.pujaServices;
+
+  return {
+    name: body.name !== undefined ? body.name?.trim() : current.name,
+    gender: body.gender !== undefined ? body.gender : current.gender,
+    bio: body.bio !== undefined ? body.bio?.trim() || null : current.bio,
+    experienceYears:
+      body.experienceYears !== undefined ? Number(body.experienceYears) : current.experienceYears,
+    cityName: cityName !== undefined ? cityName : current.cityName,
+    latitude: body.latitude !== undefined ? body.latitude : current.latitude,
+    longitude: body.longitude !== undefined ? body.longitude : current.longitude,
+    profileImage: profileImageUrl !== undefined ? profileImageUrl : current.profileImage,
+    aadharImage:
+      body.aadharImage !== undefined ? body.aadharImage?.trim() || null : current.aadharImage,
+    panditCertificateImage:
+      body.panditCertificateImage !== undefined
+        ? body.panditCertificateImage?.trim() || null
+        : current.panditCertificateImage,
+    bankAccountHolder:
+      body.bankAccountHolder !== undefined
+        ? body.bankAccountHolder?.trim() || null
+        : current.bankAccountHolder,
+    bankAccountNumber:
+      body.bankAccountNumber !== undefined
+        ? body.bankAccountNumber?.trim() || null
+        : current.bankAccountNumber,
+    bankIfsc:
+      body.bankIfsc !== undefined ? body.bankIfsc?.trim()?.toUpperCase() || null : current.bankIfsc,
+    bankName: body.bankName !== undefined ? body.bankName?.trim() || null : current.bankName,
+    passbookImage:
+      body.passbookImage !== undefined ? body.passbookImage?.trim() || null : current.passbookImage,
+    pujaServices,
+    languageCode: languageCode !== undefined ? languageCode?.trim() || 'hi' : current.languageCode,
+    submittedAt: new Date().toISOString(),
+  };
+}
+
+function formatPendingProfile(snapshot) {
+  if (!snapshot) return null;
+  return {
+    name: snapshot.name,
+    gender: snapshot.gender,
+    bio: snapshot.bio,
+    experienceYears: snapshot.experienceYears ?? 0,
+    cityName: snapshot.cityName,
+    latitude: snapshot.latitude != null ? parseFloat(snapshot.latitude) : null,
+    longitude: snapshot.longitude != null ? parseFloat(snapshot.longitude) : null,
+    profileImage: snapshot.profileImage,
+    aadharImage: snapshot.aadharImage,
+    panditCertificateImage: snapshot.panditCertificateImage,
+    bankAccountHolder: snapshot.bankAccountHolder,
+    bankAccountNumber: snapshot.bankAccountNumber,
+    bankIfsc: snapshot.bankIfsc,
+    bankName: snapshot.bankName,
+    passbookImage: snapshot.passbookImage,
+    pujaServices: Array.isArray(snapshot.pujaServices) ? snapshot.pujaServices : [],
+    languageCode: snapshot.languageCode || 'hi',
+    submittedAt: snapshot.submittedAt || null,
+  };
+}
+
+async function applyPendingSnapshot(profileId, userId, snapshot) {
+  if (snapshot.profileImage) {
+    await saveUserProfileImage(userId, snapshot.profileImage);
+  }
+
+  if (snapshot.languageCode) {
+    await pool.query('UPDATE users SET language_code = ? WHERE id = ?', [
+      snapshot.languageCode,
+      userId,
+    ]);
+  }
+
+  const pujaServicesJson =
+    snapshot.pujaServices?.length > 0 ? JSON.stringify(snapshot.pujaServices) : null;
+
+  await pool.query(
+    `UPDATE pandit_profiles SET
+      name = ?,
+      gender = ?,
+      bio = ?,
+      experience_years = ?,
+      city_name = ?,
+      latitude = ?,
+      longitude = ?,
+      profile_image = ?,
+      aadhar_image = ?,
+      pandit_certificate_image = ?,
+      bank_account_holder = ?,
+      bank_account_number = ?,
+      bank_ifsc = ?,
+      bank_name = ?,
+      passbook_image = ?,
+      puja_services = ?,
+      pending_changes = NULL,
+      update_request_status = 'none'
+     WHERE id = ?`,
+    [
+      snapshot.name,
+      snapshot.gender || 'male',
+      snapshot.bio,
+      snapshot.experienceYears ?? 0,
+      snapshot.cityName,
+      snapshot.latitude ?? null,
+      snapshot.longitude ?? null,
+      snapshot.profileImage,
+      snapshot.aadharImage,
+      snapshot.panditCertificateImage,
+      snapshot.bankAccountHolder,
+      snapshot.bankAccountNumber,
+      snapshot.bankIfsc,
+      snapshot.bankName,
+      snapshot.passbookImage,
+      pujaServicesJson,
+      profileId,
+    ],
+  );
+}
+
 async function saveUserProfileImage(userId, profileImage) {
   if (!profileImage) return;
   await pool.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
@@ -122,6 +266,8 @@ function formatPanditProfile(row) {
     isAvailable: Boolean(row.is_available),
     sameDayBooking: Boolean(row.same_day_booking),
     status: row.status,
+    updateRequestStatus: row.update_request_status || 'none',
+    pendingChanges: readPendingChanges(row),
     mobile: row.mobile,
     email: row.email,
     languageCode: row.language_code,
@@ -164,6 +310,8 @@ const PROFILE_SELECT = `
     pp.is_available,
     pp.same_day_booking,
     pp.status,
+    pp.pending_changes,
+    pp.update_request_status,
     pp.created_at,
     pp.updated_at,
     u.mobile,
@@ -542,9 +690,17 @@ exports.getMyProfile = async (req, res) => {
       });
     }
 
+    const formatted = formatPanditProfile(profile);
+    const pendingSnapshot = readPendingChanges(profile);
+    const pendingProfile =
+      formatted.updateRequestStatus === 'pending' ? formatPendingProfile(pendingSnapshot) : null;
+
     return res.status(200).json({
       success: true,
-      data: formatPanditProfile(profile),
+      data: {
+        ...formatted,
+        pendingProfile,
+      },
     });
   } catch (error) {
     console.error('Get pandit profile error:', error);
@@ -601,12 +757,9 @@ exports.updateMyProfile = async (req, res) => {
       ? parsePujaServices(req.body.pujaServices ?? req.body.puja_services)
       : { value: undefined, error: null };
 
-    const [existing] = await pool.query(
-      'SELECT id FROM pandit_profiles WHERE user_id = ?',
-      [userId],
-    );
+    const currentRow = await fetchProfileByUserId(userId);
 
-    if (existing.length === 0) {
+    if (!currentRow) {
       return res.status(404).json({
         success: false,
         message: 'Pandit profile not found',
@@ -627,6 +780,47 @@ exports.updateMyProfile = async (req, res) => {
       });
     }
 
+    const currentStatus = currentRow.status;
+
+    if (currentStatus === 'approved') {
+      const pendingSnapshot = buildPendingSnapshot(currentRow, req.body, {
+        profileImageUrl,
+        cityName,
+        pujaServicesValue: pujaServicesInput.value,
+        languageCode,
+      });
+
+      await pool.query(
+        `UPDATE pandit_profiles SET
+          pending_changes = ?,
+          update_request_status = 'pending',
+          is_available = COALESCE(?, is_available),
+          is_online = COALESCE(?, is_online),
+          same_day_booking = COALESCE(?, same_day_booking)
+         WHERE user_id = ?`,
+        [
+          JSON.stringify(pendingSnapshot),
+          isAvailable !== undefined ? Boolean(isAvailable) : null,
+          isOnline !== undefined ? Boolean(isOnline) : null,
+          sameDayBooking !== undefined ? Boolean(sameDayBooking) : null,
+          userId,
+        ],
+      );
+
+      const profile = await fetchProfileByUserId(userId);
+      const formatted = formatPanditProfile(profile);
+
+      return res.status(200).json({
+        success: true,
+        message:
+          'Profile update submitted for admin approval. Changes will be visible after approval.',
+        data: {
+          ...formatted,
+          pendingProfile: formatPendingProfile(pendingSnapshot),
+        },
+      });
+    }
+
     if (profileImageUrl !== undefined) {
       await saveUserProfileImage(userId, profileImageUrl);
     }
@@ -637,6 +831,8 @@ exports.updateMyProfile = async (req, res) => {
         userId,
       ]);
     }
+
+    const nextStatus = currentStatus === 'rejected' ? 'pending' : currentStatus;
 
     await pool.query(
       `UPDATE pandit_profiles SET
@@ -658,7 +854,10 @@ exports.updateMyProfile = async (req, res) => {
         puja_services = COALESCE(?, puja_services),
         is_available = COALESCE(?, is_available),
         is_online = COALESCE(?, is_online),
-        same_day_booking = COALESCE(?, same_day_booking)
+        same_day_booking = COALESCE(?, same_day_booking),
+        status = ?,
+        pending_changes = NULL,
+        update_request_status = 'none'
        WHERE user_id = ?`,
       [
         name?.trim() ?? null,
@@ -680,6 +879,7 @@ exports.updateMyProfile = async (req, res) => {
         isAvailable !== undefined ? Boolean(isAvailable) : null,
         isOnline !== undefined ? Boolean(isOnline) : null,
         sameDayBooking !== undefined ? Boolean(sameDayBooking) : null,
+        nextStatus,
         userId,
       ],
     );
@@ -688,7 +888,10 @@ exports.updateMyProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Pandit profile updated successfully',
+      message:
+        currentStatus === 'pending' || nextStatus === 'pending'
+          ? 'Profile updated. Waiting for admin approval.'
+          : 'Pandit profile updated successfully',
       data: formatPanditProfile(profile),
     });
   } catch (error) {
@@ -774,9 +977,18 @@ exports.getProfileById = async (req, res) => {
       });
     }
 
+    const formatted = formatPanditProfile(profile);
+    const pendingSnapshot = readPendingChanges(profile);
+
     return res.status(200).json({
       success: true,
-      data: formatPanditProfile(profile),
+      data: {
+        ...formatted,
+        pendingProfile:
+          formatted.updateRequestStatus === 'pending'
+            ? formatPendingProfile(pendingSnapshot)
+            : null,
+      },
     });
   } catch (error) {
     console.error('Get pandit profile by id error:', error);
@@ -837,6 +1049,80 @@ exports.updateProfileStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while updating pandit profile status',
+    });
+  }
+};
+
+exports.updateProfileUpdateRequest = async (req, res) => {
+  try {
+    if (!isPlatformAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can review pandit profile updates',
+      });
+    }
+
+    const { profileId } = req.params;
+    const action = req.body.action?.trim()?.toLowerCase();
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action must be approve or reject',
+      });
+    }
+
+    const profile = await fetchProfileById(profileId);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    if (profile.update_request_status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'No pending profile update request for this pandit',
+      });
+    }
+
+    const pendingSnapshot = readPendingChanges(profile);
+
+    if (!pendingSnapshot) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pending profile changes not found',
+      });
+    }
+
+    if (action === 'approve') {
+      await applyPendingSnapshot(profileId, profile.user_id, pendingSnapshot);
+    } else {
+      await pool.query(
+        `UPDATE pandit_profiles
+         SET pending_changes = NULL, update_request_status = 'rejected'
+         WHERE id = ?`,
+        [profileId],
+      );
+    }
+
+    const updated = await fetchProfileById(profileId);
+
+    return res.status(200).json({
+      success: true,
+      message:
+        action === 'approve'
+          ? 'Profile update approved and published'
+          : 'Profile update rejected',
+      data: formatPanditProfile(updated),
+    });
+  } catch (error) {
+    console.error('Update pandit profile update request error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while reviewing profile update',
     });
   }
 };

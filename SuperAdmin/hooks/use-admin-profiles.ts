@@ -6,6 +6,8 @@ import {
   listPanditProfilesApi,
   PanditProfileStatus,
   updatePanditProfileStatusApi,
+  updatePanditProfileUpdateRequestApi,
+  PanditProfileUpdateAction,
 } from '@/services/admin-profiles.api';
 
 export function usePanditProfilesQuery(enabled = true) {
@@ -30,6 +32,24 @@ export function useUpdatePanditProfileStatusMutation() {
   return useMutation({
     mutationFn: ({ profileId, status }: { profileId: number; status: PanditProfileStatus }) =>
       updatePanditProfileStatusApi(profileId, status),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profile', variables.profileId] });
+    },
+  });
+}
+
+export function useUpdatePanditProfileUpdateRequestMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      profileId,
+      action,
+    }: {
+      profileId: number;
+      action: PanditProfileUpdateAction;
+    }) => updatePanditProfileUpdateRequestApi(profileId, action),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profiles'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profile', variables.profileId] });

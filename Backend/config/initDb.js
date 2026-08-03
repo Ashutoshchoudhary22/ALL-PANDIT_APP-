@@ -146,6 +146,13 @@ async function initDb() {
     await ensureColumn(connection, 'pandit_profiles', 'passbook_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'profile_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'puja_services', 'JSON NULL');
+    await ensureColumn(connection, 'pandit_profiles', 'pending_changes', 'JSON NULL');
+    await ensureColumn(
+      connection,
+      'pandit_profiles',
+      'update_request_status',
+      "ENUM('none','pending','rejected') DEFAULT 'none'",
+    );
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS bookings (
