@@ -4,3 +4,34 @@
 4.If pandit can edit his profile so it can go to first super-admin approval and after that it can update in the app.
 5.add platform ,taxes ,and coupon amount on book now.
 6.when pandit is booked for 2 pm so it can disappear that time for all customers and the customer is booked so it can booked and it can only when puja is completed.
+
+
+
+
+
+------------------commands for build apk-----------------------
+
+1.npm install -g eas-cli
+eas login
+
+2.cd C:\ashutosh\apidemo_source_code\d\APP\Customer-App
+eas build:configure
+3.cd Customer-App
+
+eas env:set EXPO_PUBLIC_API_URL=https://api.apnaacharya.com --environment preview --visibility plaintext
+
+eas env:set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=fkgd2lwv --environment preview --visibility plaintext
+
+eas env:set EXPO_PUBLIC_RAZORPAY_KEY_ID=rzp_test_TK1j0M9pB8kxUr --environment preview --visibility plaintext
+4.eas env:list --environment preview
+5.cd Customer-App
+eas build -p android --profile preview
+6.
+
+
+
+7.FOR PLAYSTORE
+cd Customer-App
+eas build -p android --profile production
+
+8.eas env:set EXPO_PUBLIC_API_URL=https://api.apnaacharya.com --environment production --visibility plaintext
