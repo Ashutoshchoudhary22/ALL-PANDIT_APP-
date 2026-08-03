@@ -4,6 +4,7 @@ import {
   cancelBookingApi,
   createBookingApi,
   getMyBookingsApi,
+  payBookingWithWalletApi,
   retryBookingPaymentApi,
   submitBookingReviewApi,
   verifyBookingPaymentApi,
@@ -18,6 +19,19 @@ export function useRetryBookingPaymentMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
       queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] });
+    },
+  });
+}
+
+export function usePayBookingWithWalletMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: number) => payBookingWithWalletApi(bookingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] });
     },
   });
 }
@@ -29,6 +43,7 @@ export function useCreateBookingMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
       queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] });
     },
   });
 }
@@ -40,6 +55,7 @@ export function useVerifyBookingPaymentMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
       queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] });
     },
   });
 }
@@ -51,6 +67,7 @@ export function useCancelBookingMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
       queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] });
     },
   });
 }

@@ -3,9 +3,10 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "node scripts/start-expo.js start --port 8081",
-    "start:clear": "node scripts/start-expo.js start --clear --port 8081",
-    "android": "node scripts/start-expo.js start --android --port 8081",
+    "start": "node scripts/start-expo.js start --port 8081 --host lan",
+    "start:clear": "node scripts/start-expo.js start --clear --port 8081 --host lan",
+    "start:tunnel": "node scripts/start-expo.js start --clear --port 8081 --tunnel",
+    "android": "node scripts/start-expo.js start --android --port 8081 --host lan",
     "ios": "node scripts/start-expo.js start --ios --port 8081",
     "web": "node scripts/start-expo.js start --web --port 8081",
     "reset-project": "node ./scripts/reset-project.js",

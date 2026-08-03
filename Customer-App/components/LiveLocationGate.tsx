@@ -6,6 +6,7 @@ import {
   AppState,
   Linking,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -28,6 +29,15 @@ export function useLiveLocationGranted() {
   return useContext(LiveLocationGrantedContext);
 }
 
+async function getPermissionWithTimeout(timeoutMs = 5000) {
+  return Promise.race([
+    Location.getForegroundPermissionsAsync(),
+    new Promise<Location.PermissionResponse>((_, reject) => {
+      setTimeout(() => reject(new Error('Location permission check timed out')), timeoutMs);
+    }),
+  ]);
+}
+
 export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
   const insets = useSafeAreaInsets();
   const { token, user, isLoading, signOut } = useAuth();
@@ -35,7 +45,7 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
   const [granted, setGranted] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
-  const shouldEnforce = Boolean(token && user?.role === role);
+  const shouldEnforce = Platform.OS !== 'web' && Boolean(token && user?.role === role);
   const canUseApp = !shouldEnforce || granted;
   const showLoadingOverlay = shouldEnforce && (isLoading || checking);
 
@@ -52,7 +62,7 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
       }
 
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
+        const { status } = await getPermissionWithTimeout();
         setGranted(status === 'granted');
       } catch {
         setGranted(false);
@@ -100,8 +110,8 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
           style={[
             styles.content,
             !canUseApp && !showLoadingOverlay ? styles.blockedContent : null,
+            !canUseApp && !showLoadingOverlay ? { pointerEvents: 'none' as const } : null,
           ]}
-          pointerEvents={!canUseApp && !showLoadingOverlay ? 'none' : 'auto'}
         >
           {children}
         </View>

@@ -2,12 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useCustomerBookingStats } from '@/hooks/use-customer-booking-stats';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { formatBookingDate, formatBookingTime } from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
@@ -234,11 +236,15 @@ function ProfileContent({
   stats,
   recentBookings,
   hasActiveBookings,
+  walletBalance,
+  onAddWalletMoney,
 }: {
   profile: CustomerProfile;
   stats: { totalBookings: number; completedBookings: number; reviewsGiven: number };
   recentBookings: Booking[];
   hasActiveBookings: boolean;
+  walletBalance: number;
+  onAddWalletMoney: () => void;
 }) {
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Customer';
   const memberSinceYear = formatMemberSince(profile.memberSince);
@@ -318,7 +324,15 @@ function ProfileContent({
           action="View All >"
           onPress={() => router.push('/(tabs)/history')}
         />
-        <StatCard icon="wallet-outline" iconColor="#3B82F6" bg="#EFF6FF" value="₹0" label="Wallet Balance" action="Add Money >" />
+        <StatCard
+          icon="wallet-outline"
+          iconColor="#3B82F6"
+          bg="#EFF6FF"
+          value={formatINR(walletBalance)}
+          label="Wallet Balance"
+          action="Add Money >"
+          onPress={onAddWalletMoney}
+        />
       </View>
 
       <View style={styles.quickActionsRow}>
@@ -404,7 +418,10 @@ export function CustomerProfileScreen() {
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const bookingStats = useCustomerBookingStats(Boolean(token));
+  const walletQuery = useMyWalletQuery(Boolean(token));
+  const [walletModalVisible, setWalletModalVisible] = useState(false);
   const profile = profileQuery.data?.data;
+  const walletBalance = walletQuery.data?.data.balance ?? 0;
   const isNotFound =
     profileQuery.error instanceof Error &&
     (profileQuery.error.message.toLowerCase().includes('not found') ||
@@ -427,8 +444,9 @@ export function CustomerProfileScreen() {
     useCallback(() => {
       if (token) {
         void bookingStats.refetch();
+        void walletQuery.refetch();
       }
-    }, [token, bookingStats.refetch]),
+    }, [token, bookingStats.refetch, walletQuery.refetch]),
   );
 
   return (
@@ -495,10 +513,21 @@ export function CustomerProfileScreen() {
             stats={bookingStats}
             recentBookings={bookingStats.recentBookings}
             hasActiveBookings={bookingStats.hasActiveBookings}
+            walletBalance={walletBalance}
+            onAddWalletMoney={() => setWalletModalVisible(true)}
           />
           <LogoutButton onPress={handleLogout} />
         </ScrollView>
       ) : null}
+
+      <AddWalletMoneyModal
+        visible={walletModalVisible}
+        currentBalance={walletBalance}
+        onDismiss={() => setWalletModalVisible(false)}
+        onSuccess={() => {
+          void walletQuery.refetch();
+        }}
+      />
     </View>
   );
 }

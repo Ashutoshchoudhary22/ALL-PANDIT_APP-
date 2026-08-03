@@ -32,6 +32,8 @@ export type Booking = {
   status: BookingStatus;
   needsReview?: boolean;
   reviewRating?: number | null;
+  advancePaymentMethod?: 'razorpay' | 'wallet' | null;
+  walletAdvanceAmount?: number;
   sessionOtp?: string;
   sessionOtpPurpose?: 'start' | 'finish';
   sessionOtpHint?: string;
@@ -103,6 +105,13 @@ export type RetryBookingPaymentResponse = CreateBookingResponse;
 export async function retryBookingPaymentApi(bookingId: number) {
   const { data } = await apiClient.post<RetryBookingPaymentResponse>(
     `/api/bookings/${bookingId}/retry-payment`,
+  );
+  return data;
+}
+
+export async function payBookingWithWalletApi(bookingId: number) {
+  const { data } = await apiClient.post<{ success: boolean; message: string; data: Booking }>(
+    `/api/bookings/${bookingId}/pay-with-wallet`,
   );
   return data;
 }

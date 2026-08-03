@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
 import { CloudImage } from '@/components/CloudImage';
 import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { PanditProfileCard } from '@/components/PanditProfileCard';
@@ -29,6 +30,7 @@ import { dismissReviewPrompt } from '@/lib/review-prompt-storage';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
 import { usePopularPujaServicesQuery } from '@/hooks/use-popular-puja-services';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
 import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
@@ -97,6 +99,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
   const { unreadCount } = useNotifications();
   const badgeLabel = formatBadgeCount(notificationCountProp ?? unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
+  const walletQuery = useMyWalletQuery(Boolean(token));
   const panditsQuery = useApprovedPanditsQuery(Boolean(token));
   const popularServicesQuery = usePopularPujaServicesQuery(Boolean(token), 10);
   const { activeCount } = usePanditFilters();
@@ -112,6 +115,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
   });
   const reviewPrompts = usePendingReviewPrompts(Boolean(token));
   const submitReview = useSubmitBookingReviewMutation();
+  const [walletModalVisible, setWalletModalVisible] = useState(false);
+  const walletBalance = walletQuery.data?.data.balance ?? 0;
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
   const location = getLocationLabel(profile);
@@ -121,11 +126,12 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
     useCallback(() => {
       if (token) {
         void profileQuery.refetch();
+        void walletQuery.refetch();
         void panditsQuery.refetch();
         void reviewPrompts.refetch();
         void reviewPrompts.refreshDismissed();
       }
-    }, [token, profileQuery.refetch, panditsQuery.refetch, reviewPrompts.refetch, reviewPrompts.refreshDismissed]),
+    }, [token, profileQuery.refetch, walletQuery.refetch, panditsQuery.refetch, reviewPrompts.refetch, reviewPrompts.refreshDismissed]),
   );
 
   const handleDismissReview = useCallback(async () => {
@@ -197,8 +203,17 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                 </View>
               ) : null}
             </Pressable>
-            <Pressable style={styles.iconBtn}>
+            <Pressable style={styles.iconBtn} onPress={() => setWalletModalVisible(true)}>
               <Ionicons name="wallet-outline" size={24} color={C.text} />
+              {walletBalance > 0 ? (
+                <View style={styles.walletBadge}>
+                  <Text style={styles.walletBadgeText} numberOfLines={1}>
+                    {walletBalance >= 1000
+                      ? `₹${Math.round(walletBalance / 1000)}k`
+                      : `₹${walletBalance}`}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -377,6 +392,15 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           ))}
         </ScrollView>
       </ScrollView>
+
+      <AddWalletMoneyModal
+        visible={walletModalVisible}
+        currentBalance={walletBalance}
+        onDismiss={() => setWalletModalVisible(false)}
+        onSuccess={() => {
+          void walletQuery.refetch();
+        }}
+      />
     </View>
   );
 }
@@ -454,6 +478,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 9,
     fontWeight: '700',
+  },
+  walletBadge: {
+    position: 'absolute',
+    top: 0,
+    right: -2,
+    maxWidth: 44,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletBadgeText: {
+    color: '#1D4ED8',
+    fontSize: 8,
+    fontWeight: '800',
   },
   searchRow: {
     flexDirection: 'row',

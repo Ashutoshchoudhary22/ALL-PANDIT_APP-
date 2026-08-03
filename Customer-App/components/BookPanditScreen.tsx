@@ -25,6 +25,7 @@ import { HomeColors as C } from '@/constants/home-theme';
 import { useCreateBookingMutation } from '@/hooks/use-bookings';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
+import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { calculateBookingPrice, formatINR, SAMAGRI_RATE, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -38,6 +39,7 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
   const { token } = useAuth();
   const panditQuery = usePublicPanditProfileQuery(panditProfileId, Boolean(token));
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
+  const walletQuery = useMyWalletQuery(Boolean(token));
   const createBooking = useCreateBookingMutation();
   const isSubmittingRef = useRef(false);
 
@@ -75,9 +77,20 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
     () => calculateBookingPrice(selectedService?.price ?? 0, samagriRequired),
     [selectedService?.price, samagriRequired],
   );
+  const walletBalance = walletQuery.data?.data.balance ?? 0;
+  const canPayAdvanceWithWallet = walletBalance >= pricing.advanceAmount && pricing.advanceAmount > 0;
 
-  const showBookingSuccess = (message: string) => {
-    Alert.alert('Request Sent', message, [{ text: 'OK', onPress: () => router.back() }]);
+  const showBookingSuccess = (message: string, goToBookings = false) => {
+    Alert.alert(
+      goToBookings ? 'Pay Advance Now' : 'Request Sent',
+      message,
+      goToBookings
+        ? [
+            { text: 'Later', style: 'cancel', onPress: () => router.back() },
+            { text: 'Go to Bookings', onPress: () => router.replace('/(tabs)/bookings') },
+          ]
+        : [{ text: 'OK', onPress: () => router.back() }],
+    );
   };
 
   const handleSubmit = async () => {
@@ -129,7 +142,10 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
       }
 
       if (message.includes('approved') && message.includes('Bookings tab')) {
-        Alert.alert('Payment Pending', message, [{ text: 'OK', onPress: () => router.back() }]);
+        showBookingSuccess(
+          `${message}\n\nOpen Bookings to pay 40% advance via Wallet or Online.`,
+          true,
+        );
         return;
       }
 
@@ -276,6 +292,27 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
             <PriceRow label="Pay Later" value={formatINR(pricing.remainingAmount)} />
             <View style={styles.divider} />
             <PriceRow label="Total Amount" value={formatINR(pricing.totalPrice)} />
+          </View>
+
+          <View style={styles.walletInfoCard}>
+            <View style={styles.walletInfoTop}>
+              <Ionicons name="wallet-outline" size={20} color={C.primary} />
+              <Text style={styles.walletInfoTitle}>Wallet Balance: {formatINR(walletBalance)}</Text>
+            </View>
+            <Text style={styles.walletInfoText}>
+              After pandit approves your request, open the Bookings tab to pay 40% advance using{' '}
+              <Text style={styles.walletInfoBold}>Pay with Wallet</Text> or{' '}
+              <Text style={styles.walletInfoBold}>Pay Online</Text>.
+            </Text>
+            {canPayAdvanceWithWallet ? (
+              <Text style={styles.walletInfoReady}>
+                Your wallet has enough balance for the advance payment.
+              </Text>
+            ) : pricing.advanceAmount > 0 ? (
+              <Text style={styles.walletInfoLow}>
+                Add money in Profile → Wallet if you want to pay advance from wallet.
+              </Text>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -446,6 +483,46 @@ const styles = StyleSheet.create({
   priceValue: { fontSize: 14, fontWeight: '700', color: C.text },
   priceValueBold: { fontSize: 18, fontWeight: '800', color: C.primary },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 6 },
+  walletInfoCard: {
+    marginTop: 16,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  walletInfoTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  walletInfoTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.text,
+  },
+  walletInfoText: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    color: C.textMuted,
+  },
+  walletInfoBold: {
+    fontWeight: '800',
+    color: C.text,
+  },
+  walletInfoReady: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.success,
+  },
+  walletInfoLow: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B45309',
+  },
   footer: {
     position: 'absolute',
     left: 0,

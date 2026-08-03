@@ -121,10 +121,42 @@ async function createRemainingOrder({ bookingId, remainingAmount, customerName, 
   }
 }
 
+async function createTopupOrder({ customerId, amount, customerName }) {
+  const amountPaise = toPaise(amount);
+
+  const client = getClient();
+  try {
+    const order = await client.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `wt${customerId}${Date.now().toString().slice(-8)}`.slice(0, 40),
+      notes: {
+        customer_id: String(customerId),
+        payment_type: 'wallet_topup',
+        customer_name: customerName || '',
+      },
+    });
+
+    return {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      topupAmount: amount,
+    };
+  } catch (error) {
+    const message = getRazorpayErrorMessage(error);
+    const wrapped = new Error(message);
+    wrapped.cause = error;
+    throw wrapped;
+  }
+}
+
 module.exports = {
   ADVANCE_RATE,
   calculateAdvanceAmount,
   createAdvanceOrder,
   createRemainingOrder,
+  createTopupOrder,
   verifyPaymentSignature,
 };

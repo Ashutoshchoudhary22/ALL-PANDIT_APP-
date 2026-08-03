@@ -192,8 +192,41 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'razorpay_remaining_payment_id', 'VARCHAR(100) NULL');
     await ensureColumn(connection, 'bookings', 'advance_paid_at', 'DATETIME NULL');
     await ensureColumn(connection, 'bookings', 'completed_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'bookings', 'advance_payment_method', "ENUM('razorpay','wallet') NULL");
+    await ensureColumn(connection, 'bookings', 'wallet_advance_amount', 'DECIMAL(10,2) DEFAULT 0');
 
     await connection.query(`
+      CREATE TABLE IF NOT EXISTS customer_wallets (
+        customer_id BIGINT UNSIGNED PRIMARY KEY,
+        balance DECIMAL(12,2) NOT NULL DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        customer_id BIGINT UNSIGNED NOT NULL,
+        type ENUM('topup','debit_advance','debit_remaining','refund','adjustment') NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        balance_after DECIMAL(12,2) NOT NULL DEFAULT 0,
+        reference_type ENUM('razorpay','booking','admin') NULL,
+        reference_id VARCHAR(100) NULL,
+        razorpay_order_id VARCHAR(100) NULL,
+        razorpay_payment_id VARCHAR(100) NULL,
+        status ENUM('pending','completed','failed') DEFAULT 'completed',
+        description VARCHAR(255) NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY uniq_wallet_payment (razorpay_payment_id),
+        INDEX idx_wallet_tx_customer (customer_id, created_at)
+      )
+    `);
+
+    try {
+      await connection.query(`
       CREATE TABLE IF NOT EXISTS booking_reviews (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         booking_id BIGINT UNSIGNED NOT NULL UNIQUE,
@@ -208,6 +241,11 @@ async function initDb() {
         CHECK (rating BETWEEN 1 AND 5)
       )
     `);
+    } catch (error) {
+      if (!String(error.message).includes('already exists')) {
+        console.warn('Could not ensure booking_reviews table:', error.message);
+      }
+    }
 
     try {
       await connection.query(`

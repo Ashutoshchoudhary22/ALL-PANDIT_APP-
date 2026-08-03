@@ -18,6 +18,7 @@ const {
   findPanditBlockingBooking,
   findAnyActiveBookingWithPandit,
 } = require('../utils/panditAvailability');
+const { debitForBookingAdvance } = require('../services/walletService');
 
 const SAMAGRI_RATE = 0.2;
 const OTP_TTL_MINUTES = 10;
@@ -74,6 +75,8 @@ function formatBooking(row, { includeSessionOtp = false } = {}) {
     startedAt: row.started_at || null,
     finishRequestedAt: row.finish_requested_at || null,
     remainingPaymentMethod: row.remaining_payment_method || null,
+    advancePaymentMethod: row.advance_payment_method || null,
+    walletAdvanceAmount: Number(row.wallet_advance_amount ?? 0),
     advancePaidAt: row.advance_paid_at || null,
     completedAt: row.completed_at || null,
     needsReview: row.status === 'completed' && !row.review_id,
@@ -408,6 +411,7 @@ exports.verifyBookingPayment = async (req, res) => {
     await pool.query(
       `UPDATE bookings
        SET razorpay_payment_id = ?, payment_status = 'advance_paid', status = 'confirmed',
+           advance_payment_method = 'razorpay', wallet_advance_amount = 0,
            start_otp = ?, start_otp_expires_at = ?, advance_paid_at = NOW(), updated_at = NOW()
        WHERE id = ?`,
       [razorpayPaymentId, startOtp, expiresAt, bookingId],
@@ -524,6 +528,109 @@ exports.retryBookingPayment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || 'Could not initiate payment. Please try again.',
+    });
+  }
+};
+
+exports.payBookingWithWallet = async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can pay for bookings',
+      });
+    }
+
+    const bookingId = Number(req.params.id);
+    if (!Number.isFinite(bookingId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking id',
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT b.*, pp.name AS pandit_name
+       FROM bookings b
+       INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+       WHERE b.id = ? AND b.customer_id = ?`,
+      [bookingId, req.user.id],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = rows[0];
+
+    if (booking.payment_status === 'advance_paid') {
+      return res.status(200).json({
+        success: true,
+        message: 'Advance payment already completed',
+        data: formatBooking(booking, { includeSessionOtp: true }),
+      });
+    }
+
+    if (booking.status !== 'payment_pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This booking is not approved for payment yet',
+      });
+    }
+
+    const advanceAmount = Number(booking.advance_amount);
+    if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid advance amount for this booking',
+      });
+    }
+
+    try {
+      await debitForBookingAdvance(req.user.id, bookingId, advanceAmount);
+    } catch (error) {
+      const status = error.statusCode || 500;
+      return res.status(status).json({
+        success: false,
+        message: error.message || 'Could not pay from wallet',
+      });
+    }
+
+    const startOtp = generateOtp();
+    const expiresAt = otpExpiresAt();
+
+    await pool.query(
+      `UPDATE bookings
+       SET payment_status = 'advance_paid', status = 'confirmed',
+           advance_payment_method = 'wallet', wallet_advance_amount = ?,
+           start_otp = ?, start_otp_expires_at = ?, advance_paid_at = NOW(), updated_at = NOW()
+       WHERE id = ?`,
+      [advanceAmount, startOtp, expiresAt, bookingId],
+    );
+
+    const customer = await fetchCustomerContact(booking.customer_id);
+    if (customer.email) {
+      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start');
+    } else {
+      console.log(`[DEV] Start OTP for booking ${bookingId}: ${startOtp}`);
+    }
+
+    const row = await fetchBookingById(bookingId);
+    await notifyPanditBookingPaymentConfirmed(req.app.get('io'), bookingId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Wallet payment successful! Start OTP sent to your email. Share it with pandit ji on arrival.',
+      data: formatBooking(row, { includeSessionOtp: true }),
+    });
+  } catch (error) {
+    console.error('Pay booking with wallet error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while paying from wallet',
     });
   }
 };

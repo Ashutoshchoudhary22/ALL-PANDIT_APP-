@@ -19,6 +19,7 @@ router.post('/pandit/:id/retry-remaining-payment', authMiddleware, bookingContro
 router.get('/me', authMiddleware, bookingController.getMyBookings);
 router.post('/:id/review', authMiddleware, bookingController.submitBookingReview);
 router.post('/:id/cancel', authMiddleware, bookingController.cancelBooking);
+router.post('/:id/pay-with-wallet', authMiddleware, bookingController.payBookingWithWallet);
 router.post('/:id/retry-payment', authMiddleware, bookingController.retryBookingPayment);
 
 module.exports = router;

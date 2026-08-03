@@ -19,6 +19,7 @@ import { HomeColors as C } from '@/constants/home-theme';
 import {
   useCancelBookingMutation,
   useMyBookingsQuery,
+  usePayBookingWithWalletMutation,
   useRetryBookingPaymentMutation,
   useVerifyBookingPaymentMutation,
 } from '@/hooks/use-bookings';
@@ -28,6 +29,7 @@ import {
   isActiveBooking,
 } from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
+import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   Booking,
@@ -56,19 +58,26 @@ const STATUS_STYLES: Record<
 const BookingCard = memo(function BookingCard({
   booking,
   paying,
+  payingWithWallet,
   cancelling,
+  walletBalance,
   onPayNow,
+  onPayWithWallet,
   onCancel,
 }: {
   booking: Booking;
   paying: boolean;
+  payingWithWallet: boolean;
   cancelling: boolean;
+  walletBalance: number;
   onPayNow: (booking: Booking) => void;
+  onPayWithWallet: (booking: Booking) => void;
   onCancel: (booking: Booking) => void;
 }) {
   const statusStyle = STATUS_STYLES[booking.status];
   const needsPayment = booking.status === 'payment_pending';
   const canCancel = booking.status === 'pending' || booking.status === 'payment_pending';
+  const canPayWithWallet = walletBalance >= booking.advanceAmount;
 
   return (
     <View style={styles.card}>
@@ -161,22 +170,45 @@ const BookingCard = memo(function BookingCard({
       ) : null}
 
       {needsPayment ? (
-        <Pressable
-          style={[styles.payBtn, paying && styles.payBtnDisabled]}
-          onPress={() => onPayNow(booking)}
-          disabled={paying || cancelling}
-        >
-          {paying ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Ionicons name="card-outline" size={16} color="#fff" />
-              <Text style={styles.payBtnText}>
-                Pay 40% Now • {formatINR(booking.advanceAmount)}
-              </Text>
-            </>
-          )}
-        </Pressable>
+        <>
+          <Pressable
+            style={[styles.payBtn, (paying || payingWithWallet) && styles.payBtnDisabled]}
+            onPress={() => onPayNow(booking)}
+            disabled={paying || payingWithWallet || cancelling}
+          >
+            {paying ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="card-outline" size={16} color="#fff" />
+                <Text style={styles.payBtnText}>
+                  Pay Online • {formatINR(booking.advanceAmount)}
+                </Text>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            style={[
+              styles.walletPayBtn,
+              (!canPayWithWallet || paying || payingWithWallet) && styles.walletPayBtnDisabled,
+            ]}
+            onPress={() => onPayWithWallet(booking)}
+            disabled={!canPayWithWallet || paying || payingWithWallet || cancelling}
+          >
+            {payingWithWallet ? (
+              <ActivityIndicator color={C.primary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="wallet-outline" size={16} color={C.primary} />
+                <Text style={styles.walletPayBtnText}>
+                  {canPayWithWallet
+                    ? `Pay with Wallet • ${formatINR(booking.advanceAmount)}`
+                    : `Wallet: ${formatINR(walletBalance)} (insufficient)`}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </>
       ) : null}
 
       {canCancel ? (
@@ -202,24 +234,33 @@ const BookingCard = memo(function BookingCard({
 type BookingListItemProps = {
   booking: Booking;
   paying: boolean;
+  payingWithWallet: boolean;
   cancelling: boolean;
+  walletBalance: number;
   onPayNow: (booking: Booking) => void;
+  onPayWithWallet: (booking: Booking) => void;
   onCancel: (booking: Booking) => void;
 };
 
 const BookingListItem = memo(function BookingListItem({
   booking,
   paying,
+  payingWithWallet,
   cancelling,
+  walletBalance,
   onPayNow,
+  onPayWithWallet,
   onCancel,
 }: BookingListItemProps) {
   return (
     <BookingCard
       booking={booking}
       paying={paying}
+      payingWithWallet={payingWithWallet}
       cancelling={cancelling}
+      walletBalance={walletBalance}
       onPayNow={onPayNow}
+      onPayWithWallet={onPayWithWallet}
       onCancel={onCancel}
     />
   );
@@ -235,13 +276,17 @@ export function CustomerBookingsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
+  const walletQuery = useMyWalletQuery(Boolean(token));
   const retryPayment = useRetryBookingPaymentMutation();
+  const payWithWallet = usePayBookingWithWalletMutation();
   const verifyPayment = useVerifyBookingPaymentMutation();
   const cancelBooking = useCancelBookingMutation();
   const bookings = (bookingsQuery.data?.data ?? []).filter((booking) =>
     isActiveBooking(booking.status),
   );
+  const walletBalance = walletQuery.data?.data.balance ?? 0;
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+  const [payingWithWalletBookingId, setPayingWithWalletBookingId] = useState<number | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
   const [paymentSession, setPaymentSession] = useState<{
     bookingId: number;
@@ -254,8 +299,9 @@ export function CustomerBookingsScreen() {
     useCallback(() => {
       if (token) {
         void bookingsQuery.refetch();
+        void walletQuery.refetch();
       }
-    }, [token, bookingsQuery.refetch]),
+    }, [token, bookingsQuery.refetch, walletQuery.refetch]),
   );
 
   const handlePayNow = useCallback(async (booking: Booking) => {
@@ -278,6 +324,33 @@ export function CustomerBookingsScreen() {
       setPayingBookingId(null);
     }
   }, [retryPayment]);
+
+  const handlePayWithWallet = useCallback(
+    (booking: Booking) => {
+      Alert.alert(
+        'Pay with Wallet',
+        `Pay ${formatINR(booking.advanceAmount)} from your wallet balance of ${formatINR(walletBalance)}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Pay Now',
+            onPress: async () => {
+              setPayingWithWalletBookingId(booking.id);
+              try {
+                const response = await payWithWallet.mutateAsync(booking.id);
+                Alert.alert('Booking Confirmed', response.message);
+              } catch (error) {
+                Alert.alert('Error', error instanceof Error ? error.message : 'Could not pay from wallet');
+              } finally {
+                setPayingWithWalletBookingId(null);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [payWithWallet, walletBalance],
+  );
 
   const handleCancel = useCallback((booking: Booking) => {
     Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking request?', [
@@ -305,12 +378,23 @@ export function CustomerBookingsScreen() {
       <BookingListItem
         booking={item}
         paying={payingBookingId === item.id}
+        payingWithWallet={payingWithWalletBookingId === item.id}
         cancelling={cancellingBookingId === item.id}
+        walletBalance={walletBalance}
         onPayNow={handlePayNow}
+        onPayWithWallet={handlePayWithWallet}
         onCancel={handleCancel}
       />
     ),
-    [payingBookingId, cancellingBookingId, handlePayNow, handleCancel],
+    [
+      payingBookingId,
+      payingWithWalletBookingId,
+      cancellingBookingId,
+      walletBalance,
+      handlePayNow,
+      handlePayWithWallet,
+      handleCancel,
+    ],
   );
 
   const handleRefresh = useCallback(() => {
@@ -575,6 +659,26 @@ const styles = StyleSheet.create({
   },
   payBtnDisabled: {
     opacity: 0.7,
+  },
+  walletPayBtn: {
+    marginTop: 8,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    backgroundColor: '#FFF7ED',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  walletPayBtnDisabled: {
+    opacity: 0.6,
+  },
+  walletPayBtnText: {
+    color: C.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   cancelBtn: {
     marginTop: 10,

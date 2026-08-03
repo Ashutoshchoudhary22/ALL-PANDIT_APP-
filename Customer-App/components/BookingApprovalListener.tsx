@@ -44,7 +44,7 @@ export function BookingApprovalListener() {
 
       Alert.alert(
         payload.title || 'Booking Approved',
-        payload.message || 'Your booking was approved. Pay 40% advance now to confirm.',
+        `${payload.message || 'Your booking was approved. Pay 40% advance now to confirm.'}\n\nYou can pay via Wallet or Online from Bookings.`,
         [
           { text: 'Later', style: 'cancel' },
           {
