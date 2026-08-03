@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useResendOtpMutation, useVerifyOtpMutation } from '@/hooks/use-auth';
+import { exitAppForWrongRole } from '@/lib/role-guard';
 import { AuthUser } from '@/services/auth.api';
 
 type VerifyOtpScreenProps = {
@@ -53,7 +54,7 @@ export function VerifyOtpScreen({
           Alert.alert('Success', response.message);
           if (response.data?.user && response.data?.token) {
             if (response.data.user.role !== 'customer') {
-              setError('No account found');
+              exitAppForWrongRole();
               return;
             }
             onVerified?.(response.data.user, response.data.token);

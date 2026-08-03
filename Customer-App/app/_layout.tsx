@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
+import { RoleGuard } from '@/components/RoleGuard';
 import { BookingApprovalListener } from '@/components/BookingApprovalListener';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
@@ -35,6 +36,7 @@ export default function RootLayout() {
           <PanditFiltersProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <AuthSessionHandler />
+              <RoleGuard />
               <AuthBootstrap />
               <SplashController />
               <LiveLocationGate role="customer">

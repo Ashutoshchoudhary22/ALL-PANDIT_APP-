@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLoginMutation } from '@/hooks/use-auth';
+import { exitAppForWrongRole } from '@/lib/role-guard';
 import { AuthUser } from '@/services/auth.api';
 
 const BHAGWA = '#FFB366';
@@ -65,7 +66,7 @@ export function SignInScreen({
         onSuccess: (response) => {
           if (response.data?.user && response.data?.token) {
             if (response.data.user.role !== 'pandit') {
-              setError('No account found');
+              exitAppForWrongRole();
               return;
             }
             Alert.alert('Success', response.message);

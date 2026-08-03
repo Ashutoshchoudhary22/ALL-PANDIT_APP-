@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { apiClient } from '@/lib/axios';
+import { exitAppForWrongRole } from '@/lib/role-guard';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function AuthSessionHandler() {
@@ -15,7 +16,7 @@ export function AuthSessionHandler() {
         '/api/auth/me',
       );
       if (data.data?.user?.role && data.data.user.role !== 'customer') {
-        await signOut();
+        exitAppForWrongRole();
       }
     } catch {
       // 401 responses are handled by the axios interceptor.

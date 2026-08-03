@@ -2,6 +2,7 @@ import { usePathname, useRootNavigationState } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { goToDashboard, goToGetStarted } from '@/lib/auth-navigation';
+import { exitAppForWrongRole } from '@/lib/role-guard';
 import { useAuth } from '@/providers/AuthProvider';
 
 function isOnboardingPath(pathname: string) {
@@ -21,7 +22,7 @@ export function AuthBootstrap() {
     hasBootstrapped.current = true;
 
     if (token && user && user.role !== 'pandit') {
-      void signOut();
+      exitAppForWrongRole();
       return;
     }
 

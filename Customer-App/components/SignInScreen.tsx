@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
 import { useLoginMutation } from '@/hooks/use-auth';
+import { exitAppForWrongRole } from '@/lib/role-guard';
 import { AuthUser } from '@/services/auth.api';
 
 const BHAGWA = '#FFB366';
@@ -63,7 +64,7 @@ export function SignInScreen({
         onSuccess: (response) => {
           if (response.data?.user && response.data?.token) {
             if (response.data.user.role !== 'customer') {
-              setError('No account found');
+              exitAppForWrongRole();
               return;
             }
             onLoginSuccess?.(response.data.user, response.data.token);
