@@ -1,15 +1,13 @@
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
+const { getSocketCorsOptions } = require('./cors');
 const pool = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'my-pandit-secret-key';
 
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-    },
+    cors: getSocketCorsOptions(),
     transports: ['polling', 'websocket'],
     pingTimeout: 60000,
     pingInterval: 25000,

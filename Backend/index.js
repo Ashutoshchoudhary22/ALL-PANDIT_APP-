@@ -4,6 +4,7 @@ const http = require('http');
 require('dotenv').config();
 
 const initDb = require('./config/initDb');
+const { getExpressCorsOptions } = require('./config/cors');
 const { initSocket } = require('./config/socket');
 const authRoutes = require('./routes/authRoutes');
 const customerProfileRoutes = require('./routes/customerProfileRoutes');
@@ -18,7 +19,7 @@ const io = initSocket(server);
 
 app.set('io', io);
 
-app.use(cors());
+app.use(cors(getExpressCorsOptions()));
 app.use(express.json());
 
 app.get('/', (req, res) => {
