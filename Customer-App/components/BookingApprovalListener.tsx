@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { Socket } from 'socket.io-client';
 
 import { createAuthenticatedSocket } from '@/lib/socket';
+import { ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { CustomerBookingNotification } from '@/services/notification.api';
@@ -44,7 +45,7 @@ export function BookingApprovalListener() {
 
       Alert.alert(
         payload.title || 'Booking Approved',
-        `${payload.message || 'Your booking was approved. Pay 40% advance now to confirm.'}\n\nYou can pay via Wallet or Online from Bookings.`,
+        `${payload.message || `Your booking was approved. Pay ${Math.round(ADVANCE_RATE * 100)}% advance now to confirm.`}\n\nYou can pay via Wallet or Online from Bookings.`,
         [
           { text: 'Later', style: 'cancel' },
           {

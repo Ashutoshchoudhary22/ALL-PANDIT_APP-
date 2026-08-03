@@ -1,5 +1,5 @@
 export const SAMAGRI_RATE = 0.2;
-export const ADVANCE_RATE = 0.4;
+export const ADVANCE_RATE = 0.2;
 
 export function calculateBookingPrice(basePrice: number, samagriRequired: boolean) {
   const safeBase = Math.max(0, Math.round(basePrice));

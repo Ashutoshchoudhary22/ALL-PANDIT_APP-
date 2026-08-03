@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { ADVANCE_RATE } = require('./razorpayService');
 
 async function withWalletLock(customerId, handler) {
   const connection = await pool.getConnection();
@@ -164,7 +165,7 @@ async function debitForBookingAdvance(customerId, bookingId, amount) {
         -amount,
         newBalance,
         String(bookingId),
-        `40% advance paid for booking #${bookingId}`,
+        `${Math.round(ADVANCE_RATE * 100)}% advance paid for booking #${bookingId}`,
       ],
     );
 

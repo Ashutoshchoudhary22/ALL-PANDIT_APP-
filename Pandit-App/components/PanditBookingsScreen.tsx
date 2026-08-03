@@ -28,6 +28,7 @@ import {
 } from '@/hooks/use-pandit-booking-actions';
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { promptBookingLocation } from '@/lib/open-map';
+import { advancePercentLabel, remainingPercentLabel } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   BookingCustomerPrefill,
@@ -152,7 +153,7 @@ const BookingCard = memo(function BookingCard({
 
       {booking.status === 'payment_pending' ? (
         <View style={styles.infoBox}>
-          <Text style={styles.infoBoxText}>Approved by you. Waiting for customer to pay 40% advance.</Text>
+          <Text style={styles.infoBoxText}>Approved by you. Waiting for customer to pay {advancePercentLabel()} advance.</Text>
         </View>
       ) : null}
 
@@ -225,7 +226,7 @@ const BookingCard = memo(function BookingCard({
             <Text style={styles.tagText}>
               {booking.paymentStatus === 'fully_paid'
                 ? 'Fully paid'
-                : `40% paid • ${formatINR(booking.advanceAmount)}`}
+                : `${advancePercentLabel()} paid • ${formatINR(booking.advanceAmount)}`}
             </Text>
           </View>
         ) : isRejected ? (
@@ -494,7 +495,7 @@ export function PanditBookingsScreen() {
           bookingId: booking.id,
           payment: response.payment,
           customer: response.customer,
-          description: `${booking.serviceName} • Remaining 60%`,
+          description: `${booking.serviceName} • Remaining ${remainingPercentLabel()}`,
         });
       } catch (error) {
         Alert.alert('Error', error instanceof Error ? error.message : 'Could not start payment');
@@ -611,7 +612,7 @@ export function PanditBookingsScreen() {
         title={otpModal?.mode === 'start' ? 'Enter Start OTP' : 'Enter Finish OTP'}
         subtitle={
           otpModal?.mode === 'start'
-            ? 'Ask the customer for the OTP sent to their email when they paid 40%.'
+            ? `Ask the customer for the OTP sent to their email when they paid ${advancePercentLabel()}.`
             : 'Ask the customer for the OTP sent after puja completion.'
         }
         loading={Boolean(otpModal && busyBookingId === otpModal.bookingId)}

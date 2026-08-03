@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 
-const ADVANCE_RATE = 0.4;
+const ADVANCE_RATE = 0.2;
 
 function getClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;

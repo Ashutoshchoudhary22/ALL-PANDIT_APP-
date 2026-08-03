@@ -1,4 +1,5 @@
 import { PanditBooking } from '@/services/booking.api';
+import { advancePercentLabel } from '@/lib/booking-pricing';
 
 export type PanditNotification = {
   id: string;
@@ -29,7 +30,7 @@ export function notificationFromConfirmedBooking(booking: PanditBooking): Pandit
     id: `booking-confirmed-${booking.id}`,
     type: 'booking:confirmed',
     title: 'Payment Received',
-    message: `${booking.customerName} paid 40% advance for ${booking.serviceName}. Booking is confirmed.`,
+    message: `${booking.customerName} paid ${advancePercentLabel()} advance for ${booking.serviceName}. Booking is confirmed.`,
     bookingId: booking.id,
     read: false,
     createdAt: booking.updatedAt || booking.createdAt,

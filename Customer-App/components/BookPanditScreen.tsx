@@ -27,7 +27,10 @@ import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { calculateBookingPrice, formatINR, SAMAGRI_RATE, ADVANCE_RATE } from '@/lib/booking-pricing';
+import { getCurrentAddress } from '@/lib/location';
 import { useAuth } from '@/providers/AuthProvider';
+
+type AddressSource = 'profile' | 'current';
 
 type BookPanditScreenProps = {
   panditProfileId: number;
@@ -50,16 +53,28 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
   const [bookingDate, setBookingDate] = useState(getTodayIsoDate);
   const [bookingTime, setBookingTime] = useState('');
   const [address, setAddress] = useState('');
+  const [addressSource, setAddressSource] = useState<AddressSource | null>(null);
+  const [bookingLatitude, setBookingLatitude] = useState<number | null>(null);
+  const [bookingLongitude, setBookingLongitude] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [samagriRequired, setSamagriRequired] = useState(false);
 
+  const profileAddress = useMemo(() => {
+    if (!customerProfile) return '';
+    return [customerProfile.address, customerProfile.cityName].filter(Boolean).join(', ');
+  }, [customerProfile]);
+
+  const hasProfileAddress = profileAddress.trim().length > 0;
+
   useEffect(() => {
-    if (!customerProfile) return;
-    const parts = [customerProfile.address, customerProfile.cityName].filter(Boolean);
-    if (parts.length > 0 && !address) {
-      setAddress(parts.join(', '));
-    }
-  }, [customerProfile, address]);
+    if (!hasProfileAddress || addressSource) return;
+
+    setAddressSource('profile');
+    setAddress(profileAddress);
+    setBookingLatitude(customerProfile?.liveLatitude ?? customerProfile?.latitude ?? null);
+    setBookingLongitude(customerProfile?.liveLongitude ?? customerProfile?.longitude ?? null);
+  }, [hasProfileAddress, profileAddress, customerProfile, addressSource]);
 
   useEffect(() => {
     if (!pandit || serviceName) return;
@@ -80,17 +95,43 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
   const walletBalance = walletQuery.data?.data.balance ?? 0;
   const canPayAdvanceWithWallet = walletBalance >= pricing.advanceAmount && pricing.advanceAmount > 0;
 
-  const showBookingSuccess = (message: string, goToBookings = false) => {
-    Alert.alert(
-      goToBookings ? 'Pay Advance Now' : 'Request Sent',
-      message,
-      goToBookings
-        ? [
-            { text: 'Later', style: 'cancel', onPress: () => router.back() },
-            { text: 'Go to Bookings', onPress: () => router.replace('/(tabs)/bookings') },
-          ]
-        : [{ text: 'OK', onPress: () => router.back() }],
-    );
+  const showBookingSuccess = (message: string, title = 'Request Sent') => {
+    router.replace('/(tabs)/bookings');
+    Alert.alert(title, message);
+  };
+
+  const handleSelectProfileAddress = () => {
+    if (!hasProfileAddress) {
+      Alert.alert(
+        'Profile address missing',
+        'Add your address in Profile first, or use current location for this booking.',
+      );
+      return;
+    }
+
+    setAddressSource('profile');
+    setAddress(profileAddress);
+    setBookingLatitude(customerProfile?.liveLatitude ?? customerProfile?.latitude ?? null);
+    setBookingLongitude(customerProfile?.liveLongitude ?? customerProfile?.longitude ?? null);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      const result = await getCurrentAddress();
+      const fullAddress = [result.address, result.cityName].filter(Boolean).join(', ');
+      setAddressSource('current');
+      setAddress(fullAddress);
+      setBookingLatitude(result.latitude);
+      setBookingLongitude(result.longitude);
+    } catch (error) {
+      Alert.alert(
+        'Location Error',
+        error instanceof Error ? error.message : 'Could not fetch your current location.',
+      );
+    } finally {
+      setLocating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -106,8 +147,8 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
       Alert.alert('Required', 'Please select booking date and time.');
       return;
     }
-    if (!address.trim()) {
-      Alert.alert('Required', 'Please enter the booking address.');
+    if (!address.trim() || !addressSource) {
+      Alert.alert('Required', 'Please select profile address or use current location.');
       return;
     }
 
@@ -120,8 +161,8 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
         bookingDate,
         bookingTime,
         address: address.trim(),
-        latitude: customerProfile?.latitude ?? undefined,
-        longitude: customerProfile?.longitude ?? undefined,
+        latitude: bookingLatitude ?? undefined,
+        longitude: bookingLongitude ?? undefined,
         specialRequirements: specialRequirements.trim() || undefined,
         samagriRequired,
       });
@@ -143,8 +184,8 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
 
       if (message.includes('approved') && message.includes('Bookings tab')) {
         showBookingSuccess(
-          `${message}\n\nOpen Bookings to pay 40% advance via Wallet or Online.`,
-          true,
+          `${message}\n\nPay ${Math.round(ADVANCE_RATE * 100)}% advance via Wallet or Online from your bookings.`,
+          'Payment Pending',
         );
         return;
       }
@@ -242,13 +283,82 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               onChange={setBookingTime}
               placeholder="Select booking time"
             />
-            <Field
-              label="Address *"
+            <TimePickerField
+              label="Select Time *"
+              value={bookingTime}
+              onChange={setBookingTime}
+              placeholder="Select booking time"
+            />
+
+            <View style={styles.fieldWrap}>
+            <Text style={styles.fieldLabel}>Puja Address *</Text>
+            <View style={styles.addressSelectRow}>
+              <Pressable
+                style={[
+                  styles.addressSelectBtn,
+                  addressSource === 'profile' && styles.addressSelectBtnActive,
+                  !hasProfileAddress && styles.addressSelectBtnDisabled,
+                ]}
+                onPress={handleSelectProfileAddress}
+                disabled={!hasProfileAddress}
+              >
+                <Ionicons
+                  name="home-outline"
+                  size={16}
+                  color={addressSource === 'profile' ? C.primary : C.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.addressSelectText,
+                    addressSource === 'profile' && styles.addressSelectTextActive,
+                  ]}
+                >
+                  Profile Address
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.addressSelectBtn,
+                  addressSource === 'current' && styles.addressSelectBtnActive,
+                  locating && styles.addressSelectBtnDisabled,
+                ]}
+                onPress={handleUseCurrentLocation}
+                disabled={locating}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color={addressSource === 'current' ? C.primary : C.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.addressSelectText,
+                        addressSource === 'current' && styles.addressSelectTextActive,
+                      ]}
+                    >
+                      Current Location
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+            <TextInput
+              style={[styles.input, styles.inputMultiline, styles.inputReadOnly]}
+              placeholder="Select profile address or current location"
+              placeholderTextColor={C.textLight}
               value={address}
-              onChangeText={setAddress}
-              placeholder="Enter full address for puja"
+              editable={false}
               multiline
             />
+            <Text style={styles.addressHint}>
+              Address is selected from your profile or GPS. It cannot be typed manually.
+            </Text>
+            </View>
+
             <Field
               label="Special Requirements"
               value={specialRequirements}
@@ -300,7 +410,7 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               <Text style={styles.walletInfoTitle}>Wallet Balance: {formatINR(walletBalance)}</Text>
             </View>
             <Text style={styles.walletInfoText}>
-              After pandit approves your request, open the Bookings tab to pay 40% advance using{' '}
+              After pandit approves your request, open the Bookings tab to pay {Math.round(ADVANCE_RATE * 100)}% advance using{' '}
               <Text style={styles.walletInfoBold}>Pay with Wallet</Text> or{' '}
               <Text style={styles.walletInfoBold}>Pay Online</Text>.
             </Text>
@@ -456,6 +566,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
+  inputReadOnly: {
+    backgroundColor: '#F3F4F6',
+    color: C.textMuted,
+  },
+  addressSelectRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressSelectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#FAFAFA',
+  },
+  addressSelectBtnActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: C.primary,
+  },
+  addressSelectBtnDisabled: {
+    opacity: 0.55,
+  },
+  addressSelectText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.textMuted,
+    textAlign: 'center',
+  },
+  addressSelectTextActive: {
+    color: C.primary,
+  },
+  addressHint: {
+    marginTop: 6,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.textLight,
+  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

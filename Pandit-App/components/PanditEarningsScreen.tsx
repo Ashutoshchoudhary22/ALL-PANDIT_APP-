@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { advancePercentLabel } from '@/lib/booking-pricing';
 import { usePanditEarnings } from '@/hooks/use-pandit-earnings';
 import {
   EarningTransaction,
@@ -198,7 +199,7 @@ export function PanditEarningsScreen() {
               <Ionicons name="wallet-outline" size={48} color={C.textLight} />
               <Text style={styles.emptyTitle}>No earnings yet</Text>
               <Text style={styles.emptySubtitle}>
-                Payments will appear here when customers pay 40% advance online or you collect
+                Payments will appear here when customers pay {advancePercentLabel()} advance online or you collect
                 remaining amount via cash or online.
               </Text>
             </View>

@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
-import { formatINR } from '@/lib/booking-pricing';
+import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerNotification } from '@/services/notification.api';
 
@@ -50,7 +50,7 @@ const NotificationCard = memo(function NotificationCard({
         </View>
         <Text style={styles.message}>{item.message}</Text>
         {advanceAmount > 0 ? (
-          <Text style={styles.meta}>Pay now: {formatINR(advanceAmount)} (40% advance)</Text>
+          <Text style={styles.meta}>Pay now: {formatINR(advanceAmount)} ({Math.round(ADVANCE_RATE * 100)}% advance)</Text>
         ) : null}
         <Text style={styles.time}>{formatDateTime(item.createdAt)}</Text>
       </View>

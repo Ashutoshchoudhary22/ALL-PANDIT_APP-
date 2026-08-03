@@ -4,6 +4,7 @@ const {
   createAdvanceOrder,
   createRemainingOrder,
   verifyPaymentSignature,
+  ADVANCE_RATE,
 } = require('../services/razorpayService');
 const { sendBookingOtpEmail } = require('../config/mailer');
 const generateOtp = require('../utils/generateOtp');
@@ -235,7 +236,7 @@ exports.createBooking = async (req, res) => {
         return res.status(409).json({
           success: false,
           message:
-            'Your booking request was approved. Open the Bookings tab and complete the 40% advance payment.',
+            `Your booking request was approved. Open the Bookings tab and complete the ${Math.round(ADVANCE_RATE * 100)}% advance payment.`,
         });
       }
 
@@ -508,7 +509,7 @@ exports.retryBookingPayment = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Complete 40% advance payment to confirm your booking',
+      message: `Complete ${Math.round(ADVANCE_RATE * 100)}% advance payment to confirm your booking`,
       data: formatBooking(row),
       payment: {
         orderId: payment.orderId,
@@ -1090,7 +1091,7 @@ exports.verifyFinishBookingOtp = async (req, res) => {
     const row = await fetchBookingById(bookingId);
     return res.status(200).json({
       success: true,
-      message: 'OTP verified. Collect remaining 60% via cash or online payment.',
+      message: `OTP verified. Collect remaining ${Math.round((1 - ADVANCE_RATE) * 100)}% via cash or online payment.`,
       data: formatBooking(row),
     });
   } catch (error) {
@@ -1201,7 +1202,7 @@ exports.retryRemainingPayment = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Complete remaining 60% payment via Razorpay',
+      message: `Complete remaining ${Math.round((1 - ADVANCE_RATE) * 100)}% payment via Razorpay`,
       data: formatBooking(row),
       payment: {
         orderId: payment.orderId,

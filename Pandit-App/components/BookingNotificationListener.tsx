@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { Socket } from 'socket.io-client';
 
 import { createAuthenticatedSocket } from '@/lib/socket';
+import { advancePercentLabel } from '@/lib/booking-pricing';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBookingNotification } from '@/services/booking.api';
@@ -62,7 +63,7 @@ export function BookingNotificationListener() {
 
       Alert.alert(
         payload.title || 'Payment Received',
-        payload.message || 'Customer paid 40% advance. Booking is confirmed.',
+        payload.message || `Customer paid ${advancePercentLabel()} advance. Booking is confirmed.`,
         [
           { text: 'Later', style: 'cancel' },
           {

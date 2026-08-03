@@ -1,4 +1,5 @@
 import { Booking } from '@/services/booking.api';
+import { ADVANCE_RATE } from '@/lib/booking-pricing';
 
 export type CustomerNotification = {
   id: string;
@@ -44,7 +45,7 @@ export function notificationFromBooking(booking: Booking): CustomerNotification 
     id: `booking-approved-${booking.id}`,
     type: 'booking:approved',
     title: 'Booking Approved',
-    message: `${booking.panditName} approved your ${booking.serviceName} booking. Pay 40% advance now to confirm.`,
+    message: `${booking.panditName} approved your ${booking.serviceName} booking. Pay ${Math.round(ADVANCE_RATE * 100)}% advance now to confirm.`,
     bookingId: booking.id,
     read: false,
     createdAt: booking.updatedAt || booking.createdAt,

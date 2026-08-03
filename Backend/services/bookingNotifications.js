@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { ADVANCE_RATE } = require('./razorpayService');
 
 function formatPanditBookingNotification(row) {
   return {
@@ -91,7 +92,7 @@ async function notifyCustomerBookingApproved(io, bookingId) {
   const payload = {
     type: 'booking:approved',
     title: 'Booking Approved',
-    message: `${row.pandit_name || 'Pandit ji'} approved your ${row.service_name} booking. Pay 40% advance now to confirm.`,
+    message: `${row.pandit_name || 'Pandit ji'} approved your ${row.service_name} booking. Pay ${Math.round(ADVANCE_RATE * 100)}% advance now to confirm.`,
     booking: formatCustomerBookingNotification(row),
   };
 
@@ -110,7 +111,7 @@ async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
   const payload = {
     type: 'booking:confirmed',
     title: 'Payment Received',
-    message: `${row.customer_name || 'Customer'} paid 40% advance (₹${advanceAmount.toLocaleString('en-IN')}) for ${row.service_name}. Booking is confirmed.`,
+    message: `${row.customer_name || 'Customer'} paid ${Math.round(ADVANCE_RATE * 100)}% advance (₹${advanceAmount.toLocaleString('en-IN')}) for ${row.service_name}. Booking is confirmed.`,
     booking: formatPanditBookingNotification(row),
   };
 

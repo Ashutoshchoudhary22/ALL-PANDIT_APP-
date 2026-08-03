@@ -1,4 +1,5 @@
 import { PanditBooking } from '@/services/booking.api';
+import { advancePercentLabel, remainingPercentLabel } from '@/lib/booking-pricing';
 
 export type MonthEarning = {
   monthKey: string;
@@ -80,7 +81,7 @@ export function buildEarningTransactions(bookings: PanditBooking[]): EarningTran
         serviceName: booking.serviceName,
         amount: booking.advanceAmount,
         paymentMethod: 'online',
-        paymentLabel: '40% Advance • Online',
+        paymentLabel: `${advancePercentLabel()} Advance • Online`,
         paidAt: paid.iso,
         sortKey: paid.sortKey,
       });
@@ -101,7 +102,7 @@ export function buildEarningTransactions(bookings: PanditBooking[]): EarningTran
         serviceName: booking.serviceName,
         amount: booking.remainingAmount,
         paymentMethod: method,
-        paymentLabel: `60% Remaining • ${method === 'cash' ? 'Cash' : 'Online'}`,
+        paymentLabel: `${remainingPercentLabel()} Remaining • ${method === 'cash' ? 'Cash' : 'Online'}`,
         paidAt: paid.iso,
         sortKey: paid.sortKey,
       });

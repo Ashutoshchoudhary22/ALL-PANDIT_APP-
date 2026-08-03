@@ -28,7 +28,7 @@ import {
   formatBookingTime,
   isActiveBooking,
 } from '@/lib/booking-display';
-import { formatINR } from '@/lib/booking-pricing';
+import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
 import {
@@ -136,7 +136,7 @@ const BookingCard = memo(function BookingCard({
           ) : null}
           {booking.paymentStatus === 'advance_paid' ? (
             <View style={[styles.tag, styles.tagPaid]}>
-              <Text style={[styles.tagText, styles.tagPaidText]}>40% paid</Text>
+              <Text style={[styles.tagText, styles.tagPaidText]}>{Math.round(ADVANCE_RATE * 100)}% paid</Text>
             </View>
           ) : null}
           {booking.status === 'confirmed' ? (
@@ -164,7 +164,7 @@ const BookingCard = memo(function BookingCard({
         <View style={styles.waitingBox}>
           <Ionicons name="hourglass-outline" size={16} color="#B45309" />
           <Text style={styles.waitingText}>
-            Waiting for pandit approval. You can pay 40% after approval.
+            Waiting for pandit approval. You can pay {Math.round(ADVANCE_RATE * 100)}% after approval.
           </Text>
         </View>
       ) : null}
@@ -316,7 +316,7 @@ export function CustomerBookingsScreen() {
         bookingId: booking.id,
         payment: response.payment,
         customer: response.customer,
-        description: `${booking.serviceName} • 40% advance`,
+        description: `${booking.serviceName} • ${Math.round(ADVANCE_RATE * 100)}% advance`,
       });
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Could not start payment');
@@ -419,7 +419,7 @@ export function CustomerBookingsScreen() {
       setPaymentSession(null);
       Alert.alert(
         'Booking Confirmed',
-        '40% advance paid. Start OTP sent to your email — share it with pandit ji on arrival.',
+        `${Math.round(ADVANCE_RATE * 100)}% advance paid. Start OTP sent to your email — share it with pandit ji on arrival.`,
       );
       void bookingsQuery.refetch();
     } catch (error) {
