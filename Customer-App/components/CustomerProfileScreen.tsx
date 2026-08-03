@@ -1,14 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
+import { useCustomerBookingStats } from '@/hooks/use-customer-booking-stats';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { formatBookingDate, formatBookingTime } from '@/lib/booking-display';
+import { formatINR } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
+import { Booking, BookingStatus } from '@/services/booking.api';
 
 function formatDob(dob: string | null) {
   if (!dob) return 'Not added';
@@ -25,6 +30,80 @@ function formatMemberSince(memberSince: string) {
 
 function comingSoon(feature: string) {
   Alert.alert(feature, 'This will be available soon.');
+}
+
+const BOOKING_STATUS_LABELS: Record<BookingStatus, { label: string; bg: string; text: string }> = {
+  payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C' },
+  pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309' },
+  confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D' },
+  in_progress: { label: 'In Progress', bg: '#FEF3C7', text: '#B45309' },
+  awaiting_payment: { label: 'Awaiting Payment', bg: '#FFEDD5', text: '#C2410C' },
+  cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C' },
+  completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8' },
+};
+
+function RecentBookingItem({ booking }: { booking: Booking }) {
+  const statusStyle = BOOKING_STATUS_LABELS[booking.status];
+
+  return (
+    <View style={styles.recentBookingItem}>
+      <View style={styles.recentBookingTop}>
+        <View style={styles.recentBookingInfo}>
+          <Text style={styles.recentBookingTitle} numberOfLines={1}>
+            {booking.serviceName}
+          </Text>
+          <Text style={styles.recentBookingSubtitle} numberOfLines={1}>
+            with {booking.panditName}
+          </Text>
+        </View>
+        <View style={[styles.recentStatusBadge, { backgroundColor: statusStyle.bg }]}>
+          <Text style={[styles.recentStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
+        </View>
+      </View>
+      <View style={styles.recentBookingMeta}>
+        <Ionicons name="calendar-outline" size={13} color={C.textMuted} />
+        <Text style={styles.recentBookingMetaText}>
+          {formatBookingDate(booking.bookingDate)} • {formatBookingTime(booking.bookingTime)}
+        </Text>
+      </View>
+      <Text style={styles.recentBookingPrice}>{formatINR(booking.totalPrice)}</Text>
+    </View>
+  );
+}
+
+function RecentBookingsSection({
+  bookings,
+  hasActiveBookings,
+}: {
+  bookings: Booking[];
+  hasActiveBookings: boolean;
+}) {
+  const handleViewAll = () => {
+    router.push(hasActiveBookings ? '/(tabs)/bookings' : '/(tabs)/history');
+  };
+
+  return (
+    <>
+      <SectionHeader title="Recent Bookings" action="View All >" onAction={handleViewAll} />
+      {bookings.length === 0 ? (
+        <View style={styles.recentCard}>
+          <Ionicons name="calendar-outline" size={28} color={C.textLight} />
+          <Text style={styles.recentHint}>
+            Your booking history will appear here once you book a pandit for a puja or ritual.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.recentListCard}>
+          {bookings.map((booking, index) => (
+            <View key={booking.id}>
+              <RecentBookingItem booking={booking} />
+              {index < bookings.length - 1 ? <View style={styles.recentDivider} /> : null}
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
 }
 
 function formatBadgeCount(count: number) {
@@ -44,6 +123,7 @@ function StatCard({
   value,
   label,
   action,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
@@ -51,6 +131,7 @@ function StatCard({
   value: string;
   label: string;
   action: string;
+  onPress?: () => void;
 }) {
   return (
     <View style={styles.statCard}>
@@ -59,7 +140,7 @@ function StatCard({
       </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-      <Pressable onPress={() => comingSoon(label)}>
+      <Pressable onPress={onPress ?? (() => comingSoon(label))}>
         <Text style={styles.statAction}>{action}</Text>
       </Pressable>
     </View>
@@ -148,7 +229,17 @@ function LogoutButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function ProfileContent({ profile }: { profile: CustomerProfile }) {
+function ProfileContent({
+  profile,
+  stats,
+  recentBookings,
+  hasActiveBookings,
+}: {
+  profile: CustomerProfile;
+  stats: { totalBookings: number; completedBookings: number; reviewsGiven: number };
+  recentBookings: Booking[];
+  hasActiveBookings: boolean;
+}) {
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Customer';
   const memberSinceYear = formatMemberSince(profile.memberSince);
 
@@ -200,9 +291,33 @@ function ProfileContent({ profile }: { profile: CustomerProfile }) {
       </View>
 
       <View style={styles.statsRow}>
-        <StatCard icon="receipt-outline" iconColor={C.primary} bg="#FFF7ED" value="0" label="Total Bookings" action="View All >" />
-        <StatCard icon="checkmark-done-outline" iconColor={C.success} bg="#F0FDF4" value="0" label="Completed" action="View All >" />
-        <StatCard icon="star-outline" iconColor="#9333EA" bg="#FAF5FF" value="0" label="Reviews Given" action="View All >" />
+        <StatCard
+          icon="receipt-outline"
+          iconColor={C.primary}
+          bg="#FFF7ED"
+          value={String(stats.totalBookings)}
+          label="Total Bookings"
+          action="View All >"
+          onPress={() => router.push('/(tabs)/bookings')}
+        />
+        <StatCard
+          icon="checkmark-done-outline"
+          iconColor={C.success}
+          bg="#F0FDF4"
+          value={String(stats.completedBookings)}
+          label="Completed"
+          action="View All >"
+          onPress={() => router.push('/(tabs)/history')}
+        />
+        <StatCard
+          icon="star-outline"
+          iconColor="#9333EA"
+          bg="#FAF5FF"
+          value={String(stats.reviewsGiven)}
+          label="Reviews Given"
+          action="View All >"
+          onPress={() => router.push('/(tabs)/history')}
+        />
         <StatCard icon="wallet-outline" iconColor="#3B82F6" bg="#EFF6FF" value="₹0" label="Wallet Balance" action="Add Money >" />
       </View>
 
@@ -277,13 +392,7 @@ function ProfileContent({ profile }: { profile: CustomerProfile }) {
         </Pressable>
       </View>
 
-      <SectionHeader title="Recent Bookings" action="View All >" onAction={() => comingSoon('Bookings')} />
-      <View style={styles.recentCard}>
-        <Ionicons name="calendar-outline" size={28} color={C.textLight} />
-        <Text style={styles.recentHint}>
-          Your booking history will appear here once you book a pandit for a puja or ritual.
-        </Text>
-      </View>
+      <RecentBookingsSection bookings={recentBookings} hasActiveBookings={hasActiveBookings} />
     </>
   );
 }
@@ -294,6 +403,7 @@ export function CustomerProfileScreen() {
   const { unreadCount } = useNotifications();
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
+  const bookingStats = useCustomerBookingStats(Boolean(token));
   const profile = profileQuery.data?.data;
   const isNotFound =
     profileQuery.error instanceof Error &&
@@ -312,6 +422,14 @@ export function CustomerProfileScreen() {
       },
     ]);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        void bookingStats.refetch();
+      }
+    }, [token, bookingStats.refetch]),
+  );
 
   return (
     <View style={styles.root}>
@@ -372,7 +490,12 @@ export function CustomerProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
         >
-          <ProfileContent profile={profile} />
+          <ProfileContent
+            profile={profile}
+            stats={bookingStats}
+            recentBookings={bookingStats.recentBookings}
+            hasActiveBookings={bookingStats.hasActiveBookings}
+          />
           <LogoutButton onPress={handleLogout} />
         </ScrollView>
       ) : null}
@@ -606,6 +729,65 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   recentHint: { fontSize: 12, color: C.textLight, textAlign: 'center', lineHeight: 18 },
+  recentListCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  recentBookingItem: {
+    gap: 6,
+  },
+  recentBookingTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  recentBookingInfo: {
+    flex: 1,
+  },
+  recentBookingTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.text,
+  },
+  recentBookingSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: C.textMuted,
+  },
+  recentStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  recentStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  recentBookingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recentBookingMetaText: {
+    fontSize: 12,
+    color: C.textMuted,
+  },
+  recentBookingPrice: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.text,
+  },
+  recentDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
+  },
   logoutBtn: {
     marginTop: 24,
     flexDirection: 'row',

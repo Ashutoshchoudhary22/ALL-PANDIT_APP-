@@ -22,6 +22,11 @@ import {
   useRetryBookingPaymentMutation,
   useVerifyBookingPaymentMutation,
 } from '@/hooks/use-bookings';
+import {
+  formatBookingDate,
+  formatBookingTime,
+  isActiveBooking,
+} from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
 import { useAuth } from '@/providers/AuthProvider';
 import {
@@ -47,28 +52,6 @@ const STATUS_STYLES: Record<
   cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline' },
   completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8', icon: 'checkmark-done-outline' },
 };
-
-function formatBookingDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-IN', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function formatBookingTime(value: string) {
-  const match = value.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return value;
-  const date = new Date(2000, 0, 1, Number(match[1]), Number(match[2]));
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
 
 const BookingCard = memo(function BookingCard({
   booking,
@@ -255,7 +238,9 @@ export function CustomerBookingsScreen() {
   const retryPayment = useRetryBookingPaymentMutation();
   const verifyPayment = useVerifyBookingPaymentMutation();
   const cancelBooking = useCancelBookingMutation();
-  const bookings = bookingsQuery.data?.data ?? [];
+  const bookings = (bookingsQuery.data?.data ?? []).filter((booking) =>
+    isActiveBooking(booking.status),
+  );
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
   const [paymentSession, setPaymentSession] = useState<{

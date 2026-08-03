@@ -35,6 +35,11 @@ export type Booking = {
   sessionOtp?: string;
   sessionOtpPurpose?: 'start' | 'finish';
   sessionOtpHint?: string;
+  startedAt?: string | null;
+  finishRequestedAt?: string | null;
+  remainingPaymentMethod?: 'cash' | 'online' | null;
+  advancePaidAt?: string | null;
+  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };

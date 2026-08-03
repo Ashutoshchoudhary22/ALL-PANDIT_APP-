@@ -14,6 +14,10 @@ const {
   notifyCustomerFinishOtpSent,
   notifyCustomerReviewRequest,
 } = require('../services/bookingNotifications');
+const {
+  findPanditBlockingBooking,
+  findAnyActiveBookingWithPandit,
+} = require('../utils/panditAvailability');
 
 const SAMAGRI_RATE = 0.2;
 const OTP_TTL_MINUTES = 10;
@@ -141,19 +145,6 @@ async function panditOwnsBooking(userId, bookingId) {
   return rows.length > 0;
 }
 
-async function findActivePanditBooking(panditProfileId) {
-  const [rows] = await pool.query(
-    `SELECT id, customer_id, status, payment_status
-     FROM bookings
-     WHERE pandit_profile_id = ?
-       AND status NOT IN ('completed', 'cancelled')
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [panditProfileId],
-  );
-  return rows[0] || null;
-}
-
 function mapPanditBookingRow(row) {
   return {
     ...formatBooking(row),
@@ -222,12 +213,14 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    const activeBooking = await findActivePanditBooking(panditProfileId);
-    if (activeBooking) {
-      const isSameCustomer = Number(activeBooking.customer_id) === Number(req.user.id);
-
-      if (isSameCustomer && activeBooking.status === 'pending') {
-        const row = await fetchBookingById(activeBooking.id);
+    const sameCustomerBooking = await findAnyActiveBookingWithPandit(
+      pool,
+      panditProfileId,
+      req.user.id,
+    );
+    if (sameCustomerBooking) {
+      if (sameCustomerBooking.status === 'pending') {
+        const row = await fetchBookingById(sameCustomerBooking.id);
         return res.status(200).json({
           success: true,
           message: 'Your booking request is already sent and awaiting pandit approval.',
@@ -235,24 +228,26 @@ exports.createBooking = async (req, res) => {
         });
       }
 
-      if (isSameCustomer) {
-        if (activeBooking.status === 'payment_pending') {
-          return res.status(409).json({
-            success: false,
-            message:
-              'Your booking request was approved. Open the Bookings tab and complete the 40% advance payment.',
-          });
-        }
+      if (sameCustomerBooking.status === 'payment_pending') {
         return res.status(409).json({
           success: false,
-          message: 'You already have an active booking with this pandit.',
+          message:
+            'Your booking request was approved. Open the Bookings tab and complete the 40% advance payment.',
         });
       }
 
       return res.status(409).json({
         success: false,
+        message: 'You already have an active booking with this pandit.',
+      });
+    }
+
+    const blockingBooking = await findPanditBlockingBooking(pool, panditProfileId);
+    if (blockingBooking) {
+      return res.status(409).json({
+        success: false,
         message:
-          'This pandit already has an active booking. Please wait until the current puja is completed.',
+          'This pandit is currently performing a puja and cannot accept new bookings. Please try again later.',
       });
     }
 

@@ -121,10 +121,11 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
     useCallback(() => {
       if (token) {
         void profileQuery.refetch();
+        void panditsQuery.refetch();
         void reviewPrompts.refetch();
         void reviewPrompts.refreshDismissed();
       }
-    }, [token, profileQuery.refetch, reviewPrompts.refetch, reviewPrompts.refreshDismissed]),
+    }, [token, profileQuery.refetch, panditsQuery.refetch, reviewPrompts.refetch, reviewPrompts.refreshDismissed]),
   );
 
   const handleDismissReview = useCallback(async () => {

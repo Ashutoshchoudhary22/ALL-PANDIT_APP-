@@ -17,6 +17,7 @@ export function useRetryBookingPaymentMutation() {
     mutationFn: (bookingId: number) => retryBookingPaymentApi(bookingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
     },
   });
 }
@@ -27,6 +28,7 @@ export function useCreateBookingMutation() {
     mutationFn: (payload: CreateBookingPayload) => createBookingApi(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
     },
   });
 }
@@ -37,6 +39,7 @@ export function useVerifyBookingPaymentMutation() {
     mutationFn: (payload: VerifyBookingPaymentPayload) => verifyBookingPaymentApi(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
     },
   });
 }
@@ -47,6 +50,7 @@ export function useCancelBookingMutation() {
     mutationFn: (bookingId: number) => cancelBookingApi(bookingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
     },
   });
 }
@@ -73,6 +77,8 @@ export function useSubmitBookingReviewMutation() {
     }) => submitBookingReviewApi(bookingId, { rating, comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-profiles', 'public'] });
     },
   });
 }
+

@@ -96,9 +96,15 @@ export function PanditProfileCard({
         </Text>
 
         {isList && onBook ? (
-          <Pressable style={styles.bookBtn} onPress={() => onBook(pandit)}>
+          <Pressable
+            style={[styles.bookBtn, !pandit.isAvailable && styles.bookBtnDisabled]}
+            onPress={() => onBook(pandit)}
+            disabled={!pandit.isAvailable}
+          >
             <Ionicons name="calendar-outline" size={16} color="#fff" />
-            <Text style={styles.bookBtnText}>Book Now</Text>
+            <Text style={styles.bookBtnText}>
+              {pandit.isAvailable ? 'Book Now' : 'Busy'}
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -240,6 +246,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     paddingVertical: 10,
     borderRadius: 12,
+  },
+  bookBtnDisabled: {
+    backgroundColor: C.textMuted,
+    opacity: 0.85,
   },
   bookBtnText: {
     color: '#fff',

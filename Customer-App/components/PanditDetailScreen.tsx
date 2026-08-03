@@ -99,7 +99,9 @@ function DetailContent({ pandit }: { pandit: PublicPanditProfile }) {
           <View style={styles.chipsRow}>
             {pandit.isAvailable ? (
               <InfoChip icon="checkmark-circle-outline" label="Available" tone="success" />
-            ) : null}
+            ) : (
+              <InfoChip icon="time-outline" label="Busy with puja" tone="primary" />
+            )}
             {pandit.sameDayBooking ? (
               <InfoChip icon="flash-outline" label="Same-day booking" tone="primary" />
             ) : null}
@@ -176,9 +178,15 @@ function DetailContent({ pandit }: { pandit: PublicPanditProfile }) {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Pressable style={styles.bookBtn} onPress={handleBook}>
+        <Pressable
+          style={[styles.bookBtn, !pandit.isAvailable && styles.bookBtnDisabled]}
+          onPress={handleBook}
+          disabled={!pandit.isAvailable}
+        >
           <Ionicons name="calendar-outline" size={20} color="#fff" />
-          <Text style={styles.bookBtnText}>Book Now</Text>
+          <Text style={styles.bookBtnText}>
+            {pandit.isAvailable ? 'Book Now' : 'Currently Unavailable'}
+          </Text>
         </Pressable>
       </View>
     </>
@@ -364,6 +372,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  bookBtnDisabled: {
+    backgroundColor: C.textMuted,
+    opacity: 0.85,
   },
   bookBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

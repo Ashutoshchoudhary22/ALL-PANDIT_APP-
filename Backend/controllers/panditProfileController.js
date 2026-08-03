@@ -1,4 +1,9 @@
 const pool = require('../config/db');
+const {
+  getBusyPanditProfileIds,
+  getCustomerActiveBookedPanditIds,
+  isPanditCurrentlyBusy,
+} = require('../utils/panditAvailability');
 
 const LANGUAGE_LABELS = {
   hi: 'Hindi',
@@ -239,6 +244,19 @@ exports.listPublicProfiles = async (req, res) => {
       );
     }
 
+    const busyPanditIds = await getBusyPanditProfileIds(pool);
+    const customerBookedPanditIds =
+      req.user?.role === 'customer'
+        ? await getCustomerActiveBookedPanditIds(pool, req.user.id)
+        : new Set();
+
+    profiles = profiles
+      .filter((profile) => !customerBookedPanditIds.has(profile.id))
+      .map((profile) => ({
+        ...profile,
+        isAvailable: profile.isAvailable && !isPanditCurrentlyBusy(busyPanditIds, profile.id),
+      }));
+
     return res.status(200).json({
       success: true,
       data: profiles,
@@ -326,9 +344,26 @@ exports.getPublicProfileById = async (req, res) => {
       });
     }
 
+    const busyPanditIds = await getBusyPanditProfileIds(pool);
+    const customerBookedPanditIds =
+      req.user?.role === 'customer'
+        ? await getCustomerActiveBookedPanditIds(pool, req.user.id)
+        : new Set();
+
+    if (customerBookedPanditIds.has(Number(profileId))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pandit profile not found',
+      });
+    }
+
+    const publicProfile = formatPublicPanditProfile(profile);
+    publicProfile.isAvailable =
+      publicProfile.isAvailable && !isPanditCurrentlyBusy(busyPanditIds, publicProfile.id);
+
     return res.status(200).json({
       success: true,
-      data: formatPublicPanditProfile(profile),
+      data: publicProfile,
     });
   } catch (error) {
     console.error('Get public pandit profile error:', error);
