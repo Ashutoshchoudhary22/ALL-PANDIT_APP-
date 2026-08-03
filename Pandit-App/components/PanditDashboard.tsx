@@ -24,6 +24,7 @@ import {
 } from '@/hooks/use-pandit-booking-requests';
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
+import { usePanditReviewsQuery } from '@/hooks/use-pandit-reviews';
 import { formatINR, MonthEarning } from '@/lib/pandit-earnings';
 import {
   formatUpcomingBadge,
@@ -33,6 +34,7 @@ import {
 import { promptBookingLocation } from '@/lib/open-map';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
+import { PanditReview } from '@/services/review.api';
 import { PanditBookingRequestCard } from '@/components/PanditBookingRequestCard';
 import { useNotifications } from '@/providers/NotificationsProvider';
 
@@ -190,6 +192,49 @@ function QuickAction({
   );
 }
 
+function formatReviewDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function RecentReviewCard({ review }: { review: PanditReview }) {
+  const avatarSource = review.customerProfileImage || DEMO_IMAGES.customer;
+
+  return (
+    <View style={styles.reviewCard}>
+      <View style={styles.reviewHeader}>
+        <CloudImage source={avatarSource} preset="avatar" style={styles.customerAvatar} />
+        <View style={styles.reviewHeaderText}>
+          <Text style={styles.customerName}>{review.customerName}</Text>
+          <Text style={styles.reviewDate}>{formatReviewDate(review.createdAt)}</Text>
+        </View>
+        <View style={styles.ratingWrap}>
+          <Ionicons name="star" size={14} color="#FBBF24" />
+          <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
+        </View>
+      </View>
+      <View style={styles.starsRow}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Ionicons
+            key={i}
+            name={i <= review.rating ? 'star' : 'star-outline'}
+            size={16}
+            color="#FBBF24"
+          />
+        ))}
+      </View>
+      <Text style={styles.reviewComment} numberOfLines={3}>
+        {review.comment || 'No written feedback provided.'}
+      </Text>
+    </View>
+  );
+}
+
 function UpcomingPujaCard({ booking }: { booking: PanditBooking }) {
   const handleOpenLocation = () => {
     promptBookingLocation({
@@ -243,6 +288,7 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
   const earningsQuery = usePanditEarnings(Boolean(token));
   const bookingsQuery = usePanditBookingsQuery(Boolean(token));
   const requestsQuery = usePanditBookingRequestsQuery(Boolean(token));
+  const reviewsQuery = usePanditReviewsQuery(Boolean(token));
   const approveBooking = useApproveBookingMutation();
   const rejectBooking = useRejectBookingMutation();
   const summary = earningsQuery.summary;
@@ -253,6 +299,8 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
   );
   const featuredUpcomingPuja = upcomingPujas[0] ?? null;
   const featuredRequest = pendingRequests[0] ?? null;
+  const recentReviews = reviewsQuery.data?.data ?? [];
+  const featuredReview = recentReviews[0] ?? null;
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const profile = profileQuery.data?.data;
@@ -270,8 +318,9 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
         void profileQuery.refetch();
         void requestsQuery.refetch();
         void bookingsQuery.refetch();
+        void reviewsQuery.refetch();
       }
-    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch, bookingsQuery.refetch]),
+    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch, bookingsQuery.refetch, reviewsQuery.refetch]),
   );
 
   const handleApprove = async (booking: PanditBooking) => {
@@ -525,32 +574,22 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
         )}
 
         {/* Recent Reviews */}
-        <SectionHeader title="Recent Reviews" actionLabel="View All >" />
-        <View style={styles.reviewCard}>
-          <View style={styles.reviewHeader}>
-            <CloudImage
-              source={DEMO_IMAGES.customer}
-              preset="avatar"
-              style={styles.customerAvatar}
-            />
-            <View style={styles.reviewHeaderText}>
-              <Text style={styles.customerName}>Priya Gupta</Text>
-              <Text style={styles.reviewDate}>20 May 2024</Text>
-            </View>
-            <View style={styles.ratingWrap}>
-              <Ionicons name="star" size={14} color="#FBBF24" />
-              <Text style={styles.ratingText}>5.0</Text>
-            </View>
+        <SectionHeader
+          title="Recent Reviews"
+          actionLabel={recentReviews.length > 0 ? 'View All >' : undefined}
+          onAction={recentReviews.length > 0 ? () => router.push('/reviews') : undefined}
+        />
+        {reviewsQuery.isLoading ? (
+          <View style={styles.reviewsLoading}>
+            <ActivityIndicator size="small" color={C.primary} />
           </View>
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Ionicons key={i} name="star" size={16} color="#FBBF24" />
-            ))}
+        ) : featuredReview ? (
+          <RecentReviewCard review={featuredReview} />
+        ) : (
+          <View style={styles.reviewsEmpty}>
+            <Text style={styles.reviewsEmptyText}>No customer reviews yet.</Text>
           </View>
-          <Text style={styles.reviewComment}>
-            Very good experience. Pooja was performed very well.
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -1030,6 +1069,22 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   upcomingEmptyText: {
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: 'center',
+  },
+  reviewsLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  reviewsEmpty: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  reviewsEmptyText: {
     fontSize: 13,
     color: C.textMuted,
     textAlign: 'center',

@@ -20,6 +20,7 @@ import {
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
+import { getPanditGalleryPhotos } from '@/lib/pandit-gallery';
 import { openBookPandit } from '@/lib/pandit-navigation';
 import { useSavedPandits } from '@/providers/SavedPanditsProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
@@ -67,6 +68,7 @@ function InfoChip({
 function DetailContent({ pandit }: { pandit: PublicPanditProfile }) {
   const insets = useSafeAreaInsets();
   const imageSource = pandit.profileImage || DEMO_IMAGES.pandit1;
+  const galleryPhotos = getPanditGalleryPhotos(pandit);
 
   const handleBook = useCallback(() => {
     openBookPandit(pandit.id);
@@ -154,6 +156,26 @@ function DetailContent({ pandit }: { pandit: PublicPanditProfile }) {
             <View style={styles.sectionCard}>
               <Text style={styles.bioText}>{pandit.bio}</Text>
             </View>
+          </>
+        ) : null}
+
+        {galleryPhotos.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>Photos</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.galleryRow}
+            >
+              {galleryPhotos.map((src, index) => (
+                <CloudImage
+                  key={`${src}-${index}`}
+                  source={src}
+                  preset="service"
+                  style={styles.galleryImage}
+                />
+              ))}
+            </ScrollView>
           </>
         ) : null}
 
@@ -365,6 +387,8 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 11, fontWeight: '600', color: C.textLight, textTransform: 'uppercase' },
   infoValue: { marginTop: 4, fontSize: 14, fontWeight: '600', color: C.text, lineHeight: 20 },
   bioText: { fontSize: 14, lineHeight: 22, color: C.textMuted },
+  galleryRow: { gap: 10, paddingBottom: 4 },
+  galleryImage: { width: 140, height: 105, borderRadius: 12, backgroundColor: C.border },
   serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',

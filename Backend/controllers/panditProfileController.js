@@ -75,6 +75,64 @@ function readPujaServices(row) {
   }
 }
 
+function readGalleryPhotos(row) {
+  if (!row?.gallery_photos) return [];
+  try {
+    const parsed =
+      typeof row.gallery_photos === 'string'
+        ? JSON.parse(row.gallery_photos)
+        : row.gallery_photos;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeGalleryPhotosInput(raw) {
+  if (raw === undefined) return { value: undefined, error: null };
+  if (raw === null) return { value: [], error: null };
+  if (!Array.isArray(raw)) {
+    return { value: null, error: 'galleryPhotos must be an array' };
+  }
+
+  const urls = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') {
+      return { value: null, error: 'Invalid gallery photo URL' };
+    }
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    if (!/^https?:\/\//i.test(trimmed)) {
+      return { value: null, error: 'Invalid gallery photo URL' };
+    }
+    if (!urls.includes(trimmed)) urls.push(trimmed);
+    if (urls.length > 10) {
+      return { value: null, error: 'Maximum 10 gallery photos allowed' };
+    }
+  }
+
+  return { value: urls, error: null };
+}
+
+function buildDisplayGalleryPhotos(profile) {
+  const urls = [];
+  const add = (url) => {
+    const trimmed = typeof url === 'string' ? url.trim() : '';
+    if (trimmed && !urls.includes(trimmed)) urls.push(trimmed);
+  };
+
+  add(profile.profileImage);
+  if (Array.isArray(profile.galleryPhotos)) {
+    profile.galleryPhotos.forEach(add);
+  }
+  add(profile.panditCertificateImage);
+  return urls;
+}
+
 function readPendingChanges(row) {
   if (!row?.pending_changes) return null;
   try {
@@ -95,6 +153,7 @@ function buildPendingSnapshot(row, body, options = {}) {
     cityName,
     pujaServicesValue,
     languageCode,
+    galleryPhotos,
   } = options;
 
   const pujaServices =
@@ -131,6 +190,12 @@ function buildPendingSnapshot(row, body, options = {}) {
     bankName: body.bankName !== undefined ? body.bankName?.trim() || null : current.bankName,
     passbookImage:
       body.passbookImage !== undefined ? body.passbookImage?.trim() || null : current.passbookImage,
+    galleryPhotos:
+      galleryPhotos !== undefined
+        ? galleryPhotos
+        : body.galleryPhotos !== undefined
+          ? body.galleryPhotos
+          : current.galleryPhotos,
     pujaServices,
     languageCode: languageCode !== undefined ? languageCode?.trim() || 'hi' : current.languageCode,
     submittedAt: new Date().toISOString(),
@@ -155,6 +220,7 @@ function formatPendingProfile(snapshot) {
     bankIfsc: snapshot.bankIfsc,
     bankName: snapshot.bankName,
     passbookImage: snapshot.passbookImage,
+    galleryPhotos: Array.isArray(snapshot.galleryPhotos) ? snapshot.galleryPhotos : [],
     pujaServices: Array.isArray(snapshot.pujaServices) ? snapshot.pujaServices : [],
     languageCode: snapshot.languageCode || 'hi',
     submittedAt: snapshot.submittedAt || null,
@@ -193,6 +259,7 @@ async function applyPendingSnapshot(profileId, userId, snapshot) {
       bank_ifsc = ?,
       bank_name = ?,
       passbook_image = ?,
+      gallery_photos = ?,
       puja_services = ?,
       pending_changes = NULL,
       update_request_status = 'none'
@@ -213,6 +280,7 @@ async function applyPendingSnapshot(profileId, userId, snapshot) {
       snapshot.bankIfsc,
       snapshot.bankName,
       snapshot.passbookImage,
+      snapshot.galleryPhotos?.length > 0 ? JSON.stringify(snapshot.galleryPhotos) : null,
       pujaServicesJson,
       profileId,
     ],
@@ -256,6 +324,7 @@ function formatPanditProfile(row) {
     bankIfsc: row.bank_ifsc,
     bankName: row.bank_name,
     passbookImage: row.passbook_image,
+    galleryPhotos: readGalleryPhotos(row),
     profileImage: row.pandit_profile_image || row.profile_image,
     pujaServices: readPujaServices(row),
     rating: row.rating ? parseFloat(row.rating) : 0,
@@ -300,6 +369,7 @@ const PROFILE_SELECT = `
     pp.bank_ifsc,
     pp.bank_name,
     pp.passbook_image,
+    pp.gallery_photos,
     pp.profile_image AS pandit_profile_image,
     pp.puja_services,
     pp.rating,
@@ -353,6 +423,7 @@ function formatPublicPanditProfile(row) {
     liveLongitude: profile.liveLongitude,
     liveLocationAt: profile.liveLocationAt,
     profileImage: profile.profileImage,
+    galleryPhotos: buildDisplayGalleryPhotos(profile),
     rating: profile.rating,
     totalReviews: profile.totalReviews,
     totalBookings: profile.totalBookings,
@@ -577,6 +648,9 @@ exports.createProfile = async (req, res) => {
     const profileImageUrl = pickProfileImage(req.body);
     const cityName = pickCityName(req.body);
     const pujaServicesInput = parsePujaServices(req.body.pujaServices ?? req.body.puja_services);
+    const galleryPhotosInput = normalizeGalleryPhotosInput(
+      req.body.galleryPhotos ?? req.body.gallery_photos,
+    );
 
     if (!name?.trim()) {
       return res.status(400).json({
@@ -623,6 +697,13 @@ exports.createProfile = async (req, res) => {
       });
     }
 
+    if (galleryPhotosInput.error) {
+      return res.status(400).json({
+        success: false,
+        message: galleryPhotosInput.error,
+      });
+    }
+
     if (profileImageUrl) {
       await saveUserProfileImage(userId, profileImageUrl);
     }
@@ -631,8 +712,8 @@ exports.createProfile = async (req, res) => {
       `INSERT INTO pandit_profiles
        (user_id, name, gender, bio, experience_years, city_name, latitude, longitude,
         profile_image, aadhar_image, pandit_certificate_image, bank_account_holder, bank_account_number,
-        bank_ifsc, bank_name, passbook_image, puja_services, is_available, same_day_booking, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        bank_ifsc, bank_name, passbook_image, gallery_photos, puja_services, is_available, same_day_booking, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         userId,
         name.trim(),
@@ -650,6 +731,7 @@ exports.createProfile = async (req, res) => {
         bankIfsc?.trim()?.toUpperCase() || null,
         bankName?.trim() || null,
         passbookImage?.trim() || null,
+        galleryPhotosInput.value?.length ? JSON.stringify(galleryPhotosInput.value) : null,
         pujaServicesInput.value,
         isAvailable !== undefined ? Boolean(isAvailable) : true,
         Boolean(sameDayBooking),
@@ -757,6 +839,12 @@ exports.updateMyProfile = async (req, res) => {
       ? parsePujaServices(req.body.pujaServices ?? req.body.puja_services)
       : { value: undefined, error: null };
 
+    const hasGalleryPhotos =
+      req.body.galleryPhotos !== undefined || req.body.gallery_photos !== undefined;
+    const galleryPhotosInput = hasGalleryPhotos
+      ? normalizeGalleryPhotosInput(req.body.galleryPhotos ?? req.body.gallery_photos)
+      : { value: undefined, error: null };
+
     const currentRow = await fetchProfileByUserId(userId);
 
     if (!currentRow) {
@@ -780,6 +868,13 @@ exports.updateMyProfile = async (req, res) => {
       });
     }
 
+    if (galleryPhotosInput.error) {
+      return res.status(400).json({
+        success: false,
+        message: galleryPhotosInput.error,
+      });
+    }
+
     const currentStatus = currentRow.status;
 
     if (currentStatus === 'approved') {
@@ -788,6 +883,7 @@ exports.updateMyProfile = async (req, res) => {
         cityName,
         pujaServicesValue: pujaServicesInput.value,
         languageCode,
+        galleryPhotos: galleryPhotosInput.value,
       });
 
       await pool.query(
@@ -851,6 +947,7 @@ exports.updateMyProfile = async (req, res) => {
         bank_ifsc = COALESCE(?, bank_ifsc),
         bank_name = COALESCE(?, bank_name),
         passbook_image = COALESCE(?, passbook_image),
+        gallery_photos = COALESCE(?, gallery_photos),
         puja_services = COALESCE(?, puja_services),
         is_available = COALESCE(?, is_available),
         is_online = COALESCE(?, is_online),
@@ -875,6 +972,11 @@ exports.updateMyProfile = async (req, res) => {
         bankIfsc?.trim()?.toUpperCase() ?? null,
         bankName?.trim() ?? null,
         passbookImage?.trim() ?? null,
+        galleryPhotosInput.value !== undefined
+          ? galleryPhotosInput.value.length
+            ? JSON.stringify(galleryPhotosInput.value)
+            : null
+          : null,
         pujaServicesInput.value ?? null,
         isAvailable !== undefined ? Boolean(isAvailable) : null,
         isOnline !== undefined ? Boolean(isOnline) : null,

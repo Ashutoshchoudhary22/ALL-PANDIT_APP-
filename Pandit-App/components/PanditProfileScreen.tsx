@@ -17,6 +17,7 @@ import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
+import { getPanditGalleryPhotos } from '@/lib/pandit-gallery';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
@@ -59,11 +60,27 @@ function Tag({ label }: { label: string }) {
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({
+  title,
+  action,
+  onActionPress,
+}: {
+  title: string;
+  action?: string;
+  onActionPress?: () => void;
+}) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {action ? <Text style={styles.sectionAction}>{action}</Text> : null}
+      {action ? (
+        onActionPress ? (
+          <Pressable onPress={onActionPress} hitSlop={8}>
+            <Text style={styles.sectionAction}>{action}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.sectionAction}>{action}</Text>
+        )
+      ) : null}
     </View>
   );
 }
@@ -98,6 +115,11 @@ function LogoutButton({ onPress }: { onPress: () => void }) {
 
 function ProfileContent({ profile }: { profile: PanditProfile }) {
   const imageSource = profile.profileImage || DEMO_IMAGES.pandit1;
+  const photoSource =
+    profile.updateRequestStatus === 'pending' && profile.pendingProfile
+      ? profile.pendingProfile
+      : profile;
+  const galleryPhotos = getPanditGalleryPhotos(photoSource);
   const languages =
     profile.languages.length > 0 ? profile.languages : [profile.languageCode || 'Hindi'];
 
@@ -290,14 +312,41 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
         />
       </View>
 
-      <SectionHeader title="Photos" action="View All >" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
-        {[imageSource, DEMO_IMAGES.banner, DEMO_IMAGES.pandit2].map((src, index) => (
-          <CloudImage key={`${src}-${index}`} source={src} preset="service" style={styles.galleryImage} />
-        ))}
-      </ScrollView>
+      {galleryPhotos.length > 0 ? (
+        <>
+          <SectionHeader title="Photos" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.galleryRow}
+          >
+            {galleryPhotos.map((src, index) => (
+              <CloudImage
+                key={`${src}-${index}`}
+                source={src}
+                preset="service"
+                style={styles.galleryImage}
+              />
+            ))}
+          </ScrollView>
+        </>
+      ) : (
+        <>
+          <SectionHeader title="Photos" />
+          <View style={styles.galleryEmpty}>
+            <Ionicons name="images-outline" size={28} color={C.textLight} />
+            <Text style={styles.galleryEmptyText}>
+              Add profile and gallery photos from Edit Profile.
+            </Text>
+          </View>
+        </>
+      )}
 
-      <SectionHeader title="Reviews Summary" action="View All >" />
+      <SectionHeader
+        title="Reviews Summary"
+        action="View All >"
+        onActionPress={() => router.push('/reviews')}
+      />
       <View style={styles.reviewSummaryCard}>
         <Text style={styles.reviewBigRating}>{profile.rating.toFixed(1)}</Text>
         <View style={styles.reviewStars}>
@@ -312,7 +361,9 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
         </View>
         <Text style={styles.reviewCount}>{profile.totalReviews} Reviews</Text>
         <Text style={styles.reviewHint}>
-          Individual review list will appear here once devotees start booking your services.
+          {profile.totalReviews > 0
+            ? 'Tap View All to read customer feedback.'
+            : 'Individual review list will appear here once devotees start booking your services.'}
         </Text>
       </View>
     </>
@@ -724,6 +775,18 @@ const styles = StyleSheet.create({
   detailValue: { marginTop: 2, fontSize: 14, fontWeight: '600', color: C.text, textTransform: 'capitalize' },
   galleryRow: { gap: 10, paddingBottom: 4 },
   galleryImage: { width: 120, height: 90, borderRadius: 12, backgroundColor: C.border },
+  galleryEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    gap: 8,
+  },
+  galleryEmptyText: { fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 19 },
   reviewSummaryCard: {
     backgroundColor: '#fff',
     borderRadius: 16,

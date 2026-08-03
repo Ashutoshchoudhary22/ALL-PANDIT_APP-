@@ -146,6 +146,7 @@ async function initDb() {
     await ensureColumn(connection, 'pandit_profiles', 'bank_name', 'VARCHAR(150) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'passbook_image', 'VARCHAR(500) NULL');
     await ensureColumn(connection, 'pandit_profiles', 'profile_image', 'VARCHAR(500) NULL');
+    await ensureColumn(connection, 'pandit_profiles', 'gallery_photos', 'JSON NULL');
     await ensureColumn(connection, 'pandit_profiles', 'puja_services', 'JSON NULL');
     await ensureColumn(connection, 'pandit_profiles', 'pending_changes', 'JSON NULL');
     await ensureColumn(

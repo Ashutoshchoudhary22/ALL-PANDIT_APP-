@@ -37,3 +37,17 @@ export async function uploadProfileImages(
 
   return { profileImage, aadharImage, panditCertificateImage, passbookImage };
 }
+
+export async function uploadGalleryPhotos(
+  token: string,
+  uris: string[],
+): Promise<string[]> {
+  const uploaded: string[] = [];
+
+  for (const uri of uris) {
+    const url = await uploadLocalImageIfNeeded(uri, token, 'profiles');
+    if (url) uploaded.push(url);
+  }
+
+  return uploaded;
+}

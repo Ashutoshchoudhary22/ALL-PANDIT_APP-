@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS pandit_profiles (
   bank_name VARCHAR(150) NULL,
   passbook_image VARCHAR(500) NULL,
   profile_image VARCHAR(500) NULL,
+  gallery_photos JSON NULL,
   puja_services JSON NULL,
   rating DECIMAL(3,2) DEFAULT 0.00,
   total_reviews INT DEFAULT 0,

@@ -25,6 +25,7 @@ export type PublicPanditProfile = {
   liveLongitude: number | null;
   liveLocationAt: string | null;
   profileImage: string | null;
+  galleryPhotos: string[];
   rating: number;
   totalReviews: number;
   totalBookings: number;

@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ImageUploadField } from '@/components/ImageUploadField';
+import { GalleryPhotosField } from '@/components/GalleryPhotosField';
 import { PujaServicesField } from '@/components/PujaServicesField';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import {
@@ -28,7 +29,7 @@ import {
 import { useMyPanditProfileQuery, useUpdatePanditProfileMutation } from '@/hooks/use-pandit-profile';
 import { goToProfile } from '@/lib/auth-navigation';
 import { getCurrentAddress } from '@/lib/location';
-import { uploadProfileImages } from '@/lib/upload-local-image';
+import { uploadGalleryPhotos, uploadProfileImages } from '@/lib/upload-local-image';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
@@ -54,6 +55,7 @@ function initFormFromProfile(profile: PanditProfile) {
     aadhar: source.aadharImage,
     panditCert: source.panditCertificateImage,
     passbook: source.passbookImage,
+    galleryPhotos: source.galleryPhotos ?? [],
     bankAccountHolder: source.bankAccountHolder || '',
     bankAccountNumber: source.bankAccountNumber || '',
     bankIfsc: source.bankIfsc || '',
@@ -80,6 +82,7 @@ export function EditPanditProfileScreen() {
   const [aadharUri, setAadharUri] = useState<string | null>(null);
   const [panditCertUri, setPanditCertUri] = useState<string | null>(null);
   const [passbookUri, setPassbookUri] = useState<string | null>(null);
+  const [galleryPhotoUris, setGalleryPhotoUris] = useState<string[]>([]);
   const [bankAccountHolder, setBankAccountHolder] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
@@ -105,6 +108,7 @@ export function EditPanditProfileScreen() {
     setAadharUri(form.aadhar);
     setPanditCertUri(form.panditCert);
     setPassbookUri(form.passbook);
+    setGalleryPhotoUris(form.galleryPhotos);
     setBankAccountHolder(form.bankAccountHolder);
     setBankAccountNumber(form.bankAccountNumber);
     setBankIfsc(form.bankIfsc);
@@ -154,6 +158,8 @@ export function EditPanditProfileScreen() {
           passbook: passbookUri,
         });
 
+      const galleryPhotos = await uploadGalleryPhotos(token, galleryPhotoUris);
+
       const response = await updateMutation.mutateAsync({
         name: name.trim(),
         gender,
@@ -170,6 +176,7 @@ export function EditPanditProfileScreen() {
         bankIfsc: bankIfsc.trim().toUpperCase() || undefined,
         bankName: bankName.trim() || undefined,
         passbookImage,
+        galleryPhotos,
         pujaServices: normalizePujaServices(pujaServices),
       });
 
@@ -250,6 +257,7 @@ export function EditPanditProfileScreen() {
               value={profilePhotoUri}
               onChange={setProfilePhotoUri}
             />
+            <GalleryPhotosField value={galleryPhotoUris} onChange={setGalleryPhotoUris} />
             <Field label="Full Name *" placeholder="Full name" value={name} onChangeText={setName} />
             <Text style={styles.fieldLabel}>Gender</Text>
             <View style={styles.genderRow}>

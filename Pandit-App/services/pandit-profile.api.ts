@@ -14,6 +14,7 @@ export type PendingPanditProfile = {
   latitude: number | null;
   longitude: number | null;
   profileImage: string | null;
+  galleryPhotos?: string[];
   aadharImage: string | null;
   panditCertificateImage: string | null;
   bankAccountHolder: string | null;
@@ -46,6 +47,7 @@ export type PanditProfile = {
   bankIfsc: string | null;
   bankName: string | null;
   passbookImage: string | null;
+  galleryPhotos: string[];
   pujaServices: PujaService[];
   rating: number;
   totalReviews: number;
@@ -86,6 +88,7 @@ export type CreatePanditProfilePayload = {
   bankIfsc?: string;
   bankName?: string;
   passbookImage?: string;
+  galleryPhotos?: string[];
   pujaServices?: PujaService[];
 };
 

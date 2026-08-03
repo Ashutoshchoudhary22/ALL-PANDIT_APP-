@@ -9,6 +9,7 @@ router.post('/verify-payment', authMiddleware, bookingController.verifyBookingPa
 router.post('/verify-remaining-payment', authMiddleware, bookingController.verifyRemainingPayment);
 router.get('/pandit/requests', authMiddleware, bookingController.getPanditBookingRequests);
 router.get('/pandit/me', authMiddleware, bookingController.getPanditBookings);
+router.get('/pandit/reviews', authMiddleware, bookingController.getPanditReviews);
 router.post('/pandit/:id/approve', authMiddleware, bookingController.approveBooking);
 router.post('/pandit/:id/reject', authMiddleware, bookingController.rejectBooking);
 router.post('/pandit/:id/start', authMiddleware, bookingController.startBookingPuja);

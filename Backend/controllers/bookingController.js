@@ -157,6 +157,21 @@ function mapPanditBookingRow(row) {
   };
 }
 
+function mapPanditReviewRow(row) {
+  return {
+    id: row.id,
+    bookingId: row.booking_id,
+    customerId: row.customer_id,
+    customerName: row.customer_name?.trim() || 'Customer',
+    customerProfileImage: row.customer_profile_image || null,
+    serviceName: row.service_name,
+    bookingDate: row.booking_date,
+    rating: Number(row.rating),
+    comment: row.comment,
+    createdAt: row.created_at,
+  };
+}
+
 exports.createBooking = async (req, res) => {
   try {
     if (req.user.role !== 'customer') {
@@ -820,6 +835,44 @@ exports.getPanditBookings = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while fetching pandit bookings',
+    });
+  }
+};
+
+exports.getPanditReviews = async (req, res) => {
+  try {
+    if (req.user.role !== 'pandit') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only pandits can view their reviews',
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT br.*,
+              b.service_name,
+              b.booking_date,
+              TRIM(CONCAT(COALESCE(cp.first_name, ''), ' ', COALESCE(cp.last_name, ''))) AS customer_name,
+              u.profile_image AS customer_profile_image
+       FROM booking_reviews br
+       INNER JOIN bookings b ON b.id = br.booking_id
+       INNER JOIN pandit_profiles pp ON pp.id = br.pandit_profile_id
+       LEFT JOIN customer_profiles cp ON cp.customer_id = br.customer_id
+       LEFT JOIN users u ON u.id = br.customer_id
+       WHERE pp.user_id = ?
+       ORDER BY br.created_at DESC`,
+      [req.user.id],
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows.map(mapPanditReviewRow),
+    });
+  } catch (error) {
+    console.error('Get pandit reviews error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching pandit reviews',
     });
   }
 };
