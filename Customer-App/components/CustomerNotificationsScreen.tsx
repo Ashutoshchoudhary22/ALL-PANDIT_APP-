@@ -15,6 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
 import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
+import {
+  backFromProfileLinkedScreen,
+  leaveProfileLinkedScreen,
+  useProfileReturnBackHandler,
+} from '@/lib/profile-navigation';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerNotification } from '@/services/notification.api';
 
@@ -66,6 +71,7 @@ const keyExtractor = (item: CustomerNotification) => item.id;
 
 export function CustomerNotificationsScreen() {
   const insets = useSafeAreaInsets();
+  const fromProfile = useProfileReturnBackHandler();
   const { notifications, isLoading, markAllRead, markAsRead, refreshNotifications } =
     useNotifications();
 
@@ -94,10 +100,18 @@ export function CustomerNotificationsScreen() {
     void refreshNotifications();
   }, [refreshNotifications]);
 
+  const handleBack = useCallback(() => {
+    if (fromProfile) {
+      backFromProfileLinkedScreen();
+      return;
+    }
+    leaveProfileLinkedScreen();
+  }, [fromProfile]);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
+        <Pressable style={styles.backBtn} onPress={handleBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Notifications</Text>

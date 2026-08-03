@@ -26,6 +26,7 @@ import {
   sortHistoryBookings,
 } from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
+import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { Booking } from '@/services/booking.api';
 
@@ -156,6 +157,7 @@ function ListSeparator() {
 
 export function CustomerHistoryScreen() {
   const insets = useSafeAreaInsets();
+  useProfileReturnBackHandler();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
   const submitReview = useSubmitBookingReviewMutation();

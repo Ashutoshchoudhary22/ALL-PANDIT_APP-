@@ -3,9 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
+import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  useProfileReturnBackHandler();
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 90 }]}>

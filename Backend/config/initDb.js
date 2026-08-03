@@ -107,6 +107,7 @@ async function initDb() {
     await ensureColumn(connection, 'customer_profiles', 'live_latitude', 'DECIMAL(10,8) NULL');
     await ensureColumn(connection, 'customer_profiles', 'live_longitude', 'DECIMAL(11,8) NULL');
     await ensureColumn(connection, 'customer_profiles', 'live_location_at', 'DATETIME NULL');
+    await ensureColumn(connection, 'customer_profiles', 'notifications_enabled', 'BOOLEAN DEFAULT TRUE');
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS pandit_profiles (

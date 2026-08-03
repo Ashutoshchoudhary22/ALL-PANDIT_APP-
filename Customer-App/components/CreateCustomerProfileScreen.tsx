@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
@@ -21,6 +20,11 @@ import { ImageUploadField } from '@/components/ImageUploadField';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useCreateCustomerProfileMutation } from '@/hooks/use-customer-profile';
 import { goToProfile } from '@/lib/auth-navigation';
+import {
+  backFromProfileLinkedScreen,
+  leaveProfileLinkedScreen,
+  useProfileReturnBackHandler,
+} from '@/lib/profile-navigation';
 import { getCurrentAddress } from '@/lib/location';
 import { uploadLocalImageIfNeeded } from '@/lib/upload-local-image';
 import { useAuth } from '@/providers/AuthProvider';
@@ -36,6 +40,7 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
 export function CreateCustomerProfileScreen() {
   const insets = useSafeAreaInsets();
   const { token, user, signIn } = useAuth();
+  const fromProfile = useProfileReturnBackHandler();
   const createMutation = useCreateCustomerProfileMutation();
 
   const [photoLocalUri, setPhotoLocalUri] = useState<string | null>(null);
@@ -120,12 +125,20 @@ export function CreateCustomerProfileScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (fromProfile) {
+      backFromProfileLinkedScreen();
+      return;
+    }
+    leaveProfileLinkedScreen();
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+        <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Create Profile</Text>

@@ -16,6 +16,7 @@ import { SplashController } from '@/components/SplashController';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { NotificationsProvider } from '@/providers/NotificationsProvider';
+import { SavedPanditsProvider } from '@/providers/SavedPanditsProvider';
 import { PanditFiltersProvider } from '@/providers/PanditFiltersProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 
@@ -32,6 +33,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <AuthProvider>
+          <SavedPanditsProvider>
           <NotificationsProvider>
           <PanditFiltersProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -53,6 +55,7 @@ export default function RootLayout() {
                 <Stack.Screen name="create-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="nearby-pandits" options={{ headerShown: false }} />
+                <Stack.Screen name="saved-pandits" options={{ headerShown: false }} />
                 <Stack.Screen name="all-puja-services" options={{ headerShown: false }} />
                 <Stack.Screen name="pandit/[id]" options={{ headerShown: false }} />
                 <Stack.Screen name="book-pandit" options={{ headerShown: false }} />
@@ -63,6 +66,7 @@ export default function RootLayout() {
           </ThemeProvider>
           </PanditFiltersProvider>
           </NotificationsProvider>
+          </SavedPanditsProvider>
         </AuthProvider>
       </QueryProvider>
     </GestureHandlerRootView>

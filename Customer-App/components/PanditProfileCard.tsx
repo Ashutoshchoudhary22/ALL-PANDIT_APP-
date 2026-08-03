@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CloudImage } from '@/components/CloudImage';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
+import { useSavedPandits } from '@/providers/SavedPanditsProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
 const FALLBACK_IMAGES = [DEMO_IMAGES.pandit1, DEMO_IMAGES.pandit2, DEMO_IMAGES.pandit3];
@@ -43,9 +44,15 @@ export function PanditProfileCard({
   onPress,
   onBook,
 }: PanditProfileCardProps) {
+  const { isSaved, toggleSaved } = useSavedPandits();
+  const saved = isSaved(pandit.id);
   const imageSource = pandit.profileImage || FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
   const isList = variant === 'list';
   const servicePrice = getServicePrice(pandit, serviceName);
+
+  const handleToggleSaved = () => {
+    void toggleSaved(pandit);
+  };
 
   const cardContent = (
     <>
@@ -61,11 +68,13 @@ export function PanditProfileCard({
             <Text style={styles.verifiedText}>Verified</Text>
           </View>
         ) : null}
-        {!isList ? (
-          <Pressable style={styles.favBtn}>
-            <Ionicons name="heart-outline" size={18} color={C.danger} />
-          </Pressable>
-        ) : null}
+        <Pressable style={styles.saveBtn} onPress={handleToggleSaved} hitSlop={8}>
+          <Ionicons
+            name={saved ? 'bookmark' : 'bookmark-outline'}
+            size={18}
+            color={saved ? C.primary : C.textMuted}
+          />
+        </Pressable>
       </View>
 
       <View style={[styles.body, isList && styles.bodyList]}>
@@ -188,16 +197,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
   },
-  favBtn: {
+  saveBtn: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
   },
   name: {
     fontSize: 15,

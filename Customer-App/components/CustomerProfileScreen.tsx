@@ -1,19 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
+import { WalletTransactionsModal } from '@/components/WalletTransactionsModal';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useCustomerBookingStats } from '@/hooks/use-customer-booking-stats';
-import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { useMyCustomerProfileQuery, useUpdateCustomerProfileMutation } from '@/hooks/use-customer-profile';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { formatBookingDate, formatBookingTime } from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
+import {
+  CUSTOMER_LANGUAGE_OPTIONS,
+  formatCustomerLanguage,
+  formatNotificationPreference,
+} from '@/lib/customer-preferences';
+import { navigateFromProfile } from '@/lib/profile-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
+import { useSavedPandits } from '@/providers/SavedPanditsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
 import { Booking, BookingStatus } from '@/services/booking.api';
 
@@ -81,7 +89,7 @@ function RecentBookingsSection({
   hasActiveBookings: boolean;
 }) {
   const handleViewAll = () => {
-    router.push(hasActiveBookings ? '/(tabs)/bookings' : '/(tabs)/history');
+    navigateFromProfile(hasActiveBookings ? '/(tabs)/bookings' : '/(tabs)/history');
   };
 
   return (
@@ -115,7 +123,7 @@ function formatBadgeCount(count: number) {
 }
 
 function openNotifications() {
-  router.push('/notifications');
+  navigateFromProfile('/notifications');
 }
 
 function StatCard({
@@ -154,19 +162,110 @@ function QuickAction({
   iconColor,
   bg,
   label,
+  meta,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   bg: string;
   label: string;
+  meta: string;
+  onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.quickAction} onPress={() => comingSoon(label)}>
+    <Pressable style={styles.quickAction} onPress={onPress}>
       <View style={[styles.quickActionIcon, { backgroundColor: bg }]}>
         <Ionicons name={icon} size={20} color={iconColor} />
       </View>
       <Text style={styles.quickActionLabel}>{label}</Text>
+      <Text style={styles.quickActionMeta} numberOfLines={1}>
+        {meta}
+      </Text>
     </Pressable>
+  );
+}
+
+function QuickActionsSection({
+  stats,
+  savedPanditsCount,
+  walletTransactionCount,
+  onViewTransactions,
+  onViewSavedPandits,
+}: {
+  stats: {
+    totalBookings: number;
+    activeBookingsCount: number;
+    reviewsGiven: number;
+    pendingReviewsCount: number;
+  };
+  savedPanditsCount: number;
+  walletTransactionCount: number;
+  onViewTransactions: () => void;
+  onViewSavedPandits: () => void;
+}) {
+  const bookingsMeta =
+    stats.activeBookingsCount > 0
+      ? `${stats.activeBookingsCount} active`
+      : stats.totalBookings > 0
+        ? `${stats.totalBookings} total`
+        : 'No bookings';
+
+  const reviewsMeta =
+    stats.pendingReviewsCount > 0
+      ? `${stats.pendingReviewsCount} pending`
+      : stats.reviewsGiven > 0
+        ? `${stats.reviewsGiven} given`
+        : 'None yet';
+
+  const savedMeta =
+    savedPanditsCount > 0 ? `${savedPanditsCount} saved` : 'None yet';
+
+  const transactionsMeta =
+    walletTransactionCount > 0 ? `${walletTransactionCount} records` : 'No records';
+
+  return (
+    <View style={styles.quickActionsRow}>
+      <QuickAction
+        icon="calendar-outline"
+        iconColor={C.primary}
+        bg="#FFF7ED"
+        label="My Bookings"
+        meta={bookingsMeta}
+        onPress={() => navigateFromProfile('/(tabs)/bookings')}
+      />
+      <QuickAction
+        icon="heart-outline"
+        iconColor="#DB2777"
+        bg="#FCE7F3"
+        label="My Reviews"
+        meta={reviewsMeta}
+        onPress={() => navigateFromProfile('/(tabs)/history')}
+      />
+      <QuickAction
+        icon="bookmark-outline"
+        iconColor={C.success}
+        bg="#F0FDF4"
+        label="Saved Pandits"
+        meta={savedMeta}
+        onPress={onViewSavedPandits}
+      />
+      <QuickAction
+        icon="pricetag-outline"
+        iconColor="#9333EA"
+        bg="#FAF5FF"
+        label="Coupons"
+        meta="0 available"
+        onPress={() => comingSoon('Coupons')}
+      />
+      <QuickAction
+        icon="card-outline"
+        iconColor="#3B82F6"
+        bg="#EFF6FF"
+        label="Transactions"
+        meta={transactionsMeta}
+        onPress={onViewTransactions}
+      />
+    </View>
   );
 }
 
@@ -214,7 +313,7 @@ function NoProfileState() {
         Create your profile with your personal details to get a personalized experience and faster
         bookings on My-Pandit.
       </Text>
-      <Pressable style={styles.createProfileBtn} onPress={() => router.push('/create-profile')}>
+      <Pressable style={styles.createProfileBtn} onPress={() => navigateFromProfile('/create-profile')}>
         <Ionicons name="add-circle-outline" size={20} color="#fff" />
         <Text style={styles.createProfileBtnText}>Create Profile</Text>
       </Pressable>
@@ -231,20 +330,111 @@ function LogoutButton({ onPress }: { onPress: () => void }) {
   );
 }
 
+function PreferencesSection({
+  profile,
+  unreadCount,
+  updating,
+  onSelectLanguage,
+  onToggleNotifications,
+  onOpenNotifications,
+}: {
+  profile: CustomerProfile;
+  unreadCount: number;
+  updating: boolean;
+  onSelectLanguage: () => void;
+  onToggleNotifications: () => void;
+  onOpenNotifications: () => void;
+}) {
+  const languageLabel = profile.languageLabel || formatCustomerLanguage(profile.languageCode);
+  const notificationsLabel = formatNotificationPreference(
+    profile.notificationsEnabled !== false,
+    unreadCount,
+  );
+
+  return (
+    <>
+      <SectionHeader title="Preferences" />
+      <View style={styles.preferencesGrid}>
+        <Pressable
+          style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
+          onPress={onSelectLanguage}
+          disabled={updating}
+        >
+          <Ionicons name="language-outline" size={18} color={C.primary} />
+          <Text style={styles.preferenceLabel}>Language</Text>
+          <Text style={styles.preferenceValue} numberOfLines={1}>
+            {languageLabel}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={styles.preferenceItem}
+          onPress={() => navigateFromProfile('/edit-profile')}
+        >
+          <Ionicons name="location-outline" size={18} color="#9333EA" />
+          <Text style={styles.preferenceLabel}>Preferred City</Text>
+          <Text style={styles.preferenceValue} numberOfLines={1}>
+            {profile.cityName || 'Not set'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
+          onPress={onToggleNotifications}
+          disabled={updating}
+        >
+          <Ionicons name="notifications-outline" size={18} color="#DB2777" />
+          <Text style={styles.preferenceLabel}>Notifications</Text>
+          <Text style={styles.preferenceValue} numberOfLines={1}>
+            {notificationsLabel}
+          </Text>
+        </Pressable>
+        <Pressable style={styles.preferenceItem} onPress={onOpenNotifications}>
+          <Ionicons name="mail-unread-outline" size={18} color={C.success} />
+          <Text style={styles.preferenceLabel}>Alerts</Text>
+          <Text style={styles.preferenceValue} numberOfLines={1}>
+            {unreadCount > 0 ? `${unreadCount} new` : 'None'}
+          </Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
 function ProfileContent({
   profile,
   stats,
   recentBookings,
   hasActiveBookings,
   walletBalance,
+  unreadCount,
+  walletTransactionCount,
+  savedPanditsCount,
+  preferencesUpdating,
   onAddWalletMoney,
+  onSelectLanguage,
+  onToggleNotifications,
+  onViewTransactions,
+  onViewSavedPandits,
 }: {
   profile: CustomerProfile;
-  stats: { totalBookings: number; completedBookings: number; reviewsGiven: number };
+  stats: {
+    totalBookings: number;
+    completedBookings: number;
+    reviewsGiven: number;
+    activeBookingsCount: number;
+    pendingReviewsCount: number;
+  };
   recentBookings: Booking[];
   hasActiveBookings: boolean;
   walletBalance: number;
+  unreadCount: number;
+  walletTransactionCount: number;
+  savedPanditsCount: number;
+  preferencesUpdating: boolean;
   onAddWalletMoney: () => void;
+  onSelectLanguage: () => void;
+  onToggleNotifications: () => void;
+  onViewTransactions: () => void;
+  onViewSavedPandits: () => void;
 }) {
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Customer';
   const memberSinceYear = formatMemberSince(profile.memberSince);
@@ -261,7 +451,7 @@ function ProfileContent({
                 <Ionicons name="person" size={40} color={C.textLight} />
               </View>
             )}
-            <Pressable style={styles.cameraBadge} onPress={() => router.push('/edit-profile')} hitSlop={8}>
+            <Pressable style={styles.cameraBadge} onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
               <Ionicons name="camera" size={13} color="#fff" />
             </Pressable>
           </View>
@@ -304,7 +494,7 @@ function ProfileContent({
           value={String(stats.totalBookings)}
           label="Total Bookings"
           action="View All >"
-          onPress={() => router.push('/(tabs)/bookings')}
+          onPress={() => navigateFromProfile('/(tabs)/bookings')}
         />
         <StatCard
           icon="checkmark-done-outline"
@@ -313,7 +503,7 @@ function ProfileContent({
           value={String(stats.completedBookings)}
           label="Completed"
           action="View All >"
-          onPress={() => router.push('/(tabs)/history')}
+          onPress={() => navigateFromProfile('/(tabs)/history')}
         />
         <StatCard
           icon="star-outline"
@@ -322,7 +512,7 @@ function ProfileContent({
           value={String(stats.reviewsGiven)}
           label="Reviews Given"
           action="View All >"
-          onPress={() => router.push('/(tabs)/history')}
+          onPress={() => navigateFromProfile('/(tabs)/history')}
         />
         <StatCard
           icon="wallet-outline"
@@ -335,15 +525,15 @@ function ProfileContent({
         />
       </View>
 
-      <View style={styles.quickActionsRow}>
-        <QuickAction icon="calendar-outline" iconColor={C.primary} bg="#FFF7ED" label="My Bookings" />
-        <QuickAction icon="heart-outline" iconColor="#DB2777" bg="#FCE7F3" label="My Reviews" />
-        <QuickAction icon="bookmark-outline" iconColor={C.success} bg="#F0FDF4" label="Saved Pandits" />
-        <QuickAction icon="pricetag-outline" iconColor="#9333EA" bg="#FAF5FF" label="Coupons" />
-        <QuickAction icon="card-outline" iconColor="#3B82F6" bg="#EFF6FF" label="Transactions" />
-      </View>
+      <QuickActionsSection
+        stats={stats}
+        savedPanditsCount={savedPanditsCount}
+        walletTransactionCount={walletTransactionCount}
+        onViewTransactions={onViewTransactions}
+        onViewSavedPandits={onViewSavedPandits}
+      />
 
-      <SectionHeader title="Personal Details" action="Edit Profile" onAction={() => router.push('/edit-profile')} />
+      <SectionHeader title="Personal Details" action="Edit Profile" onAction={() => navigateFromProfile('/edit-profile')} />
       <View style={styles.detailsCard}>
         <DetailRow icon="calendar-outline" label="Date of Birth" value={formatDob(profile.dob)} />
         <DetailRow icon="call-outline" label="Mobile Number" value={profile.mobile} />
@@ -365,7 +555,7 @@ function ProfileContent({
                 </View>
               </View>
               <View style={styles.addressActions}>
-                <Pressable onPress={() => router.push('/edit-profile')} hitSlop={8}>
+                <Pressable onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
                   <Ionicons name="create-outline" size={18} color={C.textMuted} />
                 </Pressable>
               </View>
@@ -376,35 +566,20 @@ function ProfileContent({
         ) : (
           <Text style={styles.addressEmptyText}>No saved address yet.</Text>
         )}
-        <Pressable style={styles.addAddressBtn} onPress={() => router.push('/edit-profile')}>
+        <Pressable style={styles.addAddressBtn} onPress={() => navigateFromProfile('/edit-profile')}>
           <Ionicons name="add-circle-outline" size={18} color={C.primary} />
           <Text style={styles.addAddressText}>Add New Address</Text>
         </Pressable>
       </View>
 
-      <SectionHeader title="Preferences" />
-      <View style={styles.preferencesRow}>
-        <Pressable style={styles.preferenceItem} onPress={() => comingSoon('Language')}>
-          <Ionicons name="language-outline" size={18} color={C.primary} />
-          <Text style={styles.preferenceLabel}>Language</Text>
-          <Text style={styles.preferenceValue}>Hindi</Text>
-        </Pressable>
-        <View style={styles.preferenceItem}>
-          <Ionicons name="location-outline" size={18} color="#9333EA" />
-          <Text style={styles.preferenceLabel}>Preferred City</Text>
-          <Text style={styles.preferenceValue}>{profile.cityName || 'Not set'}</Text>
-        </View>
-        <Pressable style={styles.preferenceItem} onPress={openNotifications}>
-          <Ionicons name="notifications-outline" size={18} color="#DB2777" />
-          <Text style={styles.preferenceLabel}>Notifications</Text>
-          <Text style={styles.preferenceValue}>On</Text>
-        </Pressable>
-        <Pressable style={styles.preferenceItem} onPress={() => comingSoon('Privacy')}>
-          <Ionicons name="shield-checkmark-outline" size={18} color={C.success} />
-          <Text style={styles.preferenceLabel}>Privacy</Text>
-          <Text style={styles.preferenceValue}>Manage</Text>
-        </Pressable>
-      </View>
+      <PreferencesSection
+        profile={profile}
+        unreadCount={unreadCount}
+        updating={preferencesUpdating}
+        onSelectLanguage={onSelectLanguage}
+        onToggleNotifications={onToggleNotifications}
+        onOpenNotifications={openNotifications}
+      />
 
       <RecentBookingsSection bookings={recentBookings} hasActiveBookings={hasActiveBookings} />
     </>
@@ -413,19 +588,84 @@ function ProfileContent({
 
 export function CustomerProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { token, isLoading: authLoading, signOut } = useAuth();
+  const { token, user, isLoading: authLoading, signOut, signIn } = useAuth();
   const { unreadCount } = useNotifications();
+  const { savedCount, refreshSavedPandits } = useSavedPandits();
   const badgeLabel = formatBadgeCount(unreadCount);
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
+  const updateProfileMutation = useUpdateCustomerProfileMutation();
   const bookingStats = useCustomerBookingStats(Boolean(token));
   const walletQuery = useMyWalletQuery(Boolean(token));
   const [walletModalVisible, setWalletModalVisible] = useState(false);
+  const [transactionsModalVisible, setTransactionsModalVisible] = useState(false);
   const profile = profileQuery.data?.data;
   const walletBalance = walletQuery.data?.data.balance ?? 0;
+  const walletTransactions = walletQuery.data?.data.transactions ?? [];
   const isNotFound =
     profileQuery.error instanceof Error &&
     (profileQuery.error.message.toLowerCase().includes('not found') ||
       profileQuery.error.message.includes('404'));
+
+  const handleSelectLanguage = () => {
+    if (!profile) return;
+
+    Alert.alert('Select Language', 'Choose your preferred app language', [
+      ...CUSTOMER_LANGUAGE_OPTIONS.map((option) => ({
+        text: option.label,
+        onPress: () => {
+          if (option.code === profile.languageCode) return;
+
+          updateProfileMutation.mutate(
+            { languageCode: option.code },
+            {
+              onSuccess: async () => {
+                if (token && user) {
+                  await signIn(token, { ...user, languageCode: option.code });
+                }
+              },
+              onError: (error) => {
+                Alert.alert(
+                  'Error',
+                  error instanceof Error ? error.message : 'Could not update language',
+                );
+              },
+            },
+          );
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleToggleNotifications = () => {
+    if (!profile) return;
+
+    const nextEnabled = profile.notificationsEnabled === false;
+    const title = nextEnabled ? 'Enable Notifications' : 'Disable Notifications';
+    const message = nextEnabled
+      ? 'Turn on booking and payment alerts?'
+      : 'You will stop receiving in-app booking alerts.';
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: nextEnabled ? 'Enable' : 'Disable',
+        onPress: () => {
+          updateProfileMutation.mutate(
+            { notificationsEnabled: nextEnabled },
+            {
+              onError: (error) => {
+                Alert.alert(
+                  'Error',
+                  error instanceof Error ? error.message : 'Could not update notifications',
+                );
+              },
+            },
+          );
+        },
+      },
+    ]);
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -443,10 +683,12 @@ export function CustomerProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (token) {
+        void profileQuery.refetch();
         void bookingStats.refetch();
         void walletQuery.refetch();
+        void refreshSavedPandits();
       }
-    }, [token, bookingStats.refetch, walletQuery.refetch]),
+    }, [token, profileQuery.refetch, bookingStats.refetch, walletQuery.refetch, refreshSavedPandits]),
   );
 
   return (
@@ -457,7 +699,7 @@ export function CustomerProfileScreen() {
         <Text style={styles.topTitle}>Customer Profile</Text>
         <View style={styles.topActions}>
           {profile ? (
-            <Pressable style={styles.editBtn} onPress={() => router.push('/edit-profile')} hitSlop={8}>
+            <Pressable style={styles.editBtn} onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
               <Ionicons name="create-outline" size={18} color={C.primary} />
             </Pressable>
           ) : null}
@@ -514,7 +756,15 @@ export function CustomerProfileScreen() {
             recentBookings={bookingStats.recentBookings}
             hasActiveBookings={bookingStats.hasActiveBookings}
             walletBalance={walletBalance}
+            unreadCount={unreadCount}
+            walletTransactionCount={walletTransactions.length}
+            savedPanditsCount={savedCount}
+            preferencesUpdating={updateProfileMutation.isPending}
             onAddWalletMoney={() => setWalletModalVisible(true)}
+            onSelectLanguage={handleSelectLanguage}
+            onToggleNotifications={handleToggleNotifications}
+            onViewTransactions={() => setTransactionsModalVisible(true)}
+            onViewSavedPandits={() => navigateFromProfile('/saved-pandits')}
           />
           <LogoutButton onPress={handleLogout} />
         </ScrollView>
@@ -527,6 +777,12 @@ export function CustomerProfileScreen() {
         onSuccess={() => {
           void walletQuery.refetch();
         }}
+      />
+
+      <WalletTransactionsModal
+        visible={transactionsModalVisible}
+        transactions={walletTransactions}
+        onDismiss={() => setTransactionsModalVisible(false)}
       />
     </View>
   );
@@ -671,6 +927,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickActionLabel: { fontSize: 10, color: C.textMuted, fontWeight: '600', textAlign: 'center' },
+  quickActionMeta: {
+    fontSize: 9,
+    color: C.primary,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 2,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -731,9 +994,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   addAddressText: { color: C.primary, fontSize: 13, fontWeight: '700' },
-  preferencesRow: { flexDirection: 'row', gap: 10 },
+  preferencesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   preferenceItem: {
-    flex: 1,
+    width: '48%',
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 12,
@@ -744,6 +1007,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  preferenceItemDisabled: { opacity: 0.6 },
   preferenceLabel: { fontSize: 11, color: C.textMuted, marginTop: 4 },
   preferenceValue: { fontSize: 13, fontWeight: '700', color: C.text },
   recentCard: {

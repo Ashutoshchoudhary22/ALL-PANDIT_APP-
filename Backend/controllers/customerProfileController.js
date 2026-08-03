@@ -1,5 +1,30 @@
 const pool = require('../config/db');
 
+const LANGUAGE_LABELS = {
+  hi: 'Hindi',
+  en: 'English',
+  sa: 'Sanskrit',
+  sanskrit: 'Sanskrit',
+};
+
+function formatLanguageLabel(code) {
+  if (!code) return 'Hindi';
+  const key = String(code).trim().toLowerCase();
+  return LANGUAGE_LABELS[key] || code;
+}
+
+function normalizeLanguageCode(code) {
+  if (!code) return 'hi';
+  const key = String(code).trim().toLowerCase();
+  if (key === 'hindi') return 'hi';
+  if (key === 'english') return 'en';
+  if (key === 'sanskrit') return 'sa';
+  if (['hi', 'en', 'sa', 'sanskrit'].includes(key)) {
+    return key === 'sanskrit' ? 'sa' : key;
+  }
+  return 'hi';
+}
+
 function pickProfileImage(body) {
   const value = body.profileImage ?? body.profile_image;
   return value?.trim() || null;
@@ -35,6 +60,9 @@ function formatProfile(row) {
     mobile: row.mobile,
     email: row.email,
     profileImage: row.profile_image,
+    languageCode: row.language_code || 'hi',
+    languageLabel: formatLanguageLabel(row.language_code),
+    notificationsEnabled: row.notifications_enabled == null ? true : Boolean(row.notifications_enabled),
     memberSince: row.user_created_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -61,6 +89,8 @@ const PROFILE_SELECT = `
     u.mobile,
     u.email,
     u.profile_image,
+    u.language_code,
+    cp.notifications_enabled,
     u.created_at AS user_created_at
   FROM customer_profiles cp
   INNER JOIN users u ON u.id = cp.customer_id
@@ -252,6 +282,18 @@ exports.updateMyProfile = async (req, res) => {
         ? pickCityName(req.body)
         : undefined;
 
+    const languageCode =
+      req.body.languageCode !== undefined || req.body.language_code !== undefined
+        ? normalizeLanguageCode(req.body.languageCode ?? req.body.language_code)
+        : undefined;
+
+    const notificationsEnabled =
+      req.body.notificationsEnabled !== undefined
+        ? Boolean(req.body.notificationsEnabled)
+        : req.body.notifications_enabled !== undefined
+          ? Boolean(req.body.notifications_enabled)
+          : undefined;
+
     const [existing] = await pool.query(
       'SELECT id FROM customer_profiles WHERE customer_id = ?',
       [customerId],
@@ -275,6 +317,10 @@ exports.updateMyProfile = async (req, res) => {
       await saveUserProfileImage(customerId, profileImageUrl);
     }
 
+    if (languageCode !== undefined) {
+      await pool.query('UPDATE users SET language_code = ? WHERE id = ?', [languageCode, customerId]);
+    }
+
     await pool.query(
       `UPDATE customer_profiles SET
         first_name = COALESCE(?, first_name),
@@ -284,7 +330,8 @@ exports.updateMyProfile = async (req, res) => {
         address = COALESCE(?, address),
         city_name = COALESCE(?, city_name),
         latitude = COALESCE(?, latitude),
-        longitude = COALESCE(?, longitude)
+        longitude = COALESCE(?, longitude),
+        notifications_enabled = COALESCE(?, notifications_enabled)
        WHERE customer_id = ?`,
       [
         firstName?.trim() ?? null,
@@ -295,6 +342,7 @@ exports.updateMyProfile = async (req, res) => {
         cityName ?? null,
         latitude ?? null,
         longitude ?? null,
+        notificationsEnabled !== undefined ? notificationsEnabled : null,
         customerId,
       ],
     );

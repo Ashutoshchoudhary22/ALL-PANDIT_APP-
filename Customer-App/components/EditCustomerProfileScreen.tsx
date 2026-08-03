@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
@@ -24,6 +23,11 @@ import {
   useUpdateCustomerProfileMutation,
 } from '@/hooks/use-customer-profile';
 import { goToProfile } from '@/lib/auth-navigation';
+import {
+  backFromProfileLinkedScreen,
+  leaveProfileLinkedScreen,
+  useProfileReturnBackHandler,
+} from '@/lib/profile-navigation';
 import { getCurrentAddress } from '@/lib/location';
 import { uploadLocalImageIfNeeded } from '@/lib/upload-local-image';
 import { useAuth } from '@/providers/AuthProvider';
@@ -39,6 +43,7 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
 export function EditCustomerProfileScreen() {
   const insets = useSafeAreaInsets();
   const { token, user, signIn } = useAuth();
+  const fromProfile = useProfileReturnBackHandler();
   const profileQuery = useMyCustomerProfileQuery(Boolean(token));
   const profile = profileQuery.data?.data;
   const updateMutation = useUpdateCustomerProfileMutation();
@@ -141,12 +146,20 @@ export function EditCustomerProfileScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (fromProfile) {
+      backFromProfileLinkedScreen();
+      return;
+    }
+    leaveProfileLinkedScreen();
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+        <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Edit Profile</Text>

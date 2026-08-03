@@ -21,6 +21,7 @@ import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { usePublicPanditProfileQuery } from '@/hooks/use-public-pandit-profile';
 import { openBookPandit } from '@/lib/pandit-navigation';
+import { useSavedPandits } from '@/providers/SavedPanditsProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
 
 type PanditDetailScreenProps = {
@@ -197,6 +198,8 @@ export function PanditDetailScreen({ profileId }: PanditDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const query = usePublicPanditProfileQuery(profileId);
   const pandit = query.data?.data;
+  const { isSaved, toggleSaved } = useSavedPandits();
+  const saved = pandit ? isSaved(pandit.id) : false;
 
   return (
     <View style={styles.root}>
@@ -207,7 +210,21 @@ export function PanditDetailScreen({ profileId }: PanditDetailScreenProps) {
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Pandit Profile</Text>
-        <View style={styles.headerSpacer} />
+        {pandit ? (
+          <Pressable
+            style={styles.saveHeaderBtn}
+            onPress={() => void toggleSaved(pandit)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={saved ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={saved ? C.primary : C.text}
+            />
+          </Pressable>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       {query.isLoading ? (
@@ -250,6 +267,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: C.text },
+  saveHeaderBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: C.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerSpacer: { width: 40 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   centerText: { marginTop: 12, fontSize: 14, color: C.textMuted },

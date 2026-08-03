@@ -8,13 +8,26 @@ export type CustomerBookingStats = {
   totalBookings: number;
   completedBookings: number;
   reviewsGiven: number;
+  activeBookingsCount: number;
+  pendingReviewsCount: number;
+  savedPanditsCount: number;
 };
 
 export function computeCustomerBookingStats(bookings: Booking[]): CustomerBookingStats {
+  const activeBookings = bookings.filter((booking) => isActiveBooking(booking.status));
+  const savedPanditIds = new Set(
+    bookings
+      .filter((booking) => booking.status !== 'cancelled')
+      .map((booking) => booking.panditProfileId),
+  );
+
   return {
     totalBookings: bookings.length,
     completedBookings: bookings.filter((booking) => booking.status === 'completed').length,
     reviewsGiven: bookings.filter((booking) => booking.reviewRating != null).length,
+    activeBookingsCount: activeBookings.length,
+    pendingReviewsCount: bookings.filter((booking) => booking.needsReview).length,
+    savedPanditsCount: savedPanditIds.size,
   };
 }
 

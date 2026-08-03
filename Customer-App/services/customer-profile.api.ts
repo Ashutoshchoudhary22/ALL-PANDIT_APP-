@@ -17,6 +17,9 @@ export type CustomerProfile = {
   mobile: string;
   email: string | null;
   profileImage: string | null;
+  languageCode?: string;
+  languageLabel?: string;
+  notificationsEnabled?: boolean;
   memberSince: string;
   createdAt: string;
   updatedAt: string;
@@ -34,7 +37,10 @@ export type CreateCustomerProfilePayload = {
   profileImage?: string;
 };
 
-export type UpdateCustomerProfilePayload = CreateCustomerProfilePayload;
+export type UpdateCustomerProfilePayload = CreateCustomerProfilePayload & {
+  languageCode?: string;
+  notificationsEnabled?: boolean;
+};
 
 export async function getMyCustomerProfileApi() {
   const { data } = await apiClient.get<{ success: boolean; data: CustomerProfile }>(

@@ -29,6 +29,7 @@ import {
   isActiveBooking,
 } from '@/lib/booking-display';
 import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
+import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
 import {
@@ -274,6 +275,7 @@ const keyExtractor = (item: Booking) => String(item.id);
 
 export function CustomerBookingsScreen() {
   const insets = useSafeAreaInsets();
+  useProfileReturnBackHandler();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
   const walletQuery = useMyWalletQuery(Boolean(token));
