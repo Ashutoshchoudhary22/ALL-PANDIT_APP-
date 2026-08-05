@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CloudImage } from '@/components/CloudImage';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { PanditBooking } from '@/services/booking.api';
@@ -32,6 +34,23 @@ function formatBookingTime(value: string) {
   });
 }
 
+function MetaPill({
+  icon,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+}) {
+  return (
+    <View style={styles.metaPill}>
+      <Ionicons name={icon} size={13} color={C.maroon} />
+      <Text style={styles.metaPillText} numberOfLines={2}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 type PanditBookingRequestCardProps = {
   booking: PanditBooking;
   approving?: boolean;
@@ -50,45 +69,65 @@ export const PanditBookingRequestCard = memo(function PanditBookingRequestCard({
   const busy = approving || rejecting;
 
   return (
-    <View style={styles.card}>
+    <PremiumCard accent="gold" innerStyle={styles.cardInner}>
       <View style={styles.cardTop}>
-        <CloudImage source={DEMO_IMAGES.customer} preset="avatar" style={styles.customerAvatar} />
+        <View style={styles.avatarFrame}>
+          <CloudImage source={DEMO_IMAGES.customer} preset="avatar" style={styles.customerAvatar} />
+        </View>
         <View style={styles.bookingInfo}>
           <Text style={styles.customerName}>{booking.customerName}</Text>
-          <Text style={styles.serviceName}>{booking.serviceName}</Text>
-          <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={14} color={C.textMuted} />
-            <Text style={styles.metaText} numberOfLines={2}>
-              {booking.address}
-            </Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={14} color={C.textMuted} />
-            <Text style={styles.metaText}>
-              {formatBookingDate(booking.bookingDate)} • {formatBookingTime(booking.bookingTime)}
-            </Text>
+          <View style={styles.serviceRow}>
+            <Ionicons name="flame-outline" size={14} color={C.primary} />
+            <Text style={styles.serviceName}>{booking.serviceName}</Text>
           </View>
         </View>
-        <Text style={styles.price}>{formatINR(booking.totalPrice)}</Text>
+        <View style={styles.priceWrap}>
+          <Text style={styles.price}>{formatINR(booking.totalPrice)}</Text>
+          <Text style={styles.priceLabel}>Total</Text>
+        </View>
+      </View>
+
+      <View style={styles.metaGrid}>
+        <MetaPill icon="location-outline" text={booking.address} />
+        <MetaPill
+          icon="calendar-outline"
+          text={`${formatBookingDate(booking.bookingDate)} • ${formatBookingTime(booking.bookingTime)}`}
+        />
       </View>
 
       {booking.specialRequirements ? (
-        <Text style={styles.note} numberOfLines={2}>
-          Note: {booking.specialRequirements}
-        </Text>
+        <View style={styles.noteBox}>
+          <View style={styles.noteHeader}>
+            <Ionicons name="document-text-outline" size={14} color={C.maroon} />
+            <Text style={styles.noteLabel}>Special Requirements</Text>
+          </View>
+          <Text style={styles.note} numberOfLines={3}>
+            {booking.specialRequirements}
+          </Text>
+        </View>
       ) : null}
 
       <View style={styles.bookingActions}>
         <Pressable
-          style={[styles.acceptBtn, busy && styles.btnDisabled]}
+          style={[styles.acceptBtnWrap, busy && styles.btnDisabled]}
           onPress={() => onApprove(booking)}
           disabled={busy}
         >
-          {approving ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.acceptBtnText}>Accept</Text>
-          )}
+          <LinearGradient
+            colors={[C.success, '#15803D']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.acceptBtn}
+          >
+            {approving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                <Text style={styles.acceptBtnText}>Accept</Text>
+              </>
+            )}
+          </LinearGradient>
         </Pressable>
         <Pressable
           style={[styles.rejectBtn, busy && styles.btnDisabled]}
@@ -98,64 +137,161 @@ export const PanditBookingRequestCard = memo(function PanditBookingRequestCard({
           {rejecting ? (
             <ActivityIndicator color={C.danger} size="small" />
           ) : (
-            <Text style={styles.rejectBtnText}>Reject</Text>
+            <>
+              <Ionicons name="close-circle-outline" size={16} color={C.danger} />
+              <Text style={styles.rejectBtnText}>Reject</Text>
+            </>
           )}
         </Pressable>
       </View>
-    </View>
+    </PremiumCard>
   );
 });
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  cardInner: {
+    padding: 14,
   },
   cardTop: {
     flexDirection: 'row',
     gap: 12,
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  avatarFrame: {
+    padding: 2,
+    borderRadius: 26,
+    backgroundColor: C.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.4)',
   },
   customerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: C.border,
+    borderWidth: 2,
+    borderColor: C.cream,
   },
-  bookingInfo: { flex: 1 },
-  customerName: { fontSize: 15, fontWeight: '700', color: C.text },
-  serviceName: { fontSize: 13, color: C.textMuted, marginTop: 2, marginBottom: 6 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  metaText: { flex: 1, fontSize: 12, color: C.textMuted },
-  price: { fontSize: 16, fontWeight: '800', color: C.success },
-  note: {
+  bookingInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.maroon,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  serviceName: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontWeight: '600',
+    flex: 1,
+  },
+  priceWrap: {
+    alignItems: 'flex-end',
+  },
+  price: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.success,
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: C.textMuted,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  metaGrid: {
+    gap: 8,
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: C.creamDark,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.2)',
+  },
+  metaPillText: {
+    flex: 1,
+    fontSize: 12,
+    color: C.text,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  noteBox: {
     marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: C.cream,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  noteLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.maroon,
+  },
+  note: {
     fontSize: 12,
     color: C.textMuted,
     lineHeight: 18,
   },
-  bookingActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  acceptBtn: {
-    flex: 1,
-    backgroundColor: C.success,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
+  bookingActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
   },
-  acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  acceptBtnWrap: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  acceptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+  },
+  acceptBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   rejectBtn: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 13,
     borderWidth: 1.5,
-    borderColor: C.danger,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
   },
-  rejectBtnText: { color: C.danger, fontSize: 14, fontWeight: '700' },
-  btnDisabled: { opacity: 0.7 },
+  rejectBtnText: {
+    color: C.danger,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  btnDisabled: {
+    opacity: 0.7,
+  },
 });
