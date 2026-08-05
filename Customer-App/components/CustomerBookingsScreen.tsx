@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState, memo } from 'react';
 import {
   ActivityIndicator,
@@ -15,7 +17,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
-import { HomeColors as C } from '@/constants/home-theme';
+import { LotusDivider } from '@/components/ui/LotusDivider';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
 import {
   useCancelBookingMutation,
   useMyBookingsQuery,
@@ -40,21 +44,39 @@ import {
 
 const STATUS_STYLES: Record<
   Booking['status'],
-  { label: string; bg: string; text: string; icon: keyof typeof Ionicons.glyphMap }
+  { label: string; bg: string; text: string; icon: keyof typeof Ionicons.glyphMap; accent: 'gold' | 'maroon' | 'saffron' | 'none' }
 > = {
-  payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C', icon: 'card-outline' },
-  pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline' },
-  confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D', icon: 'checkmark-circle-outline' },
-  in_progress: { label: 'In Progress', bg: '#FEF3C7', text: '#B45309', icon: 'play-circle-outline' },
+  payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C', icon: 'card-outline', accent: 'maroon' },
+  pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309', icon: 'time-outline', accent: 'gold' },
+  confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D', icon: 'checkmark-circle-outline', accent: 'saffron' },
+  in_progress: { label: 'In Progress', bg: '#FEF3C7', text: '#B45309', icon: 'play-circle-outline', accent: 'gold' },
   awaiting_payment: {
     label: 'Awaiting Payment',
     bg: '#FFEDD5',
     text: '#C2410C',
     icon: 'cash-outline',
+    accent: 'saffron',
   },
-  cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline' },
-  completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8', icon: 'checkmark-done-outline' },
+  cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C', icon: 'close-circle-outline', accent: 'none' },
+  completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8', icon: 'checkmark-done-outline', accent: 'none' },
 };
+
+function MetaPill({
+  icon,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+}) {
+  return (
+    <View style={styles.metaPill}>
+      <Ionicons name={icon} size={13} color={C.maroon} />
+      <Text style={styles.metaPillText} numberOfLines={2}>
+        {text}
+      </Text>
+    </View>
+  );
+}
 
 const BookingCard = memo(function BookingCard({
   booking,
@@ -81,67 +103,85 @@ const BookingCard = memo(function BookingCard({
   const canPayWithWallet = walletBalance >= booking.advanceAmount;
 
   return (
-    <View style={styles.card}>
+    <PremiumCard accent={statusStyle.accent} innerStyle={styles.cardInner}>
       <View style={styles.cardTop}>
+        <View style={styles.serviceIconWrap}>
+          <LinearGradient
+            colors={['#FFF0E0', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.serviceIconGradient}
+          >
+            <Ionicons name="flame" size={20} color={C.primary} />
+          </LinearGradient>
+        </View>
         <View style={styles.serviceWrap}>
           <Text style={styles.serviceName}>{booking.serviceName}</Text>
-          <Text style={styles.panditName}>with {booking.panditName}</Text>
+          <View style={styles.panditRow}>
+            <Ionicons name="person-circle-outline" size={14} color={C.textMuted} />
+            <Text style={styles.panditName}>{booking.panditName}</Text>
+          </View>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-          <Ionicons name={statusStyle.icon} size={12} color={statusStyle.text} />
+          <Ionicons name={statusStyle.icon} size={11} color={statusStyle.text} />
           <Text style={[styles.statusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
         </View>
       </View>
 
-      <View style={styles.metaRow}>
-        <Ionicons name="calendar-outline" size={16} color={C.textMuted} />
-        <Text style={styles.metaText}>{formatBookingDate(booking.bookingDate)}</Text>
-      </View>
-      <View style={styles.metaRow}>
-        <Ionicons name="time-outline" size={16} color={C.textMuted} />
-        <Text style={styles.metaText}>{formatBookingTime(booking.bookingTime)}</Text>
-      </View>
-      <View style={styles.metaRow}>
-        <Ionicons name="location-outline" size={16} color={C.textMuted} />
-        <Text style={styles.metaText} numberOfLines={2}>
-          {booking.address}
-        </Text>
+      <View style={styles.metaGrid}>
+        <MetaPill icon="calendar-outline" text={formatBookingDate(booking.bookingDate)} />
+        <MetaPill icon="time-outline" text={formatBookingTime(booking.bookingTime)} />
+        <MetaPill icon="location-outline" text={booking.address} />
       </View>
 
       {booking.specialRequirements ? (
         <View style={styles.noteBox}>
-          <Text style={styles.noteLabel}>Special Requirements</Text>
+          <View style={styles.noteHeader}>
+            <Ionicons name="document-text-outline" size={14} color={C.maroon} />
+            <Text style={styles.noteLabel}>Special Requirements</Text>
+          </View>
           <Text style={styles.noteText}>{booking.specialRequirements}</Text>
         </View>
       ) : null}
 
       {booking.sessionOtp ? (
-        <View style={styles.otpBox}>
-          <Text style={styles.otpLabel}>
-            {booking.sessionOtpPurpose === 'finish' ? 'Finish Puja OTP' : 'Start Puja OTP'}
-          </Text>
+        <LinearGradient
+          colors={[C.creamDark, '#FFFFFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.otpBox}
+        >
+          <View style={styles.otpTopRow}>
+            <Ionicons name="key-outline" size={16} color={C.primary} />
+            <Text style={styles.otpLabel}>
+              {booking.sessionOtpPurpose === 'finish' ? 'Finish Puja OTP' : 'Start Puja OTP'}
+            </Text>
+          </View>
           <Text style={styles.otpValue}>{booking.sessionOtp}</Text>
           <Text style={styles.otpHint}>
             {booking.sessionOtpHint ||
               'Share this OTP with pandit ji. Also sent to your email.'}
           </Text>
-        </View>
+        </LinearGradient>
       ) : null}
 
       <View style={styles.cardFooter}>
         <View style={styles.tagsRow}>
           {booking.samagriRequired ? (
             <View style={styles.tag}>
+              <Ionicons name="basket-outline" size={11} color={C.primary} />
               <Text style={styles.tagText}>Samagri included</Text>
             </View>
           ) : null}
           {booking.paymentStatus === 'advance_paid' ? (
             <View style={[styles.tag, styles.tagPaid]}>
+              <Ionicons name="checkmark-circle" size={11} color="#15803D" />
               <Text style={[styles.tagText, styles.tagPaidText]}>{Math.round(ADVANCE_RATE * 100)}% paid</Text>
             </View>
           ) : null}
           {booking.status === 'confirmed' ? (
             <View style={[styles.tag, styles.tagConfirmed]}>
+              <Ionicons name="shield-checkmark" size={11} color="#1D4ED8" />
               <Text style={[styles.tagText, styles.tagConfirmedText]}>Confirmed</Text>
             </View>
           ) : null}
@@ -173,20 +213,27 @@ const BookingCard = memo(function BookingCard({
       {needsPayment ? (
         <>
           <Pressable
-            style={[styles.payBtn, (paying || payingWithWallet) && styles.payBtnDisabled]}
+            style={[styles.payBtnWrap, (paying || payingWithWallet) && styles.btnDisabled]}
             onPress={() => onPayNow(booking)}
             disabled={paying || payingWithWallet || cancelling}
           >
-            {paying ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="card-outline" size={16} color="#fff" />
-                <Text style={styles.payBtnText}>
-                  Pay Online • {formatINR(booking.advanceAmount)}
-                </Text>
-              </>
-            )}
+            <LinearGradient
+              colors={[C.maroon, C.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.payBtn}
+            >
+              {paying ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="card-outline" size={16} color="#fff" />
+                  <Text style={styles.payBtnText}>
+                    Pay Online • {formatINR(booking.advanceAmount)}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </Pressable>
           <Pressable
             style={[
@@ -214,7 +261,7 @@ const BookingCard = memo(function BookingCard({
 
       {canCancel ? (
         <Pressable
-          style={[styles.cancelBtn, (paying || cancelling) && styles.payBtnDisabled]}
+          style={[styles.cancelBtn, (paying || cancelling) && styles.btnDisabled]}
           onPress={() => onCancel(booking)}
           disabled={paying || cancelling}
         >
@@ -228,7 +275,7 @@ const BookingCard = memo(function BookingCard({
           )}
         </Pressable>
       ) : null}
-    </View>
+    </PremiumCard>
   );
 });
 
@@ -243,28 +290,8 @@ type BookingListItemProps = {
   onCancel: (booking: Booking) => void;
 };
 
-const BookingListItem = memo(function BookingListItem({
-  booking,
-  paying,
-  payingWithWallet,
-  cancelling,
-  walletBalance,
-  onPayNow,
-  onPayWithWallet,
-  onCancel,
-}: BookingListItemProps) {
-  return (
-    <BookingCard
-      booking={booking}
-      paying={paying}
-      payingWithWallet={payingWithWallet}
-      cancelling={cancelling}
-      walletBalance={walletBalance}
-      onPayNow={onPayNow}
-      onPayWithWallet={onPayWithWallet}
-      onCancel={onCancel}
-    />
-  );
+const BookingListItem = memo(function BookingListItem(props: BookingListItemProps) {
+  return <BookingCard {...props} />;
 });
 
 function ListSeparator() {
@@ -438,22 +465,83 @@ export function CustomerBookingsScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
-      <Text style={styles.title}>Bookings</Text>
-      <Text style={styles.subtitle}>Track your puja booking requests and status</Text>
+    <View style={styles.root}>
+      <StatusBar style="light" />
+
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight, C.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerOm}>ॐ</Text>
+            <Text style={styles.headerTitle}>My Bookings</Text>
+            <Text style={styles.headerSubtitle}>Track your puja requests & status</Text>
+          </View>
+          <View style={styles.headerBadge}>
+            <Ionicons name="calendar" size={22} color={C.maroon} />
+            <Text style={styles.headerBadgeCount}>{bookings.length}</Text>
+            <Text style={styles.headerBadgeLabel}>Active</Text>
+          </View>
+        </View>
+        <View style={styles.headerDividerWrap}>
+          <LotusDivider color={C.goldLight} />
+        </View>
+      </LinearGradient>
+
+      <View style={styles.summaryStrip}>
+        <PremiumCard accent="gold" innerStyle={styles.summaryCardInner} style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <View style={[styles.summaryIconWrap, { backgroundColor: '#FFF0E0' }]}>
+              <Ionicons name="flame-outline" size={18} color={C.primary} />
+            </View>
+            <View>
+              <Text style={styles.summaryValue}>{bookings.length}</Text>
+              <Text style={styles.summaryLabel}>Active Bookings</Text>
+            </View>
+          </View>
+        </PremiumCard>
+        <PremiumCard accent="maroon" innerStyle={styles.summaryCardInner} style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <View style={[styles.summaryIconWrap, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="wallet-outline" size={18} color={C.success} />
+            </View>
+            <View>
+              <Text style={styles.summaryValue}>{formatINR(walletBalance)}</Text>
+              <Text style={styles.summaryLabel}>Wallet Balance</Text>
+            </View>
+          </View>
+        </PremiumCard>
+      </View>
 
       {bookingsQuery.isLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={styles.centerText}>Loading your bookings...</Text>
+          <Text style={styles.centerText}>{Brand.greeting}... loading your bookings</Text>
         </View>
       ) : bookingsQuery.isError ? (
         <View style={styles.centerState}>
-          <Ionicons name="alert-circle-outline" size={40} color={C.danger} />
-          <Text style={styles.centerText}>Could not load bookings.</Text>
-          <Pressable style={styles.retryBtn} onPress={() => bookingsQuery.refetch()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
+          <PremiumCard accent="maroon" innerStyle={styles.errorCardInner}>
+            <View style={styles.errorContent}>
+              <View style={styles.errorIconWrap}>
+                <Ionicons name="alert-circle-outline" size={32} color={C.danger} />
+              </View>
+              <Text style={styles.errorTitle}>Could not load bookings</Text>
+              <Text style={styles.errorSubtitle}>Please check your connection and try again.</Text>
+              <Pressable style={styles.retryBtnWrap} onPress={() => bookingsQuery.refetch()}>
+                <LinearGradient
+                  colors={[C.maroon, C.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.retryBtn}
+                >
+                  <Text style={styles.retryText}>Retry</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </PremiumCard>
         </View>
       ) : (
         <FlatList
@@ -474,16 +562,23 @@ export function CustomerBookingsScreen() {
             <RefreshControl
               refreshing={bookingsQuery.isRefetching && !bookingsQuery.isLoading}
               onRefresh={handleRefresh}
+              tintColor={C.primary}
+              colors={[C.primary]}
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="calendar-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>No bookings yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Your booking requests will appear here once you book a pandit from the home screen.
-              </Text>
-            </View>
+            <PremiumCard accent="gold" innerStyle={styles.emptyCardInner}>
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="calendar-outline" size={36} color={C.maroon} />
+                </View>
+                <Text style={styles.emptyOm}>ॐ</Text>
+                <Text style={styles.emptyTitle}>No bookings yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Your booking requests will appear here once you book a pandit from the home screen.
+                </Text>
+              </View>
+            </PremiumCard>
           }
         />
       )}
@@ -504,21 +599,100 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: C.background,
-    paddingHorizontal: 16,
   },
-  title: {
+  header: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerOm: {
+    fontSize: 14,
+    color: C.goldLight,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  headerTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: C.text,
+    color: '#FFFFFF',
   },
-  subtitle: {
+  headerSubtitle: {
     marginTop: 4,
-    marginBottom: 16,
     fontSize: 13,
+    color: 'rgba(255,248,240,0.85)',
+    fontWeight: '500',
+  },
+  headerBadge: {
+    alignItems: 'center',
+    backgroundColor: C.cream,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    minWidth: 72,
+  },
+  headerBadgeCount: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: C.maroon,
+    marginTop: 2,
+  },
+  headerBadgeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
     color: C.textMuted,
+    marginTop: 1,
+  },
+  headerDividerWrap: {
+    marginTop: 14,
+    opacity: 0.75,
+  },
+  summaryStrip: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  summaryCard: {
+    flex: 1,
+  },
+  summaryCardInner: {
+    padding: 12,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  summaryIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.25)',
+  },
+  summaryValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.maroon,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    color: C.textMuted,
+    fontWeight: '600',
+    marginTop: 1,
   },
   listContent: {
-    paddingTop: 4,
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   emptyList: {
     flexGrow: 1,
@@ -526,19 +700,27 @@ const styles = StyleSheet.create({
   separator: {
     height: 12,
   },
-  card: {
-    backgroundColor: C.card,
-    borderRadius: 16,
+  cardInner: {
     padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
   },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 10,
     marginBottom: 12,
+  },
+  serviceIconWrap: {
+    padding: 2,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.3)',
+  },
+  serviceIconGradient: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   serviceWrap: {
     flex: 1,
@@ -546,10 +728,15 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: '800',
-    color: C.text,
+    color: C.maroon,
+  },
+  panditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
   panditName: {
-    marginTop: 4,
     fontSize: 13,
     color: C.textMuted,
     fontWeight: '600',
@@ -561,36 +748,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
+    maxWidth: '38%',
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
+    flexShrink: 1,
   },
-  metaRow: {
+  metaGrid: {
+    gap: 8,
+  },
+  metaPill: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 8,
+    backgroundColor: C.creamDark,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.2)',
   },
-  metaText: {
+  metaPillText: {
     flex: 1,
     fontSize: 13,
     color: C.text,
-    lineHeight: 19,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   noteBox: {
-    marginTop: 4,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#FAFAFA',
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: C.cream,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: C.borderGold,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
   },
   noteLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: C.textMuted,
-    marginBottom: 4,
+    fontWeight: '800',
+    color: C.maroon,
+    letterSpacing: 0.3,
   },
   noteText: {
     fontSize: 13,
@@ -598,10 +802,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   cardFooter: {
-    marginTop: 10,
+    marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: C.border,
+    borderTopColor: 'rgba(212, 160, 23, 0.2)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -613,30 +817,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#FFF0E0',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.15)',
   },
   tagText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     color: C.primary,
   },
   tagPaid: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#ECFDF5',
+    borderColor: 'rgba(46, 125, 50, 0.15)',
   },
   tagPaidText: {
     color: '#15803D',
   },
   tagConfirmed: {
     backgroundColor: '#EFF6FF',
+    borderColor: 'rgba(29, 78, 216, 0.15)',
   },
   tagConfirmedText: {
     color: '#1D4ED8',
   },
   priceWrap: {
     alignItems: 'flex-end',
+    marginLeft: 8,
   },
   totalPrice: {
     fontSize: 16,
@@ -645,30 +857,32 @@ const styles = StyleSheet.create({
   },
   remainingText: {
     marginTop: 2,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: C.textMuted,
   },
-  payBtn: {
+  payBtnWrap: {
     marginTop: 12,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: C.primary,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  payBtn: {
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  payBtnDisabled: {
+  btnDisabled: {
     opacity: 0.7,
   },
   walletPayBtn: {
     marginTop: 8,
-    height: 44,
-    borderRadius: 12,
+    height: 46,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: C.primary,
-    backgroundColor: '#FFF7ED',
+    borderColor: C.borderGold,
+    backgroundColor: C.cream,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -678,16 +892,17 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   walletPayBtnText: {
-    color: C.primary,
+    color: C.maroon,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   cancelBtn: {
     marginTop: 10,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: C.danger,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -723,17 +938,21 @@ const styles = StyleSheet.create({
   },
   otpBox: {
     marginTop: 12,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#FFF7ED',
+    padding: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#FDBA74',
+    borderColor: C.borderGold,
     alignItems: 'center',
+  },
+  otpTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   otpLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#C2410C',
+    fontWeight: '800',
+    color: C.maroon,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -761,29 +980,78 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: C.textMuted,
+    fontWeight: '500',
+  },
+  errorCardInner: {
+    padding: 24,
+  },
+  errorContent: {
+    alignItems: 'center',
+  },
+  errorIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorTitle: {
+    marginTop: 14,
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.maroon,
+  },
+  errorSubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryBtnWrap: {
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   retryBtn: {
-    marginTop: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: C.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   retryText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  emptyCardInner: {
+    padding: 32,
+    marginTop: 40,
   },
   emptyWrap: {
     alignItems: 'center',
+  },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: C.creamDark,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  emptyOm: {
+    fontSize: 20,
+    color: C.gold,
+    marginTop: 12,
   },
   emptyTitle: {
-    marginTop: 16,
+    marginTop: 8,
     fontSize: 18,
-    fontWeight: '700',
-    color: C.text,
+    fontWeight: '800',
+    color: C.maroon,
   },
   emptySubtitle: {
     marginTop: 8,

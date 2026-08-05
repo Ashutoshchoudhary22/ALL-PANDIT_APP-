@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
@@ -18,10 +19,11 @@ import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
 import { CloudImage } from '@/components/CloudImage';
 import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { PanditProfileCard } from '@/components/PanditProfileCard';
+import { PujaServiceIcon } from '@/components/PujaServiceIcon';
 import { ReviewPromptBanner } from '@/components/ReviewPromptBanner';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
-import { HomeColors as C } from '@/constants/home-theme';
-import { HOME_PUJA_CATEGORIES, getPujaServiceStyle } from '@/constants/puja-services';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
+import { HOME_PUJA_CATEGORIES } from '@/constants/puja-services';
 import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
 import { useSubmitBookingReviewMutation } from '@/hooks/use-bookings';
 import { usePendingReviewPrompts } from '@/hooks/use-pending-reviews';
@@ -83,10 +85,13 @@ function getLocationLabel(profile: CustomerProfile | undefined) {
 function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionTitleWrap}>
+        <View style={styles.sectionAccent} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       {onViewAll ? (
         <Pressable onPress={onViewAll} hitSlop={8}>
-          <Text style={styles.viewAll}>View All {'>'}</Text>
+          <Text style={styles.viewAll}>View All →</Text>
         </Pressable>
       ) : null}
     </View>
@@ -180,8 +185,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
               style={styles.avatar}
             />
             <View style={styles.headerText}>
-              <Text style={styles.greeting}>Namaste, {customerName} 🙏</Text>
-              <Text style={styles.subGreeting}>Welcome to Pandit Booking</Text>
+              <Text style={styles.greeting}>{Brand.greeting}, {customerName} 🙏</Text>
+              <Text style={styles.subGreeting}>Welcome to {Brand.name}</Text>
               <Pressable
                 style={styles.locationRow}
                 onPress={() => router.push('/edit-profile')}
@@ -241,26 +246,32 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
         </View>
 
         {/* Hero Banner */}
-        <View style={styles.banner}>
+        <LinearGradient
+          colors={[C.maroon, C.maroonLight, C.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.banner}
+        >
           <View style={styles.bannerContent}>
+            <Text style={styles.bannerOm}>ॐ</Text>
             <Text style={styles.bannerTitle}>
-              Find the Best Pandits{'\n'}for All Your Needs
+              Sacred Rituals,{'\n'}Verified Acharyas
             </Text>
             <Text style={styles.bannerBullets}>
-              • Verified Pandits • Transparent Pricing{'\n'}
-              • Easy Booking • On-time Service
+              ✦ Verified Pandits  ✦ Transparent Pricing{'\n'}
+              ✦ Easy Booking  ✦ On-time Service
             </Text>
             <Pressable
               style={styles.bookNowBtn}
               onPress={() => router.push('/nearby-pandits')}
             >
-              <Text style={styles.bookNowText}>Book Now</Text>
+              <Text style={styles.bookNowText}>Book Puja Now</Text>
             </Pressable>
           </View>
           <View style={styles.bannerImageWrap}>
             <CloudImage source={DEMO_IMAGES.banner} preset="banner" style={styles.bannerImage} />
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Categories */}
         <SectionHeader title="Puja Services" />
@@ -269,7 +280,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesRow}
         >
-          {CATEGORIES.map((cat) => (
+          {CATEGORIES.map((cat, catIndex) => (
             <Pressable
               key={cat.id}
               style={styles.categoryItem}
@@ -281,9 +292,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                 openPanditsForService(cat.label);
               }}
             >
-              <View style={[styles.categoryIcon, { backgroundColor: cat.bg }]}>
-                <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-              </View>
+              <PujaServiceIcon name={cat.label} index={catIndex} size="sm" />
               <Text style={styles.categoryLabel} numberOfLines={2}>
                 {cat.label}
               </Text>
@@ -325,6 +334,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                 pandit={pandit}
                 index={index}
                 variant="carousel"
+                customerLatitude={customerLatitude}
+                customerLongitude={customerLongitude}
                 onPress={openPanditDetail}
               />
             ))}
@@ -352,17 +363,13 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.servicesRow}
           >
-            {popularServices.map((service, index) => {
-              const style = getPujaServiceStyle(service.name, index);
-              return (
+            {popularServices.map((service, index) => (
                 <Pressable
                   key={service.name}
                   style={styles.serviceCard}
                   onPress={() => openPanditsForService(service.name)}
                 >
-                  <View style={[styles.serviceImageWrap, { backgroundColor: style.bg }]}>
-                    <Text style={styles.serviceEmoji}>{style.emoji}</Text>
-                  </View>
+                  <PujaServiceIcon name={service.name} index={index} size="md" />
                   <Text style={styles.serviceName} numberOfLines={2}>
                     {service.name}
                   </Text>
@@ -370,8 +377,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                     ₹{service.minPrice.toLocaleString('en-IN')} onwards
                   </Text>
                 </Pressable>
-              );
-            })}
+              ))}
           </ScrollView>
         )}
 
@@ -384,7 +390,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           {TRUST_FEATURES.map((feature, i) => (
             <View key={i} style={styles.trustCard}>
               <View style={styles.trustIconWrap}>
-                <Ionicons name={feature.icon} size={22} color="#3B82F6" />
+                <Ionicons name={feature.icon} size={22} color={C.maroon} />
               </View>
               <Text style={styles.trustTitle}>{feature.title}</Text>
               <Text style={styles.trustDesc}>{feature.desc}</Text>
@@ -429,6 +435,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: C.border,
+    borderWidth: 2,
+    borderColor: C.gold,
   },
   headerText: {
     flex: 1,
@@ -508,12 +516,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.cream,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
-    borderWidth: 1,
-    borderColor: C.border,
+    borderWidth: 1.5,
+    borderColor: C.borderGold,
   },
   searchInput: {
     flex: 1,
@@ -539,41 +547,51 @@ const styles = StyleSheet.create({
   },
   banner: {
     flexDirection: 'row',
-    backgroundColor: C.bannerBg,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 20,
     overflow: 'hidden',
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   bannerContent: {
     flex: 1,
     paddingRight: 8,
   },
+  bannerOm: {
+    fontSize: 20,
+    color: C.goldLight,
+    marginBottom: 4,
+  },
   bannerTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: C.bannerText,
+    color: '#FFFFFF',
     lineHeight: 24,
   },
   bannerBullets: {
     fontSize: 11,
-    color: C.bannerText,
-    opacity: 0.85,
+    color: 'rgba(255, 248, 240, 0.9)',
     marginTop: 8,
     lineHeight: 18,
   },
   bookNowBtn: {
     marginTop: 12,
     alignSelf: 'flex-start',
-    backgroundColor: C.primary,
+    backgroundColor: C.cream,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.gold,
   },
   bookNowText: {
-    color: '#fff',
+    color: C.maroon,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   bannerImageWrap: {
     width: 90,
@@ -593,17 +611,7 @@ const styles = StyleSheet.create({
   categoryItem: {
     alignItems: 'center',
     width: 72,
-  },
-  categoryIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  categoryEmoji: {
-    fontSize: 24,
+    gap: 8,
   },
   categoryLabel: {
     fontSize: 10,
@@ -619,14 +627,25 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
+  sectionTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionAccent: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: C.primary,
+  },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '700',
-    color: C.text,
+    fontWeight: '800',
+    color: C.maroon,
   },
   viewAll: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: C.primary,
   },
   panditsRow: {
@@ -673,18 +692,7 @@ const styles = StyleSheet.create({
   serviceCard: {
     width: 130,
     alignItems: 'center',
-  },
-  serviceImageWrap: {
-    width: 130,
-    height: 100,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  serviceEmoji: {
-    fontSize: 36,
+    gap: 8,
   },
   serviceName: {
     fontSize: 13,
@@ -709,15 +717,19 @@ const styles = StyleSheet.create({
     backgroundColor: C.trustBg,
     borderRadius: 14,
     padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   trustIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: C.creamDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   trustTitle: {
     fontSize: 12,

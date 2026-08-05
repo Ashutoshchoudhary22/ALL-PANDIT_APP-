@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
+import { CloudImage } from '@/components/CloudImage';
 import { WalletTransactionsModal } from '@/components/WalletTransactionsModal';
-import { HomeColors as C } from '@/constants/home-theme';
+import { LotusDivider } from '@/components/ui/LotusDivider';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
 import { useCustomerBookingStats } from '@/hooks/use-customer-booking-stats';
 import { useMyCustomerProfileQuery, useUpdateCustomerProfileMutation } from '@/hooks/use-customer-profile';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
@@ -56,28 +60,38 @@ function RecentBookingItem({ booking }: { booking: Booking }) {
   const statusStyle = BOOKING_STATUS_LABELS[booking.status];
 
   return (
-    <View style={styles.recentBookingItem}>
-      <View style={styles.recentBookingTop}>
-        <View style={styles.recentBookingInfo}>
-          <Text style={styles.recentBookingTitle} numberOfLines={1}>
-            {booking.serviceName}
-          </Text>
-          <Text style={styles.recentBookingSubtitle} numberOfLines={1}>
-            with {booking.panditName}
-          </Text>
+    <PremiumCard accent="saffron" innerStyle={styles.recentBookingCardInner}>
+      <View style={styles.recentBookingItem}>
+        <View style={styles.recentBookingIconWrap}>
+          <Ionicons name="flame-outline" size={18} color={C.primary} />
         </View>
-        <View style={[styles.recentStatusBadge, { backgroundColor: statusStyle.bg }]}>
-          <Text style={[styles.recentStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
+        <View style={styles.recentBookingContent}>
+          <View style={styles.recentBookingTop}>
+            <View style={styles.recentBookingInfo}>
+              <Text style={styles.recentBookingTitle} numberOfLines={1}>
+                {booking.serviceName}
+              </Text>
+              <Text style={styles.recentBookingSubtitle} numberOfLines={1}>
+                with {booking.panditName}
+              </Text>
+            </View>
+            <View style={[styles.recentStatusBadge, { backgroundColor: statusStyle.bg }]}>
+              <Text style={[styles.recentStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
+            </View>
+          </View>
+          <View style={styles.recentBookingMeta}>
+            <Ionicons name="calendar-outline" size={13} color={C.maroon} />
+            <Text style={styles.recentBookingMetaText}>
+              {formatBookingDate(booking.bookingDate)} • {formatBookingTime(booking.bookingTime)}
+            </Text>
+          </View>
+          <View style={styles.recentPriceRow}>
+            <Text style={styles.recentBookingPrice}>{formatINR(booking.totalPrice)}</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.primary} />
+          </View>
         </View>
       </View>
-      <View style={styles.recentBookingMeta}>
-        <Ionicons name="calendar-outline" size={13} color={C.textMuted} />
-        <Text style={styles.recentBookingMetaText}>
-          {formatBookingDate(booking.bookingDate)} • {formatBookingTime(booking.bookingTime)}
-        </Text>
-      </View>
-      <Text style={styles.recentBookingPrice}>{formatINR(booking.totalPrice)}</Text>
-    </View>
+    </PremiumCard>
   );
 }
 
@@ -94,21 +108,22 @@ function RecentBookingsSection({
 
   return (
     <>
-      <SectionHeader title="Recent Bookings" action="View All >" onAction={handleViewAll} />
+      <SectionHeader title="Recent Bookings" action="View All →" onAction={handleViewAll} />
       {bookings.length === 0 ? (
-        <View style={styles.recentCard}>
-          <Ionicons name="calendar-outline" size={28} color={C.textLight} />
-          <Text style={styles.recentHint}>
-            Your booking history will appear here once you book a pandit for a puja or ritual.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.recentListCard}>
-          {bookings.map((booking, index) => (
-            <View key={booking.id}>
-              <RecentBookingItem booking={booking} />
-              {index < bookings.length - 1 ? <View style={styles.recentDivider} /> : null}
+        <PremiumCard accent="gold" innerStyle={styles.recentEmptyInner}>
+          <View style={styles.recentCard}>
+            <View style={styles.recentEmptyIcon}>
+              <Ionicons name="calendar-outline" size={28} color={C.maroon} />
             </View>
+            <Text style={styles.recentHint}>
+              Your booking history will appear here once you book a pandit for a puja or ritual.
+            </Text>
+          </View>
+        </PremiumCard>
+      ) : (
+        <View style={styles.recentListWrap}>
+          {bookings.map((booking) => (
+            <RecentBookingItem key={booking.id} booking={booking} />
           ))}
         </View>
       )}
@@ -130,6 +145,7 @@ function StatCard({
   icon,
   iconColor,
   bg,
+  gradientEnd,
   value,
   label,
   action,
@@ -138,22 +154,31 @@ function StatCard({
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   bg: string;
+  gradientEnd?: string;
   value: string;
   label: string;
   action: string;
   onPress?: () => void;
 }) {
   return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIconWrap, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={18} color={iconColor} />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Pressable onPress={onPress ?? (() => comingSoon(label))}>
-        <Text style={styles.statAction}>{action}</Text>
-      </Pressable>
-    </View>
+    <PremiumCard style={styles.statCardWrap} innerStyle={styles.statCardInner} accent="maroon">
+      <LinearGradient
+        colors={[bg, gradientEnd ?? '#FFFFFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.statGradient}
+      >
+        <View style={[styles.statIconWrap, { borderColor: `${iconColor}44` }]}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Pressable onPress={onPress ?? (() => comingSoon(label))} style={styles.statActionBtn}>
+          <Text style={styles.statAction}>{action}</Text>
+          <Ionicons name="arrow-forward" size={12} color={C.primary} />
+        </Pressable>
+      </LinearGradient>
+    </PremiumCard>
   );
 }
 
@@ -174,13 +199,22 @@ function QuickAction({
 }) {
   return (
     <Pressable style={styles.quickAction} onPress={onPress}>
-      <View style={[styles.quickActionIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={20} color={iconColor} />
-      </View>
+      <LinearGradient
+        colors={[bg, '#FFFFFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.quickActionRing, { borderColor: `${iconColor}55` }]}
+      >
+        <View style={styles.quickActionIcon}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+      </LinearGradient>
       <Text style={styles.quickActionLabel}>{label}</Text>
-      <Text style={styles.quickActionMeta} numberOfLines={1}>
-        {meta}
-      </Text>
+      <View style={styles.quickActionMetaPill}>
+        <Text style={styles.quickActionMeta} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -224,19 +258,21 @@ function QuickActionsSection({
     walletTransactionCount > 0 ? `${walletTransactionCount} records` : 'No records';
 
   return (
-    <View style={styles.quickActionsRow}>
+    <PremiumCard accent="gold" innerStyle={styles.quickActionsInner}>
+      <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+      <View style={styles.quickActionsRow}>
       <QuickAction
         icon="calendar-outline"
-        iconColor={C.primary}
-        bg="#FFF7ED"
+        iconColor={C.maroon}
+        bg={C.creamDark}
         label="My Bookings"
         meta={bookingsMeta}
         onPress={() => navigateFromProfile('/(tabs)/bookings')}
       />
       <QuickAction
         icon="heart-outline"
-        iconColor="#DB2777"
-        bg="#FCE7F3"
+        iconColor={C.primary}
+        bg="#FFF0E0"
         label="My Reviews"
         meta={reviewsMeta}
         onPress={() => navigateFromProfile('/(tabs)/history')}
@@ -244,35 +280,39 @@ function QuickActionsSection({
       <QuickAction
         icon="bookmark-outline"
         iconColor={C.success}
-        bg="#F0FDF4"
+        bg="#ECFDF5"
         label="Saved Pandits"
         meta={savedMeta}
         onPress={onViewSavedPandits}
       />
       <QuickAction
         icon="pricetag-outline"
-        iconColor="#9333EA"
-        bg="#FAF5FF"
+        iconColor={C.gold}
+        bg="#FFFBEB"
         label="Coupons"
         meta="0 available"
         onPress={() => comingSoon('Coupons')}
       />
       <QuickAction
         icon="card-outline"
-        iconColor="#3B82F6"
+        iconColor="#1D4ED8"
         bg="#EFF6FF"
         label="Transactions"
         meta={transactionsMeta}
         onPress={onViewTransactions}
       />
-    </View>
+      </View>
+    </PremiumCard>
   );
 }
 
 function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionTitleWrap}>
+        <View style={styles.sectionAccent} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       {action ? (
         <Pressable onPress={onAction}>
           <Text style={styles.sectionAction}>{action}</Text>
@@ -286,14 +326,18 @@ function DetailRow({
   icon,
   label,
   value,
+  isLast,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
+  isLast?: boolean;
 }) {
   return (
-    <View style={styles.detailRow}>
-      <Ionicons name={icon} size={18} color={C.textMuted} />
+    <View style={[styles.detailRow, isLast && styles.detailRowLast]}>
+      <View style={styles.detailIconWrap}>
+        <Ionicons name={icon} size={16} color={C.maroon} />
+      </View>
       <View style={styles.detailTextWrap}>
         <Text style={styles.detailLabel}>{label}</Text>
         <Text style={styles.detailValue}>{value}</Text>
@@ -305,17 +349,20 @@ function DetailRow({
 function NoProfileState() {
   return (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIconWrap}>
-        <Ionicons name="person-circle-outline" size={72} color={C.primary} />
-      </View>
+      <LinearGradient colors={[C.maroon, C.primary]} style={styles.emptyIconWrap}>
+        <Ionicons name="person-circle-outline" size={72} color="#fff" />
+      </LinearGradient>
+      <Text style={styles.emptyOm}>ॐ</Text>
       <Text style={styles.emptyTitle}>Profile Not Created</Text>
       <Text style={styles.emptySubtitle}>
-        Create your profile with your personal details to get a personalized experience and faster
-        bookings on My-Pandit.
+        Create your profile to get a personalized spiritual booking experience on {Brand.name}.
       </Text>
-      <Pressable style={styles.createProfileBtn} onPress={() => navigateFromProfile('/create-profile')}>
-        <Ionicons name="add-circle-outline" size={20} color="#fff" />
-        <Text style={styles.createProfileBtnText}>Create Profile</Text>
+      <LotusDivider width={100} />
+      <Pressable style={styles.createProfileBtnWrap} onPress={() => navigateFromProfile('/create-profile')}>
+        <LinearGradient colors={[C.maroon, C.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.createProfileBtn}>
+          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+          <Text style={styles.createProfileBtnText}>Create Profile</Text>
+        </LinearGradient>
       </Pressable>
     </View>
   );
@@ -355,45 +402,61 @@ function PreferencesSection({
     <>
       <SectionHeader title="Preferences" />
       <View style={styles.preferencesGrid}>
-        <Pressable
-          style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
-          onPress={onSelectLanguage}
-          disabled={updating}
-        >
-          <Ionicons name="language-outline" size={18} color={C.primary} />
-          <Text style={styles.preferenceLabel}>Language</Text>
-          <Text style={styles.preferenceValue} numberOfLines={1}>
-            {languageLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={styles.preferenceItem}
-          onPress={() => navigateFromProfile('/edit-profile')}
-        >
-          <Ionicons name="location-outline" size={18} color="#9333EA" />
-          <Text style={styles.preferenceLabel}>Preferred City</Text>
-          <Text style={styles.preferenceValue} numberOfLines={1}>
-            {profile.cityName || 'Not set'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
-          onPress={onToggleNotifications}
-          disabled={updating}
-        >
-          <Ionicons name="notifications-outline" size={18} color="#DB2777" />
-          <Text style={styles.preferenceLabel}>Notifications</Text>
-          <Text style={styles.preferenceValue} numberOfLines={1}>
-            {notificationsLabel}
-          </Text>
-        </Pressable>
-        <Pressable style={styles.preferenceItem} onPress={onOpenNotifications}>
-          <Ionicons name="mail-unread-outline" size={18} color={C.success} />
-          <Text style={styles.preferenceLabel}>Alerts</Text>
-          <Text style={styles.preferenceValue} numberOfLines={1}>
-            {unreadCount > 0 ? `${unreadCount} new` : 'None'}
-          </Text>
-        </Pressable>
+        <PremiumCard style={styles.preferenceCardWrap} accent="saffron" innerStyle={styles.preferenceCardInner}>
+          <Pressable
+            style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
+            onPress={onSelectLanguage}
+            disabled={updating}
+          >
+            <View style={[styles.preferenceIconWrap, { backgroundColor: '#FFF0E0' }]}>
+              <Ionicons name="language-outline" size={18} color={C.primary} />
+            </View>
+            <Text style={styles.preferenceLabel}>Language</Text>
+            <Text style={styles.preferenceValue} numberOfLines={1}>
+              {languageLabel}
+            </Text>
+          </Pressable>
+        </PremiumCard>
+        <PremiumCard style={styles.preferenceCardWrap} accent="maroon" innerStyle={styles.preferenceCardInner}>
+          <Pressable
+            style={styles.preferenceItem}
+            onPress={() => navigateFromProfile('/edit-profile')}
+          >
+            <View style={[styles.preferenceIconWrap, { backgroundColor: '#F3E8FF' }]}>
+              <Ionicons name="location-outline" size={18} color="#9333EA" />
+            </View>
+            <Text style={styles.preferenceLabel}>Preferred City</Text>
+            <Text style={styles.preferenceValue} numberOfLines={1}>
+              {profile.cityName || 'Not set'}
+            </Text>
+          </Pressable>
+        </PremiumCard>
+        <PremiumCard style={styles.preferenceCardWrap} accent="gold" innerStyle={styles.preferenceCardInner}>
+          <Pressable
+            style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
+            onPress={onToggleNotifications}
+            disabled={updating}
+          >
+            <View style={[styles.preferenceIconWrap, { backgroundColor: '#FCE7F3' }]}>
+              <Ionicons name="notifications-outline" size={18} color="#DB2777" />
+            </View>
+            <Text style={styles.preferenceLabel}>Notifications</Text>
+            <Text style={styles.preferenceValue} numberOfLines={1}>
+              {notificationsLabel}
+            </Text>
+          </Pressable>
+        </PremiumCard>
+        <PremiumCard style={styles.preferenceCardWrap} accent="none" innerStyle={styles.preferenceCardInner}>
+          <Pressable style={styles.preferenceItem} onPress={onOpenNotifications}>
+            <View style={[styles.preferenceIconWrap, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="mail-unread-outline" size={18} color={C.success} />
+            </View>
+            <Text style={styles.preferenceLabel}>Alerts</Text>
+            <Text style={styles.preferenceValue} numberOfLines={1}>
+              {unreadCount > 0 ? `${unreadCount} new` : 'None'}
+            </Text>
+          </Pressable>
+        </PremiumCard>
       </View>
     </>
   );
@@ -441,86 +504,92 @@ function ProfileContent({
 
   return (
     <>
-      <View style={styles.heroCard}>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight, C.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroCard}
+      >
         <View style={styles.heroTop}>
-          <View style={styles.photoWrap}>
-            {profile.profileImage ? (
-              <Image source={{ uri: profile.profileImage }} style={styles.photo} />
-            ) : (
-              <View style={[styles.photo, styles.photoPlaceholder]}>
-                <Ionicons name="person" size={40} color={C.textLight} />
-              </View>
-            )}
-            <Pressable style={styles.cameraBadge} onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
-              <Ionicons name="camera" size={13} color="#fff" />
-            </Pressable>
+          <View style={styles.photoFrame}>
+            <View style={styles.photoWrap}>
+              {profile.profileImage ? (
+                <CloudImage source={profile.profileImage} preset="avatar" style={styles.photo} />
+              ) : (
+                <View style={[styles.photo, styles.photoPlaceholder]}>
+                  <Ionicons name="person" size={40} color={C.cream} />
+                </View>
+              )}
+              <Pressable style={styles.cameraBadge} onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
+                <Ionicons name="camera" size={13} color={C.maroon} />
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.heroInfo}>
+            <Text style={styles.heroGreeting}>{Brand.greeting}</Text>
             <Text style={styles.name}>{fullName}</Text>
             <View style={styles.contactRow}>
-              <Ionicons name="call-outline" size={13} color={C.textMuted} />
+              <Ionicons name="call-outline" size={13} color="rgba(255,248,240,0.85)" />
               <Text style={styles.contactText}>{profile.mobile}</Text>
             </View>
             {profile.email ? (
               <View style={styles.contactRow}>
-                <Ionicons name="mail-outline" size={13} color={C.textMuted} />
-                <Text style={styles.contactText}>{profile.email}</Text>
+                <Ionicons name="mail-outline" size={13} color="rgba(255,248,240,0.85)" />
+                <Text style={styles.contactText} numberOfLines={1}>{profile.email}</Text>
               </View>
             ) : null}
-            {profile.address ? (
+            {profile.cityName ? (
               <View style={styles.contactRow}>
-                <Ionicons name="location-outline" size={13} color={C.textMuted} />
-                <Text style={styles.contactText} numberOfLines={1}>
-                  {profile.address}
-                </Text>
+                <Ionicons name="location-outline" size={13} color="rgba(255,248,240,0.85)" />
+                <Text style={styles.contactText} numberOfLines={1}>{profile.cityName}</Text>
               </View>
             ) : null}
             {memberSinceYear ? (
               <View style={styles.memberBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#fff" />
-                <Text style={styles.memberBadgeText}>Customer since {memberSinceYear}</Text>
+                <Ionicons name="shield-checkmark" size={12} color={C.maroon} />
+                <Text style={styles.memberBadgeText}>Member since {memberSinceYear}</Text>
               </View>
             ) : null}
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.statsRow}>
         <StatCard
           icon="receipt-outline"
-          iconColor={C.primary}
-          bg="#FFF7ED"
+          iconColor={C.maroon}
+          bg={C.creamDark}
           value={String(stats.totalBookings)}
           label="Total Bookings"
-          action="View All >"
+          action="View All →"
           onPress={() => navigateFromProfile('/(tabs)/bookings')}
         />
         <StatCard
           icon="checkmark-done-outline"
           iconColor={C.success}
-          bg="#F0FDF4"
+          bg="#ECFDF5"
           value={String(stats.completedBookings)}
           label="Completed"
-          action="View All >"
+          action="View All →"
           onPress={() => navigateFromProfile('/(tabs)/history')}
         />
         <StatCard
           icon="star-outline"
-          iconColor="#9333EA"
-          bg="#FAF5FF"
+          iconColor={C.gold}
+          bg="#FFFBEB"
           value={String(stats.reviewsGiven)}
           label="Reviews Given"
-          action="View All >"
+          action="View All →"
           onPress={() => navigateFromProfile('/(tabs)/history')}
         />
         <StatCard
           icon="wallet-outline"
-          iconColor="#3B82F6"
-          bg="#EFF6FF"
+          iconColor={C.primary}
+          bg="#FFF0E0"
           value={formatINR(walletBalance)}
           label="Wallet Balance"
-          action="Add Money >"
+          action="Add Money →"
           onPress={onAddWalletMoney}
         />
       </View>
@@ -534,43 +603,57 @@ function ProfileContent({
       />
 
       <SectionHeader title="Personal Details" action="Edit Profile" onAction={() => navigateFromProfile('/edit-profile')} />
-      <View style={styles.detailsCard}>
-        <DetailRow icon="calendar-outline" label="Date of Birth" value={formatDob(profile.dob)} />
-        <DetailRow icon="call-outline" label="Mobile Number" value={profile.mobile} />
-        <DetailRow icon="male-female-outline" label="Gender" value={profile.gender ? profile.gender : 'Not added'} />
-        <DetailRow icon="mail-outline" label="Email" value={profile.email || 'Not added'} />
-        <DetailRow icon="business-outline" label="City" value={profile.cityName || 'Not added'} />
-        <DetailRow icon="location-outline" label="Address" value={profile.address || 'Not added'} />
-      </View>
+      <PremiumCard accent="maroon" innerStyle={styles.detailsCardInner}>
+        <View style={styles.detailsCard}>
+          <DetailRow icon="calendar-outline" label="Date of Birth" value={formatDob(profile.dob)} />
+          <DetailRow icon="call-outline" label="Mobile Number" value={profile.mobile} />
+          <DetailRow icon="male-female-outline" label="Gender" value={profile.gender ? profile.gender : 'Not added'} />
+          <DetailRow icon="mail-outline" label="Email" value={profile.email || 'Not added'} />
+          <DetailRow icon="business-outline" label="City" value={profile.cityName || 'Not added'} />
+          <DetailRow icon="location-outline" label="Address" value={profile.address || 'Not added'} isLast />
+        </View>
+      </PremiumCard>
 
-      <SectionHeader title="Saved Addresses" action="View All >" onAction={() => comingSoon('Saved Addresses')} />
-      <View style={styles.addressCard}>
-        {profile.address ? (
-          <>
-            <View style={styles.addressTop}>
-              <View style={styles.addressBadgeRow}>
-                <Text style={styles.addressLabel}>Home</Text>
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultBadgeText}>Default</Text>
+      <SectionHeader title="Saved Addresses" action="View All →" onAction={() => comingSoon('Saved Addresses')} />
+      <PremiumCard accent="gold" innerStyle={styles.addressCardInner}>
+        <View style={styles.addressCard}>
+          {profile.address ? (
+            <>
+              <View style={styles.addressTop}>
+                <View style={styles.addressBadgeRow}>
+                  <View style={styles.addressIconWrap}>
+                    <Ionicons name="home" size={16} color={C.maroon} />
+                  </View>
+                  <Text style={styles.addressLabel}>Home</Text>
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultBadgeText}>Default</Text>
+                  </View>
+                </View>
+                <View style={styles.addressActions}>
+                  <Pressable onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
+                    <Ionicons name="create-outline" size={18} color={C.textMuted} />
+                  </Pressable>
                 </View>
               </View>
-              <View style={styles.addressActions}>
-                <Pressable onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
-                  <Ionicons name="create-outline" size={18} color={C.textMuted} />
-                </Pressable>
-              </View>
-            </View>
-            <Text style={styles.addressText}>{profile.address}</Text>
-            <Text style={styles.addressText}>{profile.mobile}</Text>
-          </>
-        ) : (
-          <Text style={styles.addressEmptyText}>No saved address yet.</Text>
-        )}
-        <Pressable style={styles.addAddressBtn} onPress={() => navigateFromProfile('/edit-profile')}>
-          <Ionicons name="add-circle-outline" size={18} color={C.primary} />
-          <Text style={styles.addAddressText}>Add New Address</Text>
-        </Pressable>
-      </View>
+              <Text style={styles.addressText}>{profile.address}</Text>
+              <Text style={styles.addressText}>{profile.mobile}</Text>
+            </>
+          ) : (
+            <Text style={styles.addressEmptyText}>No saved address yet.</Text>
+          )}
+          <Pressable style={styles.addAddressBtn} onPress={() => navigateFromProfile('/edit-profile')}>
+            <LinearGradient
+              colors={[C.cream, '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.addAddressBtnGradient}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={C.primary} />
+              <Text style={styles.addAddressText}>Add New Address</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </PremiumCard>
 
       <PreferencesSection
         profile={profile}
@@ -693,19 +776,27 @@ export function CustomerProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.topTitle}>Customer Profile</Text>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.topBar, { paddingTop: insets.top + 8 }]}
+      >
+        <View>
+          <Text style={styles.topOm}>ॐ</Text>
+          <Text style={styles.topTitle}>My Profile</Text>
+        </View>
         <View style={styles.topActions}>
           {profile ? (
             <Pressable style={styles.editBtn} onPress={() => navigateFromProfile('/edit-profile')} hitSlop={8}>
-              <Ionicons name="create-outline" size={18} color={C.primary} />
+              <Ionicons name="create-outline" size={18} color={C.maroon} />
             </Pressable>
           ) : null}
           <Pressable onPress={openNotifications} hitSlop={8}>
             <View>
-              <Ionicons name="notifications-outline" size={22} color={C.text} />
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
               {badgeLabel ? (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>{badgeLabel}</Text>
@@ -714,10 +805,10 @@ export function CustomerProfileScreen() {
             </View>
           </Pressable>
           <Pressable onPress={() => comingSoon('Settings')} hitSlop={8}>
-            <Ionicons name="settings-outline" size={22} color={C.text} />
+            <Ionicons name="settings-outline" size={22} color="#fff" />
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
 
       {authLoading || profileQuery.isLoading ? (
         <View style={styles.centerState}>
@@ -789,309 +880,365 @@ export function CustomerProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFDF8' },
+  root: { flex: 1, backgroundColor: C.background },
   topBar: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFDF8',
   },
-  topTitle: { fontSize: 18, fontWeight: '800', color: C.text },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  topOm: { fontSize: 14, color: C.goldLight, marginBottom: 2 },
+  topTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   editBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF5EC',
+    backgroundColor: C.cream,
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: C.borderGold,
   },
   notifBadge: {
     position: 'absolute',
     top: -4,
     right: -6,
-    backgroundColor: '#EF4444',
+    backgroundColor: C.danger,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#fff',
   },
   notifBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 8 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   stateText: { fontSize: 15, color: C.textMuted, textAlign: 'center' },
   emptyScroll: { flexGrow: 1, justifyContent: 'center' },
-  emptyState: { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 24 },
+  emptyState: { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 24, gap: 8 },
   emptyIconWrap: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#FFF7ED',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '800', color: C.text, textAlign: 'center' },
-  emptySubtitle: { marginTop: 10, fontSize: 14, lineHeight: 22, color: C.textMuted, textAlign: 'center' },
+  emptyOm: { fontSize: 22, color: C.gold, marginTop: 4 },
+  emptyTitle: { fontSize: 22, fontWeight: '800', color: C.maroon, textAlign: 'center' },
+  emptySubtitle: { fontSize: 14, lineHeight: 22, color: C.textMuted, textAlign: 'center', paddingHorizontal: 8 },
+  createProfileBtnWrap: { marginTop: 16, borderRadius: 14, overflow: 'hidden', width: '100%' },
   createProfileBtn: {
-    marginTop: 24,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    backgroundColor: C.primary,
-    borderRadius: 14,
     paddingHorizontal: 24,
     paddingVertical: 14,
   },
   createProfileBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  primaryBtn: { marginTop: 16, backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  primaryBtn: {
+    marginTop: 16,
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   heroCard: {
-    backgroundColor: '#FFF7ED',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  heroTop: { flexDirection: 'row', gap: 14 },
+  heroTop: { flexDirection: 'row', gap: 16 },
+  photoFrame: {
+    padding: 3,
+    borderRadius: 50,
+    backgroundColor: C.gold,
+  },
   photoWrap: { position: 'relative' },
-  photo: { width: 84, height: 84, borderRadius: 42, backgroundColor: C.border },
-  photoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  photo: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.border },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: C.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFF7ED',
+    borderColor: C.gold,
   },
-  heroInfo: { flex: 1, gap: 2 },
-  name: { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 2 },
+  heroInfo: { flex: 1, gap: 3, justifyContent: 'center' },
+  heroGreeting: { fontSize: 12, color: C.goldLight, fontWeight: '600', letterSpacing: 0.5 },
+  name: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  contactText: { fontSize: 12, color: C.textMuted, flexShrink: 1 },
+  contactText: { fontSize: 12, color: 'rgba(255,248,240,0.9)', flexShrink: 1, fontWeight: '500' },
   memberBadge: {
-    marginTop: 8,
+    marginTop: 10,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: C.success,
+    gap: 5,
+    backgroundColor: C.cream,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
-  memberBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  memberBadgeText: { color: C.maroon, fontSize: 10, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
+  statCardWrap: { width: '48%' },
+  statCardInner: { padding: 0, overflow: 'hidden' },
+  statGradient: { padding: 14, minHeight: 130 },
   statIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
-  statValue: { marginTop: 8, fontSize: 16, fontWeight: '800', color: C.text },
-  statLabel: { marginTop: 2, fontSize: 11, color: C.textMuted },
-  statAction: { marginTop: 6, fontSize: 11, fontWeight: '700', color: C.primary },
+  statValue: { marginTop: 10, fontSize: 17, fontWeight: '800', color: C.maroon },
+  statLabel: { marginTop: 2, fontSize: 11, color: C.textMuted, fontWeight: '500' },
+  statActionBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  statAction: { fontSize: 11, fontWeight: '700', color: C.primary },
+  quickActionsInner: {
+    marginTop: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+  },
+  quickActionsTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.maroon,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+    letterSpacing: 0.3,
+  },
   quickActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    paddingHorizontal: 2,
   },
   quickAction: { alignItems: 'center', gap: 6, flex: 1 },
+  quickActionRing: {
+    padding: 2,
+    borderRadius: 28,
+    borderWidth: 1.5,
+  },
   quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickActionLabel: { fontSize: 10, color: C.textMuted, fontWeight: '600', textAlign: 'center' },
+  quickActionLabel: { fontSize: 10, color: C.textMuted, fontWeight: '700', textAlign: 'center' },
+  quickActionMetaPill: {
+    backgroundColor: C.creamDark,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    maxWidth: '100%',
+  },
   quickActionMeta: {
     fontSize: 9,
     color: C.primary,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
-    marginTop: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 22,
-    marginBottom: 10,
+    marginTop: 24,
+    marginBottom: 12,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: C.text },
-  sectionAction: { fontSize: 13, fontWeight: '600', color: C.primary },
-  detailsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+  sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionAccent: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: C.primary,
   },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: C.maroon },
+  sectionAction: { fontSize: 13, fontWeight: '700', color: C.primary },
+  detailsCardInner: { padding: 0 },
+  detailsCard: { paddingVertical: 4 },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: 'rgba(212, 160, 23, 0.15)',
+  },
+  detailRowLast: { borderBottomWidth: 0 },
+  detailIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   detailTextWrap: { flex: 1 },
-  detailLabel: { fontSize: 11, color: C.textMuted },
-  detailValue: { marginTop: 2, fontSize: 14, fontWeight: '600', color: C.text, textTransform: 'capitalize' },
-  addressCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  detailLabel: { fontSize: 11, color: C.textMuted, fontWeight: '500' },
+  detailValue: { marginTop: 2, fontSize: 14, fontWeight: '700', color: C.text, textTransform: 'capitalize' },
+  addressCardInner: { padding: 0 },
+  addressCard: { padding: 16 },
   addressTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   addressBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  addressLabel: { fontSize: 14, fontWeight: '700', color: C.text },
-  defaultBadge: { backgroundColor: '#F0FDF4', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  defaultBadgeText: { color: C.success, fontSize: 10, fontWeight: '700' },
+  addressIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: C.creamDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  addressLabel: { fontSize: 14, fontWeight: '800', color: C.maroon },
+  defaultBadge: {
+    backgroundColor: C.creamDark,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  defaultBadgeText: { color: C.maroon, fontSize: 10, fontWeight: '800' },
   addressActions: { flexDirection: 'row', gap: 12 },
-  addressText: { marginTop: 6, fontSize: 13, color: C.textMuted, lineHeight: 20 },
-  addressEmptyText: { fontSize: 13, color: C.textMuted },
+  addressText: { marginTop: 6, fontSize: 13, color: C.textMuted, lineHeight: 20, paddingLeft: 36 },
+  addressEmptyText: { fontSize: 13, color: C.textMuted, paddingVertical: 4 },
   addAddressBtn: {
     marginTop: 14,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: C.borderGold,
+    borderStyle: 'dashed',
+  },
+  addAddressBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
-  addAddressText: { color: C.primary, fontSize: 13, fontWeight: '700' },
+  addAddressText: { color: C.maroon, fontSize: 13, fontWeight: '800' },
   preferencesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  preferenceCardWrap: { width: '48%' },
+  preferenceCardInner: { padding: 0 },
   preferenceItem: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
+    padding: 14,
     alignItems: 'flex-start',
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: 2,
+    minHeight: 96,
+    justifyContent: 'flex-start',
   },
   preferenceItemDisabled: { opacity: 0.6 },
-  preferenceLabel: { fontSize: 11, color: C.textMuted, marginTop: 4 },
-  preferenceValue: { fontSize: 13, fontWeight: '700', color: C.text },
+  preferenceIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.2)',
+  },
+  preferenceLabel: { fontSize: 11, color: C.textMuted, marginTop: 6, fontWeight: '500' },
+  preferenceValue: { fontSize: 13, fontWeight: '800', color: C.maroon },
+  recentEmptyInner: { padding: 0 },
   recentCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+  },
+  recentEmptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.creamDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   recentHint: { fontSize: 12, color: C.textLight, textAlign: 'center', lineHeight: 18 },
-  recentListCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+  recentListWrap: { gap: 10 },
+  recentBookingCardInner: { padding: 14 },
+  recentBookingItem: { flexDirection: 'row', gap: 12 },
+  recentBookingIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFF0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.25)',
   },
-  recentBookingItem: {
-    gap: 6,
-  },
+  recentBookingContent: { flex: 1, gap: 6 },
   recentBookingTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 10,
   },
-  recentBookingInfo: {
-    flex: 1,
-  },
-  recentBookingTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: C.text,
-  },
-  recentBookingSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: C.textMuted,
-  },
-  recentStatusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  recentStatusText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  recentBookingMeta: {
+  recentBookingInfo: { flex: 1 },
+  recentBookingTitle: { fontSize: 14, fontWeight: '800', color: C.maroon },
+  recentBookingSubtitle: { marginTop: 2, fontSize: 12, color: C.textMuted },
+  recentStatusBadge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  recentStatusText: { fontSize: 10, fontWeight: '800' },
+  recentBookingMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  recentBookingMetaText: { fontSize: 12, color: C.textMuted },
+  recentPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    marginTop: 2,
   },
-  recentBookingMetaText: {
-    fontSize: 12,
-    color: C.textMuted,
-  },
-  recentBookingPrice: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: C.text,
-  },
-  recentDivider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 12,
-  },
+  recentBookingPrice: { fontSize: 14, fontWeight: '800', color: C.primary },
   logoutBtn: {
-    marginTop: 24,
+    marginTop: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#FEF2F2',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#FECACA',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 15,
   },
-  logoutBtnText: { color: '#DC2626', fontSize: 15, fontWeight: '700' },
+  logoutBtnText: { color: C.danger, fontSize: 15, fontWeight: '800' },
 });

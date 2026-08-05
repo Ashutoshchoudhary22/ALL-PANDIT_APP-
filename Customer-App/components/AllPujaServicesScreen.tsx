@@ -13,11 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  getPujaServiceStyle,
   PUJA_SERVICE_OPTIONS,
 } from '@/constants/puja-services';
 import { HomeColors as C } from '@/constants/home-theme';
 import { openPanditsForService } from '@/lib/pandit-navigation';
+import { PujaServiceIcon } from '@/components/PujaServiceIcon';
 
 export function AllPujaServicesScreen() {
   const insets = useSafeAreaInsets();
@@ -64,22 +64,17 @@ export function AllPujaServicesScreen() {
           { paddingBottom: insets.bottom + 24 },
           filteredServices.length === 0 && styles.emptyList,
         ]}
-        renderItem={({ item, index }) => {
-          const style = getPujaServiceStyle(item, index);
-          return (
+        renderItem={({ item, index }) => (
             <Pressable
               style={styles.serviceCard}
               onPress={() => openPanditsForService(item)}
             >
-              <View style={[styles.serviceIcon, { backgroundColor: style.bg }]}>
-                <Text style={styles.serviceEmoji}>{style.emoji}</Text>
-              </View>
+              <PujaServiceIcon name={item} index={index} size="lg" />
               <Text style={styles.serviceName} numberOfLines={3}>
                 {item}
               </Text>
             </Pressable>
-          );
-        }}
+          )}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Ionicons name="search-outline" size={40} color={C.textLight} />
@@ -163,22 +158,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.card,
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: C.border,
-    minHeight: 118,
-  },
-  serviceIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  serviceEmoji: {
-    fontSize: 24,
+    minHeight: 130,
+    gap: 10,
   },
   serviceName: {
     fontSize: 12,

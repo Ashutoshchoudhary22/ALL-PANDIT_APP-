@@ -16,16 +16,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HomeColors as C } from '@/constants/home-theme';
+import { LotusDivider } from '@/components/ui/LotusDivider';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
 import { useLoginMutation } from '@/hooks/use-auth';
 import { exitAppForWrongRole } from '@/lib/role-guard';
 import { AuthUser } from '@/services/auth.api';
 
-const BHAGWA = '#FFB366';
-const BHAGWA_DARK = '#FF8C00';
-const INPUT_BG = 'rgba(255, 248, 240, 0.94)';
-const INPUT_BORDER = '#FFCC80';
-const ICON_COLOR = '#FF8C00';
+const INPUT_BG = 'rgba(255, 248, 240, 0.96)';
+const INPUT_BORDER = C.borderGold;
+const ICON_COLOR = C.maroon;
 
 type SignInScreenProps = {
   onLoginSuccess?: (user: AuthUser, token: string) => void;
@@ -99,6 +98,13 @@ export function SignInScreen({
             },
           ]}
         >
+          <View style={styles.formHeader}>
+            <Text style={styles.welcomeOm}>ॐ</Text>
+            <Text style={styles.welcomeTitle}>Welcome Back</Text>
+            <Text style={styles.welcomeSub}>Sign in to {Brand.name}</Text>
+            <LotusDivider width={100} />
+          </View>
+
           <View style={styles.form}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -154,7 +160,7 @@ export function SignInScreen({
               disabled={loginMutation.isPending}
             >
               <LinearGradient
-                colors={[BHAGWA, BHAGWA_DARK]}
+                colors={[C.maroon, C.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.loginBtn}
@@ -183,7 +189,7 @@ export function SignInScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: C.cream,
   },
   flex: {
     flex: 1,
@@ -192,6 +198,26 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     justifyContent: 'flex-end',
+  },
+  formHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 6,
+  },
+  welcomeOm: {
+    fontSize: 26,
+    color: C.gold,
+    marginBottom: 2,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: C.maroon,
+  },
+  welcomeSub: {
+    fontSize: 14,
+    color: C.textMuted,
+    fontWeight: '500',
   },
   form: {
     width: '100%',
@@ -234,7 +260,7 @@ const styles = StyleSheet.create({
   forgot: {
     fontSize: 14,
     fontWeight: '600',
-    color: BHAGWA_DARK,
+    color: C.maroon,
   },
   loginBtnWrap: {
     borderRadius: 16,
@@ -261,7 +287,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   link: {
-    color: BHAGWA_DARK,
+    color: C.primary,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },

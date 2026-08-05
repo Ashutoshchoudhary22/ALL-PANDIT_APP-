@@ -97,6 +97,8 @@ export function NearbyPanditsScreen() {
               index={index}
               variant="list"
               serviceName={serviceName}
+              customerLatitude={customerLatitude}
+              customerLongitude={customerLongitude}
               onPress={openPanditDetail}
               onBook={handleBook}
             />

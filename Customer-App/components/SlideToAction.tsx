@@ -11,11 +11,10 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-const BHAGWA_LIGHT = '#FFB366';
-const BHAGWA_LIGHT_FILL = 'rgba(255, 195, 130, 0.65)';
-const BHAGWA_ICON = '#F59E0B';
-const THUMB_SIZE = 42;
-const TRACK_HEIGHT = 58;
+import { HomeColors as C } from '@/constants/home-theme';
+
+const THUMB_SIZE = 44;
+const TRACK_HEIGHT = 60;
 const PADDING = 8;
 
 type SlideToActionProps = {
@@ -78,12 +77,9 @@ export function SlideToAction({ label, onComplete, resetKey }: SlideToActionProp
     transform: [{ translateX: translateX.value }],
   }));
 
-  const fillStyle = useAnimatedStyle(() => {
-    'worklet';
-    return {
-      width: translateX.value + 50,
-    };
-  });
+  const fillStyle = useAnimatedStyle(() => ({
+    width: translateX.value + 54,
+  }));
 
   const labelStyle = useAnimatedStyle(() => {
     const max = maxSlide.value || 1;
@@ -99,12 +95,10 @@ export function SlideToAction({ label, onComplete, resetKey }: SlideToActionProp
   return (
     <View style={styles.track} onLayout={onLayout}>
       <Animated.View style={[styles.fill, fillStyle]} />
-
       <Animated.Text style={[styles.label, labelStyle]}>{label}</Animated.Text>
-
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.thumb, thumbStyle]}>
-          <Ionicons name="arrow-forward" size={16} color={BHAGWA_ICON} />
+          <Ionicons name="arrow-forward" size={18} color={C.maroon} />
         </Animated.View>
       </GestureDetector>
     </View>
@@ -115,7 +109,9 @@ const styles = StyleSheet.create({
   track: {
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: BHAGWA_LIGHT,
+    backgroundColor: 'rgba(107, 21, 21, 0.75)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 160, 23, 0.45)',
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -124,16 +120,16 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: BHAGWA_LIGHT_FILL,
+    backgroundColor: 'rgba(255, 107, 0, 0.35)',
     borderRadius: TRACK_HEIGHT / 2,
   },
   label: {
     position: 'absolute',
     alignSelf: 'center',
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   thumb: {
     position: 'absolute',
@@ -141,8 +137,15 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.cream,
+    borderWidth: 2,
+    borderColor: C.gold,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
