@@ -10,7 +10,9 @@
     "ios": "node scripts/start-expo.js start --ios --port 8081",
     "web": "node scripts/start-expo.js start --web --port 8081",
     "reset-project": "node ./scripts/reset-project.js",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:apk": "eas build -p android --profile apk",
+    "build:apk:local": "eas build -p android --profile apk --local"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

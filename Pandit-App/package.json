@@ -9,7 +9,9 @@
     "android": "node scripts/start-expo.js start --android --port 8082",
     "ios": "node scripts/start-expo.js start --ios --port 8082",
     "web": "node scripts/start-expo.js start --web --port 8082",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:apk": "eas build -p android --profile apk",
+    "build:apk:local": "eas build -p android --profile apk --local"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

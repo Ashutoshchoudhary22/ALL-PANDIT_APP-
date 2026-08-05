@@ -16,8 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LotusDivider } from '@/components/ui/LotusDivider';
-import { Brand, HomeColors as C } from '@/constants/home-theme';
+import { HomeColors as C } from '@/constants/home-theme';
 import { useLoginMutation } from '@/hooks/use-auth';
 import { exitAppForWrongRole } from '@/lib/role-guard';
 import { AuthUser } from '@/services/auth.api';
@@ -98,13 +97,6 @@ export function SignInScreen({
             },
           ]}
         >
-          <View style={styles.formHeader}>
-            <Text style={styles.welcomeOm}>ॐ</Text>
-            <Text style={styles.welcomeTitle}>Welcome Back</Text>
-            <Text style={styles.welcomeSub}>Sign in to {Brand.name}</Text>
-            <LotusDivider width={100} />
-          </View>
-
           <View style={styles.form}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -198,26 +190,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     justifyContent: 'flex-end',
-  },
-  formHeader: {
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 6,
-  },
-  welcomeOm: {
-    fontSize: 26,
-    color: C.gold,
-    marginBottom: 2,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: C.maroon,
-  },
-  welcomeSub: {
-    fontSize: 14,
-    color: C.textMuted,
-    fontWeight: '500',
   },
   form: {
     width: '100%',
