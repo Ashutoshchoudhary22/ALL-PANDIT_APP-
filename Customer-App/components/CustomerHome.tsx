@@ -21,6 +21,7 @@ import { PanditFiltersButton } from '@/components/PanditFiltersButton';
 import { PanditProfileCard } from '@/components/PanditProfileCard';
 import { PujaServiceIcon } from '@/components/PujaServiceIcon';
 import { ReviewPromptBanner } from '@/components/ReviewPromptBanner';
+import { LotusDivider } from '@/components/ui/LotusDivider';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { Brand, HomeColors as C } from '@/constants/home-theme';
 import { HOME_PUJA_CATEGORIES } from '@/constants/puja-services';
@@ -124,6 +125,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
   const walletBalance = walletQuery.data?.data.balance ?? 0;
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
+  const firstName = profile?.firstName?.trim() || customerName.split(' ')[0] || 'Customer';
   const location = getLocationLabel(profile);
   const avatarSource = profile?.profileImage || user?.profileImage || DEMO_IMAGES.customer;
 
@@ -167,62 +169,73 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 100 },
+          { paddingBottom: insets.bottom + 100 },
         ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable style={styles.headerLeft} onPress={() => router.push('/(tabs)/profile')}>
-            <CloudImage
-              source={avatarSource}
-              preset="avatar"
-              style={styles.avatar}
-            />
-            <View style={styles.headerText}>
-              <Text style={styles.greeting}>{Brand.greeting}, {customerName} 🙏</Text>
-              <Text style={styles.subGreeting}>Welcome to {Brand.name}</Text>
-              <Pressable
-                style={styles.locationRow}
-                onPress={() => router.push('/edit-profile')}
-              >
-                <Ionicons name="location" size={14} color={C.primary} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {location}
+        <LinearGradient
+          colors={[C.maroon, C.maroonLight, C.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.premiumHeader, { paddingTop: insets.top + 12 }]}
+        >
+          <View style={styles.header}>
+            <Pressable style={styles.headerLeft} onPress={() => router.push('/(tabs)/profile')}>
+              <View style={styles.avatarFrame}>
+                <CloudImage source={avatarSource} preset="avatar" style={styles.avatar} />
+                <View style={styles.avatarRing} pointerEvents="none" />
+              </View>
+              <View style={styles.headerText}>
+                <Text style={styles.headerOm}>ॐ</Text>
+                <Text style={styles.greeting}>
+                  {Brand.greeting}, <Text style={styles.greetingName}>{firstName}</Text>
                 </Text>
-                <Ionicons name="chevron-down" size={14} color={C.textMuted} />
+                <Text style={styles.subGreeting}>{Brand.tagline}</Text>
+                <Pressable style={styles.locationPill} onPress={() => router.push('/edit-profile')}>
+                  <Ionicons name="location" size={13} color={C.primary} />
+                  <Text style={styles.locationText} numberOfLines={1}>
+                    {location}
+                  </Text>
+                  <Ionicons name="chevron-down" size={12} color={C.textMuted} />
+                </Pressable>
+              </View>
+            </Pressable>
+
+            <View style={styles.headerRight}>
+              <Pressable style={styles.headerActionBtn} onPress={() => router.push('/notifications')}>
+                <Ionicons name="notifications-outline" size={21} color={C.maroon} />
+                {badgeLabel ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{badgeLabel}</Text>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable style={styles.headerActionBtn} onPress={() => setWalletModalVisible(true)}>
+                <Ionicons name="wallet-outline" size={21} color={C.maroon} />
+                {walletBalance > 0 ? (
+                  <View style={styles.walletBadge}>
+                    <Text style={styles.walletBadgeText} numberOfLines={1}>
+                      {walletBalance >= 1000
+                        ? `₹${Math.round(walletBalance / 1000)}k`
+                        : `₹${walletBalance}`}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
             </View>
-          </Pressable>
-          <View style={styles.headerRight}>
-            <Pressable style={styles.iconBtn} onPress={() => router.push('/notifications')}>
-              <Ionicons name="notifications-outline" size={24} color={C.text} />
-              {badgeLabel ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{badgeLabel}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <Pressable style={styles.iconBtn} onPress={() => setWalletModalVisible(true)}>
-              <Ionicons name="wallet-outline" size={24} color={C.text} />
-              {walletBalance > 0 ? (
-                <View style={styles.walletBadge}>
-                  <Text style={styles.walletBadgeText} numberOfLines={1}>
-                    {walletBalance >= 1000
-                      ? `₹${Math.round(walletBalance / 1000)}k`
-                      : `₹${walletBalance}`}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
           </View>
-        </View>
 
+          <View style={styles.headerDividerWrap}>
+            <LotusDivider color={C.goldLight} width={200} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.mainContent}>
         {reviewPrompts.featuredReview ? (
           <ReviewPromptBanner
             booking={reviewPrompts.featuredReview}
@@ -397,6 +410,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
             </View>
           ))}
         </ScrollView>
+        </View>
       </ScrollView>
 
       <AddWalletMoneyModal
@@ -417,92 +431,165 @@ const styles = StyleSheet.create({
     backgroundColor: C.background,
   },
   scrollContent: {
+    flexGrow: 1,
+  },
+  premiumHeader: {
     paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  mainContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
   },
   headerLeft: {
     flexDirection: 'row',
     flex: 1,
     gap: 12,
+    alignItems: 'center',
+  },
+  avatarFrame: {
+    position: 'relative',
+    padding: 3,
+    borderRadius: 30,
+    backgroundColor: C.gold,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: C.border,
     borderWidth: 2,
-    borderColor: C.gold,
+    borderColor: C.cream,
+  },
+  avatarRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   headerText: {
     flex: 1,
+    gap: 1,
+  },
+  headerOm: {
+    fontSize: 12,
+    color: C.goldLight,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 1,
   },
   greeting: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: C.text,
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'rgba(255, 248, 240, 0.9)',
+  },
+  greetingName: {
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   subGreeting: {
-    fontSize: 12,
-    color: C.textMuted,
-    marginTop: 2,
+    fontSize: 11,
+    color: 'rgba(255, 248, 240, 0.75)',
+    fontWeight: '500',
+    marginTop: 1,
   },
-  locationRow: {
+  locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: C.cream,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    maxWidth: '100%',
   },
   locationText: {
-    flex: 1,
-    fontSize: 12,
-    color: C.textMuted,
-    fontWeight: '500',
+    flexShrink: 1,
+    fontSize: 11,
+    color: C.maroon,
+    fontWeight: '700',
+    maxWidth: 140,
+  },
+  headerDividerWrap: {
+    marginTop: 14,
+    opacity: 0.7,
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
+    marginLeft: 8,
   },
-  iconBtn: {
-    padding: 6,
+  headerActionBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: C.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: C.borderGold,
     position: 'relative',
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -2,
+    right: -2,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     backgroundColor: C.danger,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: C.cream,
   },
   badgeText: {
     color: '#fff',
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   walletBadge: {
     position: 'absolute',
-    top: 0,
-    right: -2,
-    maxWidth: 44,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    top: -4,
+    right: -6,
+    maxWidth: 48,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#ECFDF5',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#86EFAC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   walletBadgeText: {
-    color: '#1D4ED8',
+    color: C.success,
     fontSize: 8,
     fontWeight: '800',
   },
