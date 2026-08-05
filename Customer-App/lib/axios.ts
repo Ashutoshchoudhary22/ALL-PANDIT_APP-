@@ -2,12 +2,13 @@ import axios from 'axios';
 
 import { API_BASE_URL } from '@/constants/api';
 
-let authTokenGetter: (() => string | null) | null = null;
+let cachedAuthToken: string | null = null;
 let unauthorizedHandler: (() => Promise<void>) | null = null;
 let isHandlingUnauthorized = false;
 
-export function setAuthTokenGetter(getter: () => string | null) {
-  authTokenGetter = getter;
+/** Keep token in sync immediately — avoids race where API calls fire before useEffect runs. */
+export function syncAuthToken(token: string | null) {
+  cachedAuthToken = token;
 }
 
 export function setUnauthorizedHandler(handler: (() => Promise<void>) | null) {
@@ -23,9 +24,8 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = authTokenGetter?.();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (cachedAuthToken) {
+    config.headers.Authorization = `Bearer ${cachedAuthToken}`;
   }
   return config;
 });
@@ -34,7 +34,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error.response?.status;
-    const hadAuth = Boolean(authTokenGetter?.());
+    const hadAuth = Boolean(cachedAuthToken);
     const url = error.config?.url || '';
     const isAuthAttempt = /\/api\/auth\/(login|signup|verify-otp|forgot-password|reset-password)/.test(
       url,

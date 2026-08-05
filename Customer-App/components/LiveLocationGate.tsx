@@ -41,13 +41,13 @@ async function getPermissionWithTimeout(timeoutMs = 5000) {
 export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
   const insets = useSafeAreaInsets();
   const { token, user, isLoading, signOut } = useAuth();
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(false);
   const [granted, setGranted] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
   const shouldEnforce = Platform.OS !== 'web' && Boolean(token && user?.role === role);
   const canUseApp = !shouldEnforce || granted;
-  const showLoadingOverlay = shouldEnforce && (isLoading || checking);
+  const showLoadingOverlay = shouldEnforce && isLoading;
 
   const refreshPermission = useCallback(
     async (silent = false) => {

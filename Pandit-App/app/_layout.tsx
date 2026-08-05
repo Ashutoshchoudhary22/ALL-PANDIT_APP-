@@ -31,30 +31,30 @@ export default function RootLayout() {
       <QueryProvider>
         <AuthProvider>
           <NotificationsProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <AuthSessionHandler />
               <RoleGuard />
               <AuthBootstrap />
               <SplashController />
-          <LiveLocationGate role="pandit">
-            <LiveLocationTracker />
-            <BookingNotificationListener />
-            <Stack initialRouteName="(tabs)">
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="notifications" options={{ headerShown: false }} />
-              <Stack.Screen name="booking-requests" options={{ headerShown: false }} />
-              <Stack.Screen name="reviews" options={{ headerShown: false }} />
-              <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-              <Stack.Screen name="sign-up" options={{ headerShown: false }} />
-              <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
-              <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-              <Stack.Screen name="create-profile" options={{ headerShown: false }} />
-              <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            </Stack>
-          </LiveLocationGate>
-          <StatusBar style="auto" />
-          </ThemeProvider>
+              <LiveLocationGate role="pandit">
+                <LiveLocationTracker />
+                <BookingNotificationListener />
+                <Stack initialRouteName="(tabs)">
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="notifications" options={{ headerShown: false }} />
+                  <Stack.Screen name="booking-requests" options={{ headerShown: false }} />
+                  <Stack.Screen name="reviews" options={{ headerShown: false }} />
+                  <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                  <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+                  <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
+                  <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+                  <Stack.Screen name="create-profile" options={{ headerShown: false }} />
+                  <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                </Stack>
+              </LiveLocationGate>
+              <StatusBar style="auto" />
+            </ThemeProvider>
           </NotificationsProvider>
         </AuthProvider>
       </QueryProvider>

@@ -7,7 +7,7 @@ import {
   getAuthUser,
   saveAuthSession,
 } from '@/lib/auth-storage';
-import { setAuthTokenGetter, setUnauthorizedHandler } from '@/lib/axios';
+import { apiClient, setUnauthorizedHandler, syncAuthToken } from '@/lib/axios';
 import { AuthUser } from '@/services/auth.api';
 
 type AuthContextValue = {
@@ -27,15 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const signOut = useCallback(async () => {
+    syncAuthToken(null);
     await clearAuthSession();
     setToken(null);
     setUser(null);
     queryClient.clear();
   }, [queryClient]);
-
-  useEffect(() => {
-    setAuthTokenGetter(() => token);
-  }, [token]);
 
   useEffect(() => {
     setUnauthorizedHandler(async () => {
@@ -46,15 +43,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [signOut]);
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const timeout = setTimeout(() => {
+        if (!cancelled) setIsLoading(false);
+      }, 8000);
+
       try {
         const [storedToken, storedUser] = await Promise.all([getAuthToken(), getAuthUser()]);
+        syncAuthToken(storedToken);
         setToken(storedToken);
-        setUser(storedUser);
+
+        if (storedUser) {
+          setUser(storedUser);
+          return;
+        }
+
+        if (storedToken) {
+          try {
+            const { data } = await apiClient.get<{ success: boolean; data?: { user: AuthUser } }>(
+              '/api/auth/me',
+            );
+            if (data.data?.user) {
+              await saveAuthSession(storedToken, data.data.user);
+              setUser(data.data.user);
+            } else {
+              syncAuthToken(null);
+              await clearAuthSession();
+              setToken(null);
+            }
+          } catch {
+            syncAuthToken(null);
+            await clearAuthSession();
+            setToken(null);
+          }
+        }
       } finally {
-        setIsLoading(false);
+        clearTimeout(timeout);
+        if (!cancelled) setIsLoading(false);
       }
-    })();
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -63,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isLoading,
       signIn: async (nextToken, nextUser) => {
+        syncAuthToken(nextToken);
         await saveAuthSession(nextToken, nextUser);
         setToken(nextToken);
         setUser(nextUser);

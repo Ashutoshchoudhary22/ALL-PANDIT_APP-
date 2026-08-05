@@ -11,7 +11,7 @@ function isOnboardingPath(pathname: string) {
 }
 
 export function AuthBootstrap() {
-  const { token, user, isLoading, signOut } = useAuth();
+  const { token, user, isLoading } = useAuth();
   const pathname = usePathname();
   const rootNavigationState = useRootNavigationState();
   const hasBootstrapped = useRef(false);
@@ -26,11 +26,6 @@ export function AuthBootstrap() {
       return;
     }
 
-    if (token && !user) {
-      void signOut();
-      return;
-    }
-
     if (token) {
       goToDashboard();
       return;
@@ -39,7 +34,7 @@ export function AuthBootstrap() {
     if (!isOnboardingPath(pathname)) {
       goToGetStarted();
     }
-  }, [isLoading, token, user, signOut, rootNavigationState?.key]);
+  }, [isLoading, token, user, rootNavigationState?.key]);
 
   return null;
 }

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useAdminDashboardStatsQuery } from '@/hooks/use-admin-stats';
 import { useAdminDrawer } from '@/providers/AdminDrawerProvider';
+import { useAuth } from '@/providers/AuthProvider';
 
 type StatCardProps = {
   label: string;
@@ -357,7 +358,8 @@ export function SuperAdminDashboard({
 }: SuperAdminDashboardProps) {
   const insets = useSafeAreaInsets();
   const { openDrawer } = useAdminDrawer();
-  const statsQuery = useAdminDashboardStatsQuery();
+  const { token } = useAuth();
+  const statsQuery = useAdminDashboardStatsQuery(Boolean(token));
   const stats = statsQuery.data?.data;
   const statsLoading = statsQuery.isLoading;
 
