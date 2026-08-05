@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
@@ -13,17 +14,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PanditProfileCard } from '@/components/PanditProfileCard';
 import { PanditFiltersButton } from '@/components/PanditFiltersButton';
-import { HomeColors as C } from '@/constants/home-theme';
+import { PanditProfileCard } from '@/components/PanditProfileCard';
+import { LotusDivider } from '@/components/ui/LotusDivider';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
 import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
 import { useApprovedPanditsQuery } from '@/hooks/use-approved-pandits';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
+import { openBookPandit } from '@/lib/pandit-navigation';
 import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { PublicPanditProfile } from '@/services/pandit-profile.api';
-
-import { openBookPandit } from '@/lib/pandit-navigation';
 
 function openPanditDetail(pandit: PublicPanditProfile) {
   router.push(`/pandit/${pandit.id}`);
@@ -57,35 +59,57 @@ export function NearbyPanditsScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={C.text} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{serviceName ?? 'Nearby Pandits'}</Text>
-          <Text style={styles.subtitle}>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight, C.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 10 }]}
+      >
+        <View style={styles.headerTopRow}>
+          <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
+            <Ionicons name="arrow-back" size={20} color={C.maroon} />
+          </Pressable>
+          <PanditFiltersButton compact light />
+        </View>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerOm}>ॐ</Text>
+          <Text style={styles.headerTitle}>{serviceName ?? 'Nearby Pandits'}</Text>
+          <Text style={styles.headerSubtitle}>
             {serviceName
-              ? `Pandits offering ${serviceName}`
-              : 'Verified pandits available for booking'}
+              ? `Verified pandits offering ${serviceName}`
+              : 'Book verified pandits near you'}
           </Text>
         </View>
-        <PanditFiltersButton compact />
-      </View>
+        <View style={styles.headerDividerWrap}>
+          <LotusDivider color={C.goldLight} width={180} />
+        </View>
+      </LinearGradient>
 
       {panditsQuery.isLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={styles.centerText}>Loading pandits...</Text>
+          <Text style={styles.centerText}>{Brand.greeting}... finding pandits</Text>
         </View>
       ) : panditsQuery.isError ? (
         <View style={styles.centerState}>
-          <Ionicons name="alert-circle-outline" size={40} color={C.danger} />
-          <Text style={styles.centerText}>Could not load pandits.</Text>
-          <Pressable style={styles.retryBtn} onPress={() => panditsQuery.refetch()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
+          <PremiumCard accent="maroon" innerStyle={styles.errorCardInner}>
+            <View style={styles.errorContent}>
+              <Ionicons name="alert-circle-outline" size={32} color={C.danger} />
+              <Text style={styles.errorTitle}>Could not load pandits</Text>
+              <Pressable style={styles.retryBtnWrap} onPress={() => panditsQuery.refetch()}>
+                <LinearGradient
+                  colors={[C.maroon, C.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.retryBtn}
+                >
+                  <Text style={styles.retryText}>Retry</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </PremiumCard>
         </View>
       ) : (
         <FlatList
@@ -110,26 +134,36 @@ export function NearbyPanditsScreen() {
           ]}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={
-            <RefreshControl refreshing={panditsQuery.isRefetching} onRefresh={() => panditsQuery.refetch()} />
+            <RefreshControl
+              refreshing={panditsQuery.isRefetching}
+              onRefresh={() => panditsQuery.refetch()}
+              tintColor={C.primary}
+              colors={[C.primary]}
+            />
           }
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="person-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>
-                {activeCount > 0
-                  ? 'No pandits match your filters'
-                  : serviceName
-                    ? 'No pandits for this service'
-                    : 'No verified pandits yet'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {activeCount > 0
-                  ? 'Try changing or clearing your filters to see more pandits.'
-                  : serviceName
-                    ? `No approved pandits have added ${serviceName} to their profile yet.`
-                    : 'Approved pandits will appear here once Super Admin verifies their profiles.'}
-              </Text>
-            </View>
+            <PremiumCard accent="gold" innerStyle={styles.emptyCardInner}>
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="person-outline" size={36} color={C.maroon} />
+                </View>
+                <Text style={styles.emptyOm}>ॐ</Text>
+                <Text style={styles.emptyTitle}>
+                  {activeCount > 0
+                    ? 'No pandits match your filters'
+                    : serviceName
+                      ? 'No pandits for this service'
+                      : 'No verified pandits yet'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {activeCount > 0
+                    ? 'Try changing or clearing your filters to see more pandits.'
+                    : serviceName
+                      ? `No approved pandits have added ${serviceName} to their profile yet.`
+                      : 'Approved pandits will appear here once Super Admin verifies their profiles.'}
+                </Text>
+              </View>
+            </PremiumCard>
           }
         />
       )}
@@ -138,90 +172,75 @@ export function NearbyPanditsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: C.background,
-  },
+  root: { flex: 1, backgroundColor: C.background },
   header: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    backgroundColor: C.card,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.background,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
-  headerText: {
-    flex: 1,
+  headerContent: { paddingHorizontal: 2 },
+  headerOm: { fontSize: 14, color: C.goldLight, fontWeight: '600', marginBottom: 2 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    color: 'rgba(255,248,240,0.85)',
+    fontWeight: '500',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: C.text,
-  },
-  subtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: C.textMuted,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  emptyList: {
-    flexGrow: 1,
-  },
-  separator: {
-    height: 12,
-  },
-  centerState: {
-    flex: 1,
+  headerDividerWrap: { alignItems: 'center', marginTop: 12 },
+  listContent: { paddingHorizontal: 16, paddingTop: 16 },
+  emptyList: { flexGrow: 1 },
+  separator: { height: 12 },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  centerText: { fontSize: 14, color: C.textMuted, fontWeight: '500' },
+  errorCardInner: { padding: 24 },
+  errorContent: { alignItems: 'center', gap: 12 },
+  errorTitle: { fontSize: 16, fontWeight: '800', color: C.maroon },
+  retryBtnWrap: { marginTop: 4, borderRadius: 12, overflow: 'hidden' },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 12 },
+  retryText: { color: '#fff', fontWeight: '800' },
+  emptyCardInner: { padding: 28 },
+  emptyWrap: { alignItems: 'center', gap: 6 },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: C.creamDark,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    marginBottom: 4,
   },
-  centerText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: C.textMuted,
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: C.primary,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: '700',
-    color: C.text,
-  },
+  emptyOm: { fontSize: 20, color: C.gold, fontWeight: '600' },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.maroon, textAlign: 'center' },
   emptySubtitle: {
-    marginTop: 8,
     fontSize: 14,
     lineHeight: 21,
     color: C.textMuted,
     textAlign: 'center',
+    paddingHorizontal: 8,
   },
 });

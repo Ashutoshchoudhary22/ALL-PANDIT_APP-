@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
@@ -14,7 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PanditProfileCard } from '@/components/PanditProfileCard';
-import { HomeColors as C } from '@/constants/home-theme';
+import { LotusDivider } from '@/components/ui/LotusDivider';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { Brand, HomeColors as C } from '@/constants/home-theme';
 import { openBookPandit } from '@/lib/pandit-navigation';
 import {
   backFromProfileLinkedScreen,
@@ -49,21 +52,38 @@ export function SavedPanditsScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.backBtn} onPress={handleBack} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={C.text} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Saved Pandits</Text>
-          <Text style={styles.subtitle}>Pandits you bookmarked for quick booking</Text>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight, C.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 10 }]}
+      >
+        <View style={styles.headerTopRow}>
+          <Pressable style={styles.backBtn} onPress={handleBack} hitSlop={8}>
+            <Ionicons name="arrow-back" size={20} color={C.maroon} />
+          </Pressable>
+          <View style={styles.headerBadge}>
+            <Ionicons name="bookmark" size={18} color={C.maroon} />
+            <Text style={styles.headerBadgeCount}>{savedPandits.length}</Text>
+            <Text style={styles.headerBadgeLabel}>Saved</Text>
+          </View>
         </View>
-      </View>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerOm}>ॐ</Text>
+          <Text style={styles.headerTitle}>Saved Pandits</Text>
+          <Text style={styles.headerSubtitle}>Your bookmarked pandits for quick booking</Text>
+        </View>
+        <View style={styles.headerDividerWrap}>
+          <LotusDivider color={C.goldLight} width={180} />
+        </View>
+      </LinearGradient>
 
       {isLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={C.primary} />
+          <Text style={styles.centerText}>{Brand.greeting}... loading saved pandits</Text>
         </View>
       ) : (
         <FlatList
@@ -85,19 +105,36 @@ export function SavedPanditsScreen() {
           ]}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={
-            <RefreshControl refreshing={false} onRefresh={() => refreshSavedPandits()} />
+            <RefreshControl
+              refreshing={false}
+              onRefresh={() => refreshSavedPandits()}
+              tintColor={C.primary}
+              colors={[C.primary]}
+            />
           }
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="bookmark-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>No saved pandits yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Tap the bookmark icon on any pandit card to save them here for quick access.
-              </Text>
-              <Pressable style={styles.browseBtn} onPress={() => router.push('/nearby-pandits')}>
-                <Text style={styles.browseBtnText}>Browse Pandits</Text>
-              </Pressable>
-            </View>
+            <PremiumCard accent="gold" innerStyle={styles.emptyCardInner}>
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="bookmark-outline" size={36} color={C.maroon} />
+                </View>
+                <Text style={styles.emptyOm}>ॐ</Text>
+                <Text style={styles.emptyTitle}>No saved pandits yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Tap the bookmark icon on any pandit card to save them here for quick access.
+                </Text>
+                <Pressable style={styles.browseBtnWrap} onPress={() => router.push('/nearby-pandits')}>
+                  <LinearGradient
+                    colors={[C.maroon, C.primary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.browseBtn}
+                  >
+                    <Text style={styles.browseBtnText}>Browse Pandits</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            </PremiumCard>
           }
         />
       )}
@@ -108,50 +145,88 @@ export function SavedPanditsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
   header: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    backgroundColor: C.card,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.background,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
-  headerText: { flex: 1 },
-  title: { fontSize: 18, fontWeight: '800', color: C.text },
-  subtitle: { marginTop: 2, fontSize: 12, color: C.textMuted },
+  headerContent: { paddingHorizontal: 2 },
+  headerOm: { fontSize: 14, color: C.goldLight, fontWeight: '600', marginBottom: 2 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    color: 'rgba(255,248,240,0.85)',
+    fontWeight: '500',
+  },
+  headerBadge: {
+    alignItems: 'center',
+    backgroundColor: C.cream,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    minWidth: 72,
+  },
+  headerBadgeCount: { marginTop: 2, fontSize: 18, fontWeight: '800', color: C.maroon },
+  headerBadgeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  headerDividerWrap: { alignItems: 'center', marginTop: 12 },
   listContent: { paddingHorizontal: 16, paddingTop: 16 },
   emptyList: { flexGrow: 1 },
   separator: { height: 12 },
-  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyWrap: {
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  centerText: { fontSize: 14, color: C.textMuted, fontWeight: '500' },
+  emptyCardInner: { padding: 28 },
+  emptyWrap: { alignItems: 'center', gap: 6 },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: C.creamDark,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    marginBottom: 4,
   },
-  emptyTitle: { marginTop: 16, fontSize: 18, fontWeight: '700', color: C.text },
+  emptyOm: { fontSize: 20, color: C.gold, fontWeight: '600' },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.maroon, textAlign: 'center' },
   emptySubtitle: {
-    marginTop: 8,
     fontSize: 14,
     lineHeight: 21,
     color: C.textMuted,
     textAlign: 'center',
+    paddingHorizontal: 8,
   },
-  browseBtn: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: C.primary,
-  },
-  browseBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  browseBtnWrap: { marginTop: 16, borderRadius: 14, overflow: 'hidden', width: '100%' },
+  browseBtn: { paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },
+  browseBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

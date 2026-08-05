@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
@@ -17,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DatePickerField } from '@/components/DatePickerField';
 import { ImageUploadField } from '@/components/ImageUploadField';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useCreateCustomerProfileMutation } from '@/hooks/use-customer-profile';
 import { goToProfile } from '@/lib/auth-navigation';
@@ -135,15 +137,23 @@ export function CreateCustomerProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      >
         <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={C.text} />
+          <Ionicons name="arrow-back" size={20} color={C.maroon} />
         </Pressable>
-        <Text style={styles.headerTitle}>Create Profile</Text>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerOm}>ॐ</Text>
+          <Text style={styles.headerTitle}>Create Profile</Text>
+        </View>
         <View style={styles.headerSpacer} />
-      </View>
+      </LinearGradient>
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -158,6 +168,7 @@ export function CreateCustomerProfileScreen() {
             Tell us a bit about yourself so pandits and our team can personalize your experience.
           </Text>
 
+          <PremiumCard accent="gold" innerStyle={styles.cardInner}>
           <View style={styles.card}>
             <ImageUploadField
               label="Profile Photo"
@@ -217,17 +228,25 @@ export function CreateCustomerProfileScreen() {
             />
             <Text style={styles.addressHint}>Address can only be set using your current location.</Text>
           </View>
+          </PremiumCard>
 
           <Pressable
-            style={[styles.submitBtn, isBusy && styles.submitBtnDisabled]}
+            style={[styles.submitBtnWrap, isBusy && styles.submitBtnDisabledWrap]}
             onPress={handleSubmit}
             disabled={isBusy}
           >
-            {isBusy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitBtnText}>Create Profile</Text>
-            )}
+            <LinearGradient
+              colors={[C.maroon, C.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.submitBtn}
+            >
+              {isBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>Create Profile</Text>
+              )}
+            </LinearGradient>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -267,43 +286,37 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFDF8' },
+  root: { flex: 1, backgroundColor: C.background },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFFDF8',
+    paddingBottom: 14,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: C.cream,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: C.borderGold,
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: C.text },
-  headerSpacer: { width: 36 },
-  content: { paddingHorizontal: 16, paddingTop: 8 },
+  headerTextWrap: { flex: 1, alignItems: 'center' },
+  headerOm: { fontSize: 12, color: C.goldLight, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  headerSpacer: { width: 38 },
+  content: { paddingHorizontal: 16, paddingTop: 16 },
   intro: { fontSize: 14, lineHeight: 21, color: C.textMuted, marginBottom: 8 },
+  cardInner: { padding: 0 },
   card: {
-    marginTop: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    marginTop: 8,
     padding: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
   fieldWrap: { marginTop: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: C.maroon, marginBottom: 8 },
   addressLabelRow: {
     marginTop: 14,
     flexDirection: 'row',
@@ -317,9 +330,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#FFF5EC',
+    backgroundColor: C.creamDark,
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: C.borderGold,
   },
   locationBtnDisabled: { opacity: 0.7 },
   locationBtnText: { fontSize: 11, fontWeight: '700', color: C.primary },
@@ -353,16 +366,14 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     backgroundColor: '#FAFAFA',
   },
-  genderChipActive: { backgroundColor: '#FFF5EC', borderColor: C.primary },
+  genderChipActive: { backgroundColor: C.creamDark, borderColor: C.primary },
   genderChipText: { fontSize: 13, fontWeight: '600', color: C.textMuted },
   genderChipTextActive: { color: C.primary },
+  submitBtnWrap: { marginTop: 24, borderRadius: 14, overflow: 'hidden' },
+  submitBtnDisabledWrap: { opacity: 0.7 },
   submitBtn: {
-    marginTop: 24,
-    backgroundColor: C.primary,
-    borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  submitBtnDisabled: { opacity: 0.7 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

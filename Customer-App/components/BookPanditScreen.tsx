@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudImage } from '@/components/CloudImage';
 import { DatePickerField, getTodayIsoDate } from '@/components/DatePickerField';
 import { TimePickerField } from '@/components/TimePickerField';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useCreateBookingMutation } from '@/hooks/use-bookings';
@@ -221,15 +223,23 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient
+        colors={[C.maroon, C.maroonLight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      >
         <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={C.text} />
+          <Ionicons name="arrow-back" size={20} color={C.maroon} />
         </Pressable>
-        <Text style={styles.headerTitle}>Book Pandit</Text>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerOm}>ॐ</Text>
+          <Text style={styles.headerTitle}>Book Pandit</Text>
+        </View>
         <View style={styles.headerSpacer} />
-      </View>
+      </LinearGradient>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -237,17 +247,20 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
         >
-          <View style={styles.panditCard}>
-            <CloudImage source={imageSource} preset="avatar" style={styles.avatar} />
-            <View style={styles.panditInfo}>
-              <Text style={styles.panditName}>{pandit.name}</Text>
-              <Text style={styles.panditMeta}>
-                {pandit.rating.toFixed(1)} ★ • {pandit.experienceYears}+ yrs
-              </Text>
+          <PremiumCard accent="gold" innerStyle={styles.panditCardInner}>
+            <View style={styles.panditCard}>
+              <CloudImage source={imageSource} preset="avatar" style={styles.avatar} />
+              <View style={styles.panditInfo}>
+                <Text style={styles.panditName}>{pandit.name}</Text>
+                <Text style={styles.panditMeta}>
+                  {pandit.rating.toFixed(1)} ★ • {pandit.experienceYears}+ yrs
+                </Text>
+              </View>
             </View>
-          </View>
+          </PremiumCard>
 
           <Text style={styles.sectionTitle}>Puja Service *</Text>
+          <PremiumCard accent="saffron" innerStyle={styles.cardInner}>
           <View style={styles.card}>
             <View style={styles.chipRow}>
               {pandit.pujaServices.map((service) => {
@@ -267,8 +280,10 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               })}
             </View>
           </View>
+          </PremiumCard>
 
           <Text style={styles.sectionTitle}>Booking Details</Text>
+          <PremiumCard accent="maroon" innerStyle={styles.cardInner}>
           <View style={styles.card}>
             <DatePickerField
               label="Select Date *"
@@ -276,12 +291,6 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               onChange={setBookingDate}
               placeholder="Select booking date"
               mode="future"
-            />
-            <TimePickerField
-              label="Select Time *"
-              value={bookingTime}
-              onChange={setBookingTime}
-              placeholder="Select booking time"
             />
             <TimePickerField
               label="Select Time *"
@@ -367,8 +376,10 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               multiline
             />
           </View>
+          </PremiumCard>
 
           <Text style={styles.sectionTitle}>Samagri Required?</Text>
+          <PremiumCard accent="gold" innerStyle={styles.cardInner}>
           <View style={styles.card}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
@@ -385,8 +396,10 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               />
             </View>
           </View>
+          </PremiumCard>
 
           <Text style={styles.sectionTitle}>Price Calculation</Text>
+          <PremiumCard accent="saffron" innerStyle={styles.priceCardInner}>
           <View style={styles.priceCard}>
             <PriceRow label="Service Price" value={formatINR(pricing.basePrice)} />
             <PriceRow
@@ -403,7 +416,9 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
             <View style={styles.divider} />
             <PriceRow label="Total Amount" value={formatINR(pricing.totalPrice)} />
           </View>
+          </PremiumCard>
 
+          <PremiumCard accent="maroon" innerStyle={styles.walletCardInner}>
           <View style={styles.walletInfoCard}>
             <View style={styles.walletInfoTop}>
               <Ionicons name="wallet-outline" size={20} color={C.primary} />
@@ -424,23 +439,31 @@ export function BookPanditScreen({ panditProfileId, initialServiceName }: BookPa
               </Text>
             ) : null}
           </View>
+          </PremiumCard>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Pressable
-          style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+          style={[styles.submitBtnWrap, isSubmitting && styles.submitBtnDisabledWrap]}
           onPress={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="send-outline" size={20} color="#fff" />
-              <Text style={styles.submitText}>Send Booking Request</Text>
-            </>
-          )}
+          <LinearGradient
+            colors={[C.maroon, C.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.submitBtn}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="send-outline" size={20} color="#fff" />
+                <Text style={styles.submitText}>Send Booking Request</Text>
+              </>
+            )}
+          </LinearGradient>
         </Pressable>
       </View>
     </View>
@@ -501,43 +524,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: C.card,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    paddingBottom: 14,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.background,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: C.text },
-  headerSpacer: { width: 40 },
+  headerTextWrap: { flex: 1, alignItems: 'center' },
+  headerOm: { fontSize: 12, color: C.goldLight, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  headerSpacer: { width: 38 },
   content: { padding: 16 },
+  panditCardInner: { padding: 0 },
   panditCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
   },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.border },
+  cardInner: { padding: 0 },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.border, borderWidth: 2, borderColor: C.gold },
   panditInfo: { flex: 1 },
-  panditName: { fontSize: 16, fontWeight: '800', color: C.text },
-  panditMeta: { marginTop: 4, fontSize: 13, color: C.textMuted },
-  sectionTitle: { marginTop: 20, marginBottom: 10, fontSize: 16, fontWeight: '800', color: C.text },
+  panditName: { fontSize: 16, fontWeight: '800', color: C.maroon },
+  panditMeta: { marginTop: 4, fontSize: 13, color: C.textMuted, fontWeight: '600' },
+  sectionTitle: { marginTop: 20, marginBottom: 10, fontSize: 16, fontWeight: '800', color: C.maroon },
   card: {
-    backgroundColor: C.card,
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
@@ -549,12 +567,12 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     backgroundColor: '#FAFAFA',
   },
-  chipActive: { backgroundColor: '#FFF7ED', borderColor: C.primary },
+  chipActive: { backgroundColor: C.creamDark, borderColor: C.primary },
   chipText: { fontSize: 12, fontWeight: '700', color: C.textMuted },
   chipPrice: { marginTop: 4, fontSize: 12, fontWeight: '800', color: C.text },
   chipTextActive: { color: C.primary },
   fieldWrap: { marginTop: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: C.maroon, marginBottom: 8 },
   input: {
     borderWidth: 1,
     borderColor: C.border,
@@ -589,7 +607,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   addressSelectBtnActive: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: C.creamDark,
     borderColor: C.primary,
   },
   addressSelectBtnDisabled: {
@@ -617,14 +635,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   toggleTextWrap: { flex: 1 },
-  toggleLabel: { fontSize: 14, fontWeight: '700', color: C.text },
+  toggleLabel: { fontSize: 14, fontWeight: '700', color: C.maroon },
   toggleHint: { marginTop: 4, fontSize: 12, color: C.textMuted, lineHeight: 18 },
+  priceCardInner: { padding: 0 },
   priceCard: {
-    backgroundColor: C.card,
-    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: C.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -636,14 +651,11 @@ const styles = StyleSheet.create({
   priceLabelBold: { color: C.text, fontWeight: '800', fontSize: 15 },
   priceValue: { fontSize: 14, fontWeight: '700', color: C.text },
   priceValueBold: { fontSize: 18, fontWeight: '800', color: C.primary },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 6 },
+  divider: { height: 1, backgroundColor: 'rgba(212, 160, 23, 0.2)', marginVertical: 6 },
+  walletCardInner: { padding: 0 },
   walletInfoCard: {
-    marginTop: 16,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
   },
   walletInfoTop: {
     flexDirection: 'row',
@@ -684,19 +696,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: C.card,
+    backgroundColor: C.cream,
     borderTopWidth: 1,
-    borderTopColor: C.border,
+    borderTopColor: C.borderGold,
   },
+  submitBtnWrap: { borderRadius: 14, overflow: 'hidden' },
+  submitBtnDisabledWrap: { opacity: 0.7 },
   submitBtn: {
     height: 52,
-    borderRadius: 14,
-    backgroundColor: C.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  submitBtnDisabled: { opacity: 0.7 },
   submitText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });

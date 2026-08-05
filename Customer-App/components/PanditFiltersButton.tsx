@@ -6,15 +6,20 @@ import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 
 type PanditFiltersButtonProps = {
   compact?: boolean;
+  light?: boolean;
 };
 
-export function PanditFiltersButton({ compact = false }: PanditFiltersButtonProps) {
+export function PanditFiltersButton({ compact = false, light = false }: PanditFiltersButtonProps) {
   const { openFilters, activeCount } = usePanditFilters();
 
   if (compact) {
     return (
-      <Pressable style={styles.iconBtn} onPress={openFilters} hitSlop={8}>
-        <Ionicons name="options-outline" size={22} color={C.primary} />
+      <Pressable
+        style={[styles.iconBtn, light && styles.iconBtnLight]}
+        onPress={openFilters}
+        hitSlop={8}
+      >
+        <Ionicons name="options-outline" size={20} color={light ? C.maroon : C.primary} />
         {activeCount > 0 ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{activeCount}</Text>
@@ -69,12 +74,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: C.background,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconBtnLight: {
+    backgroundColor: C.cream,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   badge: {
     position: 'absolute',
