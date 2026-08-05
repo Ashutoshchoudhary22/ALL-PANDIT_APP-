@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "SuperAdmin",
+    "name": "ApnaAcharya Admin",
     "slug": "SuperAdmin",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/logo.png",
     "scheme": "superadmin",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,13 +13,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFF8F0",
+        "foregroundImage": "./assets/logo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.addminn.SuperAdmin"
     },
     "web": {
       "output": "static",
@@ -43,6 +42,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "db038e5e-5ff4-43a6-b8c8-c72fe8857ebb"
+      }
+    },
+    "owner": "addminn"
   }
 }
