@@ -820,9 +820,6 @@ export function CustomerProfileScreen() {
               ) : null}
             </View>
           </Pressable>
-          <Pressable onPress={() => comingSoon('Settings')} hitSlop={8}>
-            <Ionicons name="settings-outline" size={22} color="#fff" />
-          </Pressable>
         </View>
       </LinearGradient>
 
