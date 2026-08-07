@@ -48,3 +48,7 @@ coverage/
 # Misc
 *.pem
 .cache/
+
+# # Firebase / Google secrets (never commit service account keys)
+# Backend/firebase-service-account.json
+# **/firebase-service-account.json

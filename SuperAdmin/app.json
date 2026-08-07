@@ -16,8 +16,12 @@
         "backgroundColor": "#FFF8F0",
         "foregroundImage": "./assets/logo.png"
       },
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "package": "com.addminn.SuperAdmin"
     },
     "web": {
@@ -36,6 +40,14 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#FFF8F0",
+          "defaultChannel": "admin-alerts"
         }
       ]
     ],

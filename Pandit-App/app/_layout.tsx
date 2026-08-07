@@ -9,6 +9,7 @@ import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
 import { RoleGuard } from '@/components/RoleGuard';
 import { BookingNotificationListener } from '@/components/BookingNotificationListener';
+import { PushNotificationHandler } from '@/components/PushNotificationHandler';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { SplashController } from '@/components/SplashController';
@@ -39,6 +40,7 @@ export default function RootLayout() {
               <LiveLocationGate role="pandit">
                 <LiveLocationTracker />
                 <BookingNotificationListener />
+                <PushNotificationHandler />
                 <Stack initialRouteName="(tabs)">
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="notifications" options={{ headerShown: false }} />

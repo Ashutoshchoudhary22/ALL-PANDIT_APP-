@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 const { ADVANCE_RATE } = require('./razorpayService');
-const { sendPushToUser } = require('./pushNotifications');
+const { sendPushToUser, sendPushToAdmins } = require('./pushNotifications');
 
 function formatPanditBookingNotification(row) {
   return {
@@ -48,8 +48,6 @@ async function fetchBookingNotificationRow(bookingId) {
 }
 
 async function notifyPanditNewBooking(io, bookingId) {
-  if (!io) return null;
-
   const row = await fetchBookingNotificationRow(bookingId);
   if (!row?.pandit_user_id) return null;
 
@@ -60,7 +58,32 @@ async function notifyPanditNewBooking(io, bookingId) {
     booking: formatPanditBookingNotification(row),
   };
 
-  io.to(`pandit:${row.pandit_user_id}`).emit('booking:new', payload);
+  if (io) {
+    io.to(`pandit:${row.pandit_user_id}`).emit('booking:new', payload);
+  }
+
+  await sendPushToUser(row.pandit_user_id, 'pandit', {
+    title: payload.title,
+    body: payload.message,
+    data: {
+      type: payload.type,
+      bookingId: String(row.id),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+
+  await sendPushToAdmins({
+    title: 'New Booking',
+    body: `${row.customer_name || 'A customer'} booked ${row.service_name}.`,
+    data: {
+      type: 'admin:booking:new',
+      bookingId: String(row.id),
+      title: 'New Booking',
+      message: `${row.customer_name || 'A customer'} booked ${row.service_name}.`,
+    },
+  });
+
   return payload;
 }
 
@@ -129,6 +152,18 @@ async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
   };
 
   io.to(`pandit:${row.pandit_user_id}`).emit('booking:confirmed', payload);
+
+  await sendPushToUser(row.pandit_user_id, 'pandit', {
+    title: payload.title,
+    body: payload.message,
+    data: {
+      type: payload.type,
+      bookingId: String(row.id),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+
   return payload;
 }
 

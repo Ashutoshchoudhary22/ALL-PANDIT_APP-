@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
+import { PushNotificationHandler } from '@/components/PushNotificationHandler';
 import { SplashController } from '@/components/SplashController';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AdminDrawerProvider } from '@/providers/AdminDrawerProvider';
@@ -29,6 +30,7 @@ export default function RootLayout() {
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <AuthBootstrap />
               <SplashController />
+              <PushNotificationHandler />
               <Stack initialRouteName="(tabs)">
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="pandit-profiles" options={{ headerShown: false }} />

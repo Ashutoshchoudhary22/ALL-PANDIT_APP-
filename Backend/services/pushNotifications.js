@@ -2,11 +2,57 @@ const pool = require('../config/db');
 const { getMessaging } = require('../config/firebase');
 
 const BOOKING_CHANNEL_ID = 'bookings';
+const ADMIN_CHANNEL_ID = 'admin-alerts';
 
 function normalizeData(data = {}) {
   return Object.fromEntries(
     Object.entries(data).map(([key, value]) => [key, value == null ? '' : String(value)]),
   );
+}
+
+async function sendPushToTokens(tokens, { title, body, data = {}, channelId = BOOKING_CHANNEL_ID }) {
+  const messaging = getMessaging();
+  if (!messaging || !tokens.length) return { sent: 0, failed: 0 };
+
+  const payload = {
+    tokens,
+    notification: {
+      title,
+      body,
+    },
+    data: normalizeData(data),
+    android: {
+      priority: 'high',
+      notification: {
+        channelId,
+        sound: 'default',
+      },
+    },
+  };
+
+  const response = await messaging.sendEachForMulticast(payload);
+
+  const invalidTokens = [];
+  response.responses.forEach((item, index) => {
+    if (item.success) return;
+
+    const code = item.error?.code || '';
+    if (
+      code === 'messaging/registration-token-not-registered' ||
+      code === 'messaging/invalid-registration-token'
+    ) {
+      invalidTokens.push(tokens[index]);
+    }
+  });
+
+  if (invalidTokens.length) {
+    await pool.query('DELETE FROM device_push_tokens WHERE token IN (?)', [invalidTokens]);
+  }
+
+  return {
+    sent: response.successCount,
+    failed: response.failureCount,
+  };
 }
 
 async function getUserPushTokens(userId, role) {
@@ -22,53 +68,35 @@ async function getUserPushTokens(userId, role) {
 
 async function sendPushToUser(userId, role, { title, body, data = {} }) {
   try {
-    const messaging = getMessaging();
-    if (!messaging) return { sent: 0, failed: 0 };
-
     const tokens = await getUserPushTokens(userId, role);
-    if (!tokens.length) return { sent: 0, failed: 0 };
-
-    const payload = {
-      tokens,
-      notification: {
-        title,
-        body,
-      },
-      data: normalizeData(data),
-      android: {
-        priority: 'high',
-        notification: {
-          channelId: BOOKING_CHANNEL_ID,
-          sound: 'default',
-        },
-      },
-    };
-
-    const response = await messaging.sendEachForMulticast(payload);
-
-    const invalidTokens = [];
-    response.responses.forEach((item, index) => {
-      if (item.success) return;
-
-      const code = item.error?.code || '';
-      if (
-        code === 'messaging/registration-token-not-registered' ||
-        code === 'messaging/invalid-registration-token'
-      ) {
-        invalidTokens.push(tokens[index]);
-      }
-    });
-
-    if (invalidTokens.length) {
-      await pool.query('DELETE FROM device_push_tokens WHERE token IN (?)', [invalidTokens]);
-    }
-
-    return {
-      sent: response.successCount,
-      failed: response.failureCount,
-    };
+    return await sendPushToTokens(tokens, { title, body, data, channelId: BOOKING_CHANNEL_ID });
   } catch (error) {
     console.warn('sendPushToUser failed:', error.message);
+    return { sent: 0, failed: 0 };
+  }
+}
+
+async function getAdminPushTokens() {
+  const [rows] = await pool.query(
+    `SELECT token
+     FROM device_push_tokens
+     WHERE app_role IN ('admin', 'superadmin')`,
+  );
+
+  return rows.map((row) => row.token).filter(Boolean);
+}
+
+async function sendPushToAdmins({ title, body, data = {} }) {
+  try {
+    const tokens = await getAdminPushTokens();
+    return await sendPushToTokens(tokens, {
+      title,
+      body,
+      data,
+      channelId: ADMIN_CHANNEL_ID,
+    });
+  } catch (error) {
+    console.warn('sendPushToAdmins failed:', error.message);
     return { sent: 0, failed: 0 };
   }
 }
@@ -95,6 +123,7 @@ async function removePushToken(userId, token) {
 
 module.exports = {
   sendPushToUser,
+  sendPushToAdmins,
   upsertPushToken,
   removePushToken,
 };
