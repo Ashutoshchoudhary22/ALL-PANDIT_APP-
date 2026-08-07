@@ -267,6 +267,21 @@ async function initDb() {
       }
     }
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS device_push_tokens (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        app_role ENUM('customer','pandit','admin','superadmin') NOT NULL,
+        token VARCHAR(512) NOT NULL,
+        platform ENUM('android','ios','web') NOT NULL DEFAULT 'android',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_device_push_token (token),
+        INDEX idx_device_push_user_role (user_id, app_role),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('Database tables ready');
   } finally {
     connection.release();

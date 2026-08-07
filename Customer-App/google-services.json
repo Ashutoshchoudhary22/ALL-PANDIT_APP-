@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1054393109172",
+    "project_id": "panditbooking-72497",
+    "storage_bucket": "panditbooking-72497.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1054393109172:android:91ce77e2a47b8de96de5e1",
+        "android_client_info": {
+          "package_name": "com.addminn.CustomerApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxb4yT0j9FuEb42kKuCY71vNjhQii6Mto"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

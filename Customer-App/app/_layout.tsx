@@ -9,6 +9,7 @@ import { AuthBootstrap } from '@/components/AuthBootstrap';
 import { AuthSessionHandler } from '@/components/AuthSessionHandler';
 import { RoleGuard } from '@/components/RoleGuard';
 import { BookingApprovalListener } from '@/components/BookingApprovalListener';
+import { PushNotificationHandler } from '@/components/PushNotificationHandler';
 import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { LiveLocationTracker } from '@/components/LiveLocationTracker';
 import { PanditFiltersHost } from '@/components/PanditFiltersHost';
@@ -46,6 +47,7 @@ export default function RootLayout() {
               <LiveLocationGate role="customer">
                 <LiveLocationTracker />
                 <BookingApprovalListener />
+                <PushNotificationHandler />
                 <PanditFiltersHost />
                 <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

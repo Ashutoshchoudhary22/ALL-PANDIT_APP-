@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { ADVANCE_RATE } = require('./razorpayService');
+const { sendPushToUser } = require('./pushNotifications');
 
 function formatPanditBookingNotification(row) {
   return {
@@ -97,6 +98,18 @@ async function notifyCustomerBookingApproved(io, bookingId) {
   };
 
   io.to(`customer:${row.customer_id}`).emit('booking:approved', payload);
+
+  await sendPushToUser(row.customer_id, 'customer', {
+    title: payload.title,
+    body: payload.message,
+    data: {
+      type: payload.type,
+      bookingId: String(row.id),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+
   return payload;
 }
 
@@ -133,6 +146,18 @@ async function notifyCustomerFinishOtpSent(io, bookingId) {
   };
 
   io.to(`customer:${row.customer_id}`).emit('booking:finish_otp', payload);
+
+  await sendPushToUser(row.customer_id, 'customer', {
+    title: payload.title,
+    body: payload.message,
+    data: {
+      type: payload.type,
+      bookingId: String(row.id),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+
   return payload;
 }
 
@@ -150,6 +175,18 @@ async function notifyCustomerReviewRequest(io, bookingId) {
   };
 
   io.to(`customer:${row.customer_id}`).emit('booking:review_request', payload);
+
+  await sendPushToUser(row.customer_id, 'customer', {
+    title: payload.title,
+    body: payload.message,
+    data: {
+      type: payload.type,
+      bookingId: String(row.id),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+
   return payload;
 }
 

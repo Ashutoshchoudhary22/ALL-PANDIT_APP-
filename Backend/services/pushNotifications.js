@@ -1,0 +1,100 @@
+const pool = require('../config/db');
+const { getMessaging } = require('../config/firebase');
+
+const BOOKING_CHANNEL_ID = 'bookings';
+
+function normalizeData(data = {}) {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, value == null ? '' : String(value)]),
+  );
+}
+
+async function getUserPushTokens(userId, role) {
+  const [rows] = await pool.query(
+    `SELECT token
+     FROM device_push_tokens
+     WHERE user_id = ? AND app_role = ?`,
+    [userId, role],
+  );
+
+  return rows.map((row) => row.token).filter(Boolean);
+}
+
+async function sendPushToUser(userId, role, { title, body, data = {} }) {
+  try {
+    const messaging = getMessaging();
+    if (!messaging) return { sent: 0, failed: 0 };
+
+    const tokens = await getUserPushTokens(userId, role);
+    if (!tokens.length) return { sent: 0, failed: 0 };
+
+    const payload = {
+      tokens,
+      notification: {
+        title,
+        body,
+      },
+      data: normalizeData(data),
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: BOOKING_CHANNEL_ID,
+          sound: 'default',
+        },
+      },
+    };
+
+    const response = await messaging.sendEachForMulticast(payload);
+
+    const invalidTokens = [];
+    response.responses.forEach((item, index) => {
+      if (item.success) return;
+
+      const code = item.error?.code || '';
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
+        invalidTokens.push(tokens[index]);
+      }
+    });
+
+    if (invalidTokens.length) {
+      await pool.query('DELETE FROM device_push_tokens WHERE token IN (?)', [invalidTokens]);
+    }
+
+    return {
+      sent: response.successCount,
+      failed: response.failureCount,
+    };
+  } catch (error) {
+    console.warn('sendPushToUser failed:', error.message);
+    return { sent: 0, failed: 0 };
+  }
+}
+
+async function upsertPushToken({ userId, role, token, platform }) {
+  await pool.query(
+    `INSERT INTO device_push_tokens (user_id, app_role, token, platform)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       user_id = VALUES(user_id),
+       app_role = VALUES(app_role),
+       platform = VALUES(platform),
+       updated_at = CURRENT_TIMESTAMP`,
+    [userId, role, token, platform],
+  );
+}
+
+async function removePushToken(userId, token) {
+  await pool.query('DELETE FROM device_push_tokens WHERE user_id = ? AND token = ?', [
+    userId,
+    token,
+  ]);
+}
+
+module.exports = {
+  sendPushToUser,
+  upsertPushToken,
+  removePushToken,
+};
