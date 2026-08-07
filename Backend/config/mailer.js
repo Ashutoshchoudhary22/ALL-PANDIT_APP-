@@ -153,4 +153,84 @@ async function sendBookingOtpEmail(to, name, otp, purpose) {
   }
 }
 
-module.exports = { sendOtpEmail, sendBookingOtpEmail, verifySmtpConnection, createTransporter };
+function getAppSchemeForRole(role) {
+  if (role === 'customer') return 'customerapp';
+  if (role === 'pandit') return 'panditapp';
+  if (role === 'admin' || role === 'superadmin') return 'superadmin';
+  return 'customerapp';
+}
+
+async function sendPasswordResetEmail(to, resetLink, appDeepLink, role) {
+  const smtpUser = getSmtpUser();
+  const smtpPass = getSmtpPass();
+  const isConfigured = smtpUser && smtpPass;
+
+  if (!isConfigured) {
+    console.log(`[DEV] Password reset link for ${to}: ${resetLink}`);
+    if (appDeepLink) {
+      console.log(`[DEV] App deep link: ${appDeepLink}`);
+    }
+    return { devMode: true };
+  }
+
+  const from = process.env.SMTP_FROM || smtpUser;
+  const transporter = createTransporter();
+  const appLabel =
+    role === 'pandit'
+      ? 'Pandit App'
+      : role === 'admin' || role === 'superadmin'
+        ? 'Super Admin App'
+        : 'Customer App';
+
+  const mailOptions = {
+    from: `"ApnaAcharya" <${from}>`,
+    to,
+    subject: 'ApnaAcharya - Reset Your Password',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #7C3AED;">ApnaAcharya</h2>
+        <p>Hi,</p>
+        <p>We received a request to reset your password for your ${appLabel} account.</p>
+        <p>Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>
+        <p style="margin: 28px 0;">
+          <a href="${resetLink}"
+             style="background: #FF8C00; color: #fff; text-decoration: none; padding: 14px 24px; border-radius: 10px; font-weight: 700; display: inline-block;">
+            Reset Password
+          </a>
+        </p>
+        ${
+          appDeepLink
+            ? `<p style="font-size: 14px; color: #4B5563;">On your phone? <a href="${appDeepLink}" style="color: #7C3AED;">Open in ${appLabel}</a></p>`
+            : ''
+        }
+        <p style="font-size: 13px; color: #6B7280; word-break: break-all;">Or copy this link:<br>${resetLink}</p>
+        <p>If you did not request a password reset, you can safely ignore this email.</p>
+        <p style="color: #9CA3AF; font-size: 12px;">© ApnaAcharya</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Password reset email sent to ${to}`);
+    return { devMode: false };
+  } catch (error) {
+    console.error('Password reset email error:', error.message);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Password reset link for ${to}: ${resetLink}`);
+      return { devMode: true, emailFailed: true };
+    }
+
+    throw new Error('Failed to send password reset email. Please check SMTP settings.');
+  }
+}
+
+module.exports = {
+  sendOtpEmail,
+  sendBookingOtpEmail,
+  sendPasswordResetEmail,
+  getAppSchemeForRole,
+  verifySmtpConnection,
+  createTransporter,
+};

@@ -1,8 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/db');
-const { sendOtpEmail } = require('../config/mailer');
+const { sendOtpEmail, sendPasswordResetEmail, getAppSchemeForRole } = require('../config/mailer');
 const generateOtp = require('../utils/generateOtp');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'my-pandit-secret-key';
@@ -396,19 +397,27 @@ exports.forgotPassword = async (req, res) => {
 
     const [userRows] = await pool.query(
       normalizedMobile
-        ? 'SELECT id, email FROM users WHERE mobile = ?'
-        : 'SELECT id, email FROM users WHERE email = ?',
+        ? 'SELECT id, email, role FROM users WHERE mobile = ?'
+        : 'SELECT id, email, role FROM users WHERE email = ?',
       [normalizedMobile || normalizedEmail],
     );
 
     if (userRows.length === 0) {
       return res.status(200).json({
         success: true,
-        message: 'If this account exists, a reset link has been sent',
+        message: 'If this account exists, a reset link has been sent to your email',
       });
     }
 
     const user = userRows[0];
+
+    if (!user.email?.trim()) {
+      return res.status(200).json({
+        success: true,
+        message: 'If this account exists, a reset link has been sent to your email',
+      });
+    }
+
     const token = uuidv4();
 
     await pool.query(
@@ -421,16 +430,23 @@ exports.forgotPassword = async (req, res) => {
       [user.id, token, RESET_TOKEN_HOURS],
     );
 
-    const resetLink = `${process.env.APP_URL || 'http://localhost:5300'}/reset-password?token=${token}`;
+    const appUrl = (process.env.APP_URL || 'http://localhost:5300').replace(/\/$/, '');
+    const resetLink = `${appUrl}/api/auth/reset-password?token=${token}`;
+    const appScheme = getAppSchemeForRole(user.role);
+    const appDeepLink = `${appScheme}://reset-password?token=${token}`;
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Password reset link:', resetLink);
-    }
+    const mailResult = await sendPasswordResetEmail(
+      user.email,
+      resetLink,
+      appDeepLink,
+      user.role,
+    );
 
     return res.status(200).json({
       success: true,
-      message: 'If this account exists, a reset link has been sent',
-      ...(process.env.NODE_ENV !== 'production' && { resetToken: token, resetLink }),
+      message: 'If this account exists, a reset link has been sent to your email',
+      ...(process.env.NODE_ENV !== 'production' &&
+        mailResult?.devMode && { resetToken: token, resetLink, appDeepLink }),
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -439,6 +455,10 @@ exports.forgotPassword = async (req, res) => {
       message: 'Server error during password reset request',
     });
   }
+};
+
+exports.showResetPasswordPage = (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/reset-password.html'));
 };
 
 exports.resetPassword = async (req, res) => {

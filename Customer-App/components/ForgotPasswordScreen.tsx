@@ -87,6 +87,11 @@ export function ForgotPasswordScreen({
           ]}
         >
           <View style={styles.form}>
+            <Text style={styles.title}>Forgot Password?</Text>
+            <Text style={styles.subtitle}>
+              Enter your registered email and we&apos;ll send you a link to reset your password.
+            </Text>
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <View style={[styles.inputRow, styles.firstRow]}>
@@ -154,6 +159,18 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: C.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+    lineHeight: 20,
   },
   errorText: {
     marginBottom: 12,

@@ -6,6 +6,8 @@ import {
   loginApi,
   LoginPayload,
   resendOtpApi,
+  resetPasswordApi,
+  ResetPasswordPayload,
   signupApi,
   SignupPayload,
   verifyOtpApi,
@@ -27,6 +29,12 @@ export function useLoginMutation() {
 export function useForgotPasswordMutation() {
   return useMutation({
     mutationFn: (payload: ForgotPasswordPayload) => forgotPasswordApi(payload),
+  });
+}
+
+export function useResetPasswordMutation() {
+  return useMutation({
+    mutationFn: (payload: ResetPasswordPayload) => resetPasswordApi(payload),
   });
 }
 

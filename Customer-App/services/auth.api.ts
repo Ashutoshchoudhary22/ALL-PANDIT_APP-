@@ -108,3 +108,21 @@ export async function forgotPasswordApi(payload: ForgotPasswordPayload) {
   );
   return data;
 }
+
+export type ResetPasswordPayload = {
+  token: string;
+  password: string;
+};
+
+export type ResetPasswordResponse = {
+  success: boolean;
+  message: string;
+};
+
+export async function resetPasswordApi(payload: ResetPasswordPayload) {
+  const { data } = await apiClient.post<ResetPasswordResponse>(
+    AUTH_ENDPOINTS.resetPassword,
+    payload,
+  );
+  return data;
+}

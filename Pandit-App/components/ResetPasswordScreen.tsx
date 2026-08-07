@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useForgotPasswordMutation } from '@/hooks/use-auth';
+import { useResetPasswordMutation } from '@/hooks/use-auth';
 
 const BHAGWA = '#FFB366';
 const BHAGWA_DARK = '#FF8C00';
@@ -27,35 +27,48 @@ const ICON_COLOR = '#FF8C00';
 const TEXT_COLOR = '#1F2937';
 const DANGER_COLOR = '#EF4444';
 
-type ForgotPasswordScreenProps = {
+type ResetPasswordScreenProps = {
+  token?: string;
   onSuccess?: () => void;
   onSignIn?: () => void;
 };
 
-export function ForgotPasswordScreen({
+export function ResetPasswordScreen({
+  token,
   onSuccess,
   onSignIn,
-}: ForgotPasswordScreenProps) {
+}: ResetPasswordScreenProps) {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
-  const forgotPasswordMutation = useForgotPasswordMutation();
+  const resetPasswordMutation = useResetPasswordMutation();
 
-  const handleSendReset = () => {
+  const handleResetPassword = () => {
     setError('');
 
-    if (!email.trim()) {
-      setError('Email is required');
+    if (!token?.trim()) {
+      setError('Invalid reset link. Please request a new password reset email.');
       return;
     }
 
-    forgotPasswordMutation.mutate(
-      { email: email.trim().toLowerCase() },
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    resetPasswordMutation.mutate(
+      { token: token.trim(), password },
       {
         onSuccess: (response) => {
-          Alert.alert('Reset Link Sent', response.message, [
-            { text: 'OK', onPress: onSuccess },
+          Alert.alert('Password Updated', response.message, [
+            { text: 'Sign In', onPress: onSuccess },
           ]);
         },
         onError: (err) => setError(err.message),
@@ -88,35 +101,48 @@ export function ForgotPasswordScreen({
           ]}
         >
           <View style={styles.form}>
-            <Text style={styles.title}>Forgot Password?</Text>
+            <Text style={styles.title}>Create New Password</Text>
             <Text style={styles.subtitle}>
-              Enter your registered email and we&apos;ll send you a link to reset your password.
+              Enter a new password for your pandit account.
             </Text>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <View style={[styles.inputRow, styles.firstRow]}>
-              <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
+              <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder="New Password"
                 placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
+                secureTextEntry
                 autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-                editable={!forgotPasswordMutation.isPending}
+                value={password}
+                onChangeText={setPassword}
+                editable={!resetPasswordMutation.isPending}
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                autoCapitalize="none"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                editable={!resetPasswordMutation.isPending}
               />
             </View>
 
             <Pressable
               style={({ pressed }) => [
                 styles.resetBtnWrap,
-                (pressed || forgotPasswordMutation.isPending) && styles.pressed,
+                (pressed || resetPasswordMutation.isPending) && styles.pressed,
               ]}
-              onPress={handleSendReset}
-              disabled={forgotPasswordMutation.isPending}
+              onPress={handleResetPassword}
+              disabled={resetPasswordMutation.isPending}
             >
               <LinearGradient
                 colors={[BHAGWA, BHAGWA_DARK]}
@@ -124,10 +150,10 @@ export function ForgotPasswordScreen({
                 end={{ x: 1, y: 0 }}
                 style={styles.resetBtn}
               >
-                {forgotPasswordMutation.isPending ? (
+                {resetPasswordMutation.isPending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.resetText}>Send Reset Link</Text>
+                  <Text style={styles.resetText}>Update Password</Text>
                 )}
               </LinearGradient>
             </Pressable>
@@ -190,6 +216,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: INPUT_BG,
+    marginBottom: 12,
   },
   firstRow: {
     marginTop: 2,
@@ -201,7 +228,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   resetBtnWrap: {
-    marginTop: 22,
+    marginTop: 10,
     borderRadius: 16,
     overflow: 'hidden',
   },

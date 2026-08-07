@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const path = require('path');
 require('dotenv').config();
 
 const initDb = require('./config/initDb');
@@ -27,6 +28,12 @@ app.get('/', (req, res) => {
     success: true,
     message: 'My-Pandit Backend is running',
   });
+});
+
+app.get('/reset-password', (req, res) => {
+  const token = req.query.token;
+  const query = token ? `?token=${encodeURIComponent(String(token))}` : '';
+  res.redirect(`/api/auth/reset-password${query}`);
 });
 
 app.use('/api/auth', authRoutes);

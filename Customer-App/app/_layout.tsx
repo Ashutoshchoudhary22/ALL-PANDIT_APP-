@@ -52,6 +52,7 @@ export default function RootLayout() {
                 <Stack.Screen name="sign-up" options={{ headerShown: false }} />
                 <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
                 <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+                <Stack.Screen name="reset-password" options={{ headerShown: false }} />
                 <Stack.Screen name="create-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
                 <Stack.Screen name="nearby-pandits" options={{ headerShown: false }} />
