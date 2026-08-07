@@ -26,7 +26,16 @@ export function PujaServiceIcon({ name, index = 0, size = 'sm', style }: PujaSer
   const IconComponent = cfg.iconSet === 'material' ? MaterialCommunityIcons : Ionicons;
 
   return (
-    <View style={[styles.wrap, style]}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          width: dim.outer + 6,
+          height: dim.outer + 6,
+        },
+        style,
+      ]}
+    >
       <LinearGradient
         colors={[cfg.bg, cfg.bgEnd]}
         start={{ x: 0, y: 0 }}

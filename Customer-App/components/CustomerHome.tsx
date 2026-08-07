@@ -292,6 +292,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesRow}
+          style={styles.categoriesScroll}
         >
           {CATEGORIES.map((cat, catIndex) => (
             <Pressable
@@ -690,15 +691,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  categoriesScroll: {
+    flexGrow: 0,
+    overflow: 'visible',
+  },
   categoriesRow: {
     gap: 14,
-    paddingBottom: 4,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 2,
     marginBottom: 8,
   },
   categoryItem: {
     alignItems: 'center',
     width: 72,
     gap: 8,
+    paddingTop: 2,
   },
   categoryLabel: {
     fontSize: 10,

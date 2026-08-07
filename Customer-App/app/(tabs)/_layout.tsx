@@ -3,12 +3,17 @@ import { Tabs } from 'expo-router';
 import { CustomerTabBar } from '@/components/CustomerTabBar';
 import { TabAuthGuard } from '@/components/TabAuthGuard';
 import { HomeColors as C } from '@/constants/home-theme';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function TabLayout() {
+  const { token } = useAuth();
+
   return (
     <>
       <TabAuthGuard />
       <Tabs
+        initialRouteName={token ? 'home' : 'index'}
+        backBehavior="history"
         tabBar={(props) => <CustomerTabBar {...props} />}
         screenOptions={{
           headerShown: false,

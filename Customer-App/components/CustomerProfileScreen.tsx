@@ -23,6 +23,7 @@ import {
   formatNotificationPreference,
 } from '@/lib/customer-preferences';
 import { navigateFromProfile } from '@/lib/profile-navigation';
+import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useSavedPandits } from '@/providers/SavedPanditsProvider';
@@ -671,6 +672,7 @@ function ProfileContent({
 
 export function CustomerProfileScreen() {
   const insets = useSafeAreaInsets();
+  useTabBackToHome();
   const { token, user, isLoading: authLoading, signOut, signIn } = useAuth();
   const { unreadCount } = useNotifications();
   const { savedCount, refreshSavedPandits } = useSavedPandits();
