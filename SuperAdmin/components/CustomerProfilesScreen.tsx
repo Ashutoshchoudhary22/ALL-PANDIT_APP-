@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdminScreenHeader } from '@/components/AdminScreenHeader';
 import { LiveLocationIconButton } from '@/components/LiveLocationIconButton';
+import { AdminEmptyState } from '@/components/ui/AdminEmptyState';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useCustomerProfilesQuery } from '@/hooks/use-admin-profiles';
 import { CustomerProfile } from '@/services/admin-profiles.api';
@@ -26,36 +28,38 @@ function CustomerProfileRow({ profile }: { profile: CustomerProfile }) {
   const name = fullName(profile);
 
   return (
-    <View style={styles.row}>
-      {profile.profileImage ? (
-        <Image source={{ uri: profile.profileImage }} style={styles.avatar} contentFit="cover" />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={styles.avatarText}>{profile.firstName.charAt(0)}</Text>
-        </View>
-      )}
+    <PremiumCard accent="gold" innerStyle={styles.rowInner}>
+      <View style={styles.row}>
+        {profile.profileImage ? (
+          <Image source={{ uri: profile.profileImage }} style={styles.avatar} contentFit="cover" />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarText}>{profile.firstName.charAt(0)}</Text>
+          </View>
+        )}
 
-      <View style={styles.info}>
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.meta}>
-          {profile.cityName || 'City not set'} • {profile.gender}
-        </Text>
-        <Text style={styles.contact}>{profile.mobile}</Text>
-        {profile.address ? (
-          <Text style={styles.address} numberOfLines={1}>
-            {profile.address}
+        <View style={styles.info}>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.meta}>
+            {profile.cityName || 'City not set'} • {profile.gender}
           </Text>
-        ) : null}
-      </View>
+          <Text style={styles.contact}>{profile.mobile}</Text>
+          {profile.address ? (
+            <Text style={styles.address} numberOfLines={1}>
+              {profile.address}
+            </Text>
+          ) : null}
+        </View>
 
-      <LiveLocationIconButton
-        name={name}
-        latitude={profile.liveLatitude}
-        longitude={profile.liveLongitude}
-        updatedAt={profile.liveLocationAt}
-        cityName={profile.cityName}
-      />
-    </View>
+        <LiveLocationIconButton
+          name={name}
+          latitude={profile.liveLatitude}
+          longitude={profile.liveLongitude}
+          updatedAt={profile.liveLocationAt}
+          cityName={profile.cityName}
+        />
+      </View>
+    </PremiumCard>
   );
 }
 
@@ -66,8 +70,8 @@ export function CustomerProfilesScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
-      <AdminScreenHeader title="Customer Profile" subtitle="Manage all customer profiles" />
+      <StatusBar style="light" />
+      <AdminScreenHeader title="Customer Profiles" subtitle="Manage all registered customers" />
 
       {query.isLoading ? (
         <View style={styles.centerState}>
@@ -94,11 +98,11 @@ export function CustomerProfilesScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="people-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>No customer profiles yet</Text>
-              <Text style={styles.emptySubtitle}>Customer profiles will appear here once created.</Text>
-            </View>
+            <AdminEmptyState
+              icon="people-outline"
+              title="No customer profiles yet"
+              subtitle="Customer profiles will appear here once created."
+            />
           }
         />
       )}
@@ -107,39 +111,33 @@ export function CustomerProfilesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.background },
+  root: { flex: 1, backgroundColor: C.screenBg },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   errorText: { marginTop: 12, fontSize: 15, color: C.textMuted, textAlign: 'center' },
   retryBtn: {
     marginTop: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
     backgroundColor: C.primary,
   },
   retryText: { color: '#fff', fontWeight: '700' },
-  listContent: { paddingHorizontal: 16, paddingTop: 4 },
+  listContent: { paddingHorizontal: 16, paddingTop: 16 },
   emptyList: { flexGrow: 1 },
+  rowInner: { padding: 0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 14,
     padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
   },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.border },
+  avatar: { width: 52, height: 52, borderRadius: 18, backgroundColor: C.border },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: C.blueBg },
   avatarText: { fontSize: 18, fontWeight: '800', color: C.info },
   info: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '700', color: C.text },
+  name: { fontSize: 16, fontWeight: '800', color: C.text },
   meta: { marginTop: 3, fontSize: 12, color: C.textMuted },
   contact: { marginTop: 2, fontSize: 12, color: C.textLight },
   address: { marginTop: 4, fontSize: 11, color: C.textMuted },
-  separator: { height: 10 },
-  emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 24 },
-  emptyTitle: { marginTop: 16, fontSize: 18, fontWeight: '700', color: C.text },
-  emptySubtitle: { marginTop: 6, fontSize: 14, color: C.textMuted, textAlign: 'center' },
+  separator: { height: 12 },
 });

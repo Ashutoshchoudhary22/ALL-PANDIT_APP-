@@ -82,7 +82,7 @@ export function ResetPasswordScreen({
           <View style={styles.brandIcon}>
             <Ionicons name="shield-checkmark" size={22} color={ADMIN_COLORS.primary} />
           </View>
-          <Text style={styles.brandName}>My-Pandit Super Admin</Text>
+          <Text style={styles.brandName}>ApnaAcharya Admin</Text>
         </View>
 
         <Text style={styles.heroTitle}>

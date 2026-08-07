@@ -1,21 +1,44 @@
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+
+import { isPushNotificationsAvailable } from '@/lib/push-capability';
 
 export const ADMIN_NOTIFICATION_CHANNEL = 'admin-alerts';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsModulePromise: Promise<NotificationsModule> | null = null;
+let handlerConfigured = false;
+
+async function getNotificationsModule(): Promise<NotificationsModule | null> {
+  if (!isPushNotificationsAvailable()) return null;
+
+  if (!notificationsModulePromise) {
+    notificationsModulePromise = import('expo-notifications');
+  }
+
+  const Notifications = await notificationsModulePromise;
+
+  if (!handlerConfigured) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    handlerConfigured = true;
+  }
+
+  return Notifications;
+}
 
 export async function ensureAndroidNotificationChannel() {
   if (Platform.OS !== 'android') return;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return;
 
   await Notifications.setNotificationChannelAsync(ADMIN_NOTIFICATION_CHANNEL, {
     name: 'Admin Alerts',
@@ -27,7 +50,10 @@ export async function ensureAndroidNotificationChannel() {
 }
 
 export async function requestPushPermissions(): Promise<boolean> {
-  if (!Device.isDevice) return false;
+  if (!isPushNotificationsAvailable()) return false;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return false;
 
   await ensureAndroidNotificationChannel();
 
@@ -51,13 +77,20 @@ export async function requestPushPermissions(): Promise<boolean> {
 }
 
 export async function getNativePushToken(): Promise<string | null> {
-  if (!Device.isDevice || Platform.OS === 'web') return null;
+  if (!isPushNotificationsAvailable()) return null;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return null;
 
   const granted = await requestPushPermissions();
   if (!granted) return null;
 
   const tokenResult = await Notifications.getDevicePushTokenAsync();
   return tokenResult.data || null;
+}
+
+export async function loadNotificationsModule() {
+  return getNotificationsModule();
 }
 
 export type PushNotificationData = {

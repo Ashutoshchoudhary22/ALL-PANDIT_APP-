@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -340,12 +341,12 @@ export function PanditProfileReviewModal({ profileId, visible, onClose }: Pandit
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={[styles.root, { paddingTop: insets.top }]}>
-        <View style={styles.modalHeader}>
+        <LinearGradient colors={[...C.headerGradientDeep]} style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Review Pandit Profile</Text>
           <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color={C.text} />
+            <Ionicons name="close" size={22} color="#fff" />
           </Pressable>
-        </View>
+        </LinearGradient>
 
         {query.isLoading ? (
           <View style={styles.centerState}>
@@ -367,19 +368,25 @@ export function PanditProfileReviewModal({ profileId, visible, onClose }: Pandit
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.background },
+  root: { flex: 1, backgroundColor: C.screenBg },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    backgroundColor: C.card,
+    borderBottomColor: 'rgba(212, 160, 23, 0.25)',
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: C.text },
-  closeBtn: { padding: 4 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   errorText: { fontSize: 15, color: C.textMuted },
   retryBtn: {

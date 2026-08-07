@@ -1,8 +1,10 @@
 export const ADMIN_COLORS = {
-  primary: '#1E40AF',
-  primaryDark: '#1E3A8A',
-  primaryDeep: '#0F172A',
-  gradient: ['#2563EB', '#1E40AF', '#0F172A'] as const,
+  primary: '#6D28D9',
+  primaryDark: '#5B21B6',
+  primaryDeep: '#4C1D95',
+  gradient: ['#8B5CF6', '#6D28D9', '#5B21B6'] as const,
+  gold: '#D4A017',
+  borderGold: 'rgba(212, 160, 23, 0.35)',
   textOnPrimary: '#FFFFFF',
   error: '#DC2626',
   muted: '#9CA3AF',
@@ -10,4 +12,5 @@ export const ADMIN_COLORS = {
   border: '#E5E7EB',
   text: '#111827',
   sheet: '#FFFFFF',
+  cream: '#FFFBF5',
 } as const;

@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +18,9 @@ import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useAdminDashboardStatsQuery } from '@/hooks/use-admin-stats';
 import { useAdminDrawer } from '@/providers/AdminDrawerProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { AdminRecentBooking } from '@/services/admin-stats.api';
 
 type StatCardProps = {
   label: string;
@@ -27,50 +32,89 @@ type StatCardProps = {
   loading?: boolean;
 };
 
-type BookingStatus = 'Upcoming' | 'Completed' | 'Ongoing' | 'Cancelled' | 'Pending';
+type BookingStatus = AdminRecentBooking['displayStatus'];
 
-type RecentBooking = {
-  id: string;
-  customer: string;
+type RecentBooking = AdminRecentBooking & {
   customerInitials: string;
   customerColor: string;
-  pandit: string;
-  service: string;
   datetime: string;
   amount: string;
   status: BookingStatus;
 };
 
-const STATIC_STAT_CARDS: StatCardProps[] = [
-  { label: 'Total Bookings', value: '12,458', trend: '18.7% vs last week', icon: 'calendar', iconColor: C.warning, iconBg: C.orangeBg },
-  { label: 'Total Revenue', value: '₹24,78,560', trend: '16.4% vs last week', icon: 'cash', iconColor: C.yellow, iconBg: C.yellowBg },
-  { label: 'Platform Earnings', value: '₹4,78,560', trend: '14.2% vs last week', icon: 'trending-up', iconColor: C.pink, iconBg: C.pinkBg },
-  { label: 'Pandit Payouts', value: '₹19,45,000', trend: '16.1% vs last week', icon: 'wallet', iconColor: C.cyan, iconBg: C.cyanBg },
-  { label: 'Total Reviews', value: '3,245', trend: '9.6% vs last week', icon: 'star', iconColor: C.primary, iconBg: C.purpleBg },
-];
+const STATUS_COLORS: Record<string, string> = {
+  Completed: C.success,
+  Upcoming: C.info,
+  Ongoing: C.warning,
+  Cancelled: C.danger,
+  Pending: C.primary,
+  'No bookings': C.textLight,
+};
+
+const AVATAR_COLORS = ['#8B5CF6', '#EC4899', '#3B82F6', '#22C55E', '#F97316'];
 
 function formatCount(value: number) {
   return value.toLocaleString('en-IN');
 }
 
-const BOOKING_TREND = [42, 58, 45, 72, 65, 88, 76];
-const BOOKING_LABELS = ['26 May', '27 May', '28 May', '29 May', '30 May', '31 May', '01 Jun'];
+function formatINR(value: number) {
+  return `₹${value.toLocaleString('en-IN')}`;
+}
 
-const BOOKING_STATUS = [
-  { label: 'Completed', count: 6245, pct: 50.1, color: C.success },
-  { label: 'Upcoming', count: 3215, pct: 25.8, color: C.info },
-  { label: 'Cancelled', count: 1245, pct: 10.0, color: C.danger },
-  { label: 'Ongoing', count: 1053, pct: 8.4, color: C.warning },
-  { label: 'Pending', count: 700, pct: 5.6, color: C.primary },
-];
+function formatTrendText(pct: number | null | undefined, fallback: string) {
+  if (pct == null) return fallback;
+  const sign = pct >= 0 ? '+' : '';
+  return `${sign}${pct}% vs last week`;
+}
 
-const REVENUE_BARS = [65, 48, 72, 55, 80, 68, 90, 75];
-const REVENUE_LABELS = ['05 May', '10 May', '15 May', '20 May', '25 May', '30 May'];
+function avatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
 
-const NEW_USERS = [
-  { label: 'Customers', pct: 66.7, color: C.info },
-  { label: 'Pandits', pct: 33.3, color: C.success },
-];
+function initials(name: string) {
+  return (
+    name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || '?'
+  );
+}
+
+function formatBookingDateTime(bookingDate: string, bookingTime: string) {
+  const parsed = new Date(`${bookingDate}T${bookingTime || '12:00:00'}`);
+  if (Number.isNaN(parsed.getTime())) return `${bookingDate} ${bookingTime}`;
+  return parsed.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function mapRecentBooking(booking: AdminRecentBooking): RecentBooking {
+  return {
+    ...booking,
+    customerInitials: initials(booking.customerName),
+    customerColor: avatarColor(booking.customerName),
+    datetime: formatBookingDateTime(booking.bookingDate, booking.bookingTime),
+    amount: formatINR(booking.totalPrice),
+    status: booking.displayStatus,
+  };
+}
+
+function formatBadgeCount(count: number) {
+  if (count <= 0) return '';
+  if (count > 9) return '9+';
+  return String(count);
+}
 
 const QUICK_ACTIONS = [
   { label: 'Add Pandit', icon: 'person-add' as const, color: C.primary, bg: C.purpleBg },
@@ -81,52 +125,6 @@ const QUICK_ACTIONS = [
   { label: 'System Settings', icon: 'settings' as const, color: C.textMuted, bg: '#F3F4F6' },
 ];
 
-const RECENT_BOOKINGS: RecentBooking[] = [
-  {
-    id: '1',
-    customer: 'Rahul Sharma',
-    customerInitials: 'RS',
-    customerColor: '#8B5CF6',
-    pandit: 'Pt. Rakesh Tripathi',
-    service: 'Griha Pravesh',
-    datetime: '01 Jun, 11:00 AM',
-    amount: '₹2,501',
-    status: 'Upcoming',
-  },
-  {
-    id: '2',
-    customer: 'Priya Patel',
-    customerInitials: 'PP',
-    customerColor: '#EC4899',
-    pandit: 'Pt. Sunil Mishra',
-    service: 'Satyanarayan Puja',
-    datetime: '31 May, 09:00 AM',
-    amount: '₹3,500',
-    status: 'Completed',
-  },
-  {
-    id: '3',
-    customer: 'Amit Kumar',
-    customerInitials: 'AK',
-    customerColor: '#3B82F6',
-    pandit: 'Pt. Rajesh Tiwari',
-    service: 'Rudrabhishek',
-    datetime: '31 May, 04:00 PM',
-    amount: '₹5,000',
-    status: 'Ongoing',
-  },
-  {
-    id: '4',
-    customer: 'Sneha Gupta',
-    customerInitials: 'SG',
-    customerColor: '#22C55E',
-    pandit: 'Pt. Anil Sharma',
-    service: 'Marriage Puja',
-    datetime: '30 May, 10:00 AM',
-    amount: '₹8,500',
-    status: 'Completed',
-  },
-];
 
 const STATUS_STYLES: Record<BookingStatus, { bg: string; text: string }> = {
   Upcoming: { bg: '#DBEAFE', text: '#2563EB' },
@@ -153,7 +151,7 @@ function SectionHeader({
 
 function StatCard({ label, value, trend, icon, iconColor, iconBg, loading }: StatCardProps) {
   return (
-    <View style={styles.statCard}>
+    <PremiumCard accent="purple" innerStyle={styles.statCardInner} style={styles.statCardWrap}>
       <View style={[styles.statIconWrap, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={18} color={iconColor} />
       </View>
@@ -164,7 +162,7 @@ function StatCard({ label, value, trend, icon, iconColor, iconBg, loading }: Sta
         <Text style={styles.statValue}>{value}</Text>
       )}
       <Text style={styles.statTrend}>{trend}</Text>
-    </View>
+    </PremiumCard>
   );
 }
 
@@ -178,7 +176,7 @@ function FilterChip({ label }: { label: string }) {
 }
 
 function LineAreaChart({ data, labels }: { data: number[]; labels: string[] }) {
-  const max = Math.max(...data);
+  const max = Math.max(...data, 1);
   const chartHeight = 96;
 
   return (
@@ -187,7 +185,7 @@ function LineAreaChart({ data, labels }: { data: number[]; labels: string[] }) {
         {data.map((point, index) => {
           const barHeight = (point / max) * chartHeight;
           return (
-            <View key={labels[index]} style={styles.lineChartCol}>
+            <View key={`line-point-${index}`} style={styles.lineChartCol}>
               <View style={[styles.lineChartBar, { height: barHeight }]}>
                 <LinearGradient
                   colors={[`${C.primaryLight}55`, `${C.primary}22`]}
@@ -200,8 +198,8 @@ function LineAreaChart({ data, labels }: { data: number[]; labels: string[] }) {
         })}
       </View>
       <View style={styles.chartLabelsRow}>
-        {labels.map((label) => (
-          <Text key={label} style={styles.chartLabel} numberOfLines={1}>
+        {labels.map((label, index) => (
+          <Text key={`line-label-${index}`} style={styles.chartLabel} numberOfLines={1}>
             {label}
           </Text>
         ))}
@@ -256,14 +254,14 @@ function DonutChart({
 }
 
 function BarChart({ data, labels }: { data: number[]; labels: string[] }) {
-  const max = Math.max(...data);
+  const max = Math.max(...data, 1);
   const chartHeight = 100;
 
   return (
     <View style={styles.chartWrap}>
       <View style={[styles.barChartArea, { height: chartHeight }]}>
         {data.map((value, index) => (
-          <View key={labels[index] ?? index} style={styles.barCol}>
+          <View key={`bar-${index}`} style={styles.barCol}>
             <LinearGradient
               colors={[C.primaryLight, C.primary]}
               style={[styles.bar, { height: (value / max) * chartHeight }]}
@@ -272,8 +270,8 @@ function BarChart({ data, labels }: { data: number[]; labels: string[] }) {
         ))}
       </View>
       <View style={styles.chartLabelsRow}>
-        {labels.map((label) => (
-          <Text key={label} style={styles.chartLabel} numberOfLines={1}>
+        {labels.map((label, index) => (
+          <Text key={`line-label-${index}`} style={styles.chartLabel} numberOfLines={1}>
             {label}
           </Text>
         ))}
@@ -320,11 +318,11 @@ function RecentBookingRow({ booking }: { booking: RecentBooking }) {
     <View style={styles.bookingRow}>
       <Avatar initials={booking.customerInitials} color={booking.customerColor} />
       <View style={styles.bookingMain}>
-        <Text style={styles.bookingCustomer}>{booking.customer}</Text>
-        <Text style={styles.bookingPandit}>{booking.pandit}</Text>
+        <Text style={styles.bookingCustomer}>{booking.customerName}</Text>
+        <Text style={styles.bookingPandit}>{booking.panditName}</Text>
       </View>
       <View style={styles.bookingMeta}>
-        <Text style={styles.bookingService}>{booking.service}</Text>
+        <Text style={styles.bookingService}>{booking.serviceName}</Text>
         <View style={styles.bookingTimeRow}>
           <Ionicons name="calendar-outline" size={12} color={C.textLight} />
           <Text style={styles.bookingTime}>{booking.datetime}</Text>
@@ -344,30 +342,71 @@ function RecentBookingRow({ booking }: { booking: RecentBooking }) {
 }
 
 function Card({ children, style }: { children: ReactNode; style?: object }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <PremiumCard accent="gold" innerStyle={{ padding: 16 }} style={style as never}>
+      {children}
+    </PremiumCard>
+  );
 }
 
 type SuperAdminDashboardProps = {
   adminName?: string;
-  notificationCount?: number;
 };
 
 export function SuperAdminDashboard({
   adminName = 'Super Admin',
-  notificationCount = 8,
 }: SuperAdminDashboardProps) {
   const insets = useSafeAreaInsets();
   const { openDrawer } = useAdminDrawer();
   const { token } = useAuth();
+  const { unreadCount, refreshNotifications } = useNotifications();
+  const badgeLabel = formatBadgeCount(unreadCount);
   const statsQuery = useAdminDashboardStatsQuery(Boolean(token));
   const stats = statsQuery.data?.data;
-  const statsLoading = statsQuery.isLoading;
+  const statsLoading = statsQuery.isLoading || statsQuery.isFetching;
+
+  const bookingTrendData = stats?.bookingTrend.map((item) => item.count) ?? [0, 0, 0, 0, 0, 0, 0];
+  const bookingTrendLabels = stats?.bookingTrend.map((item) => item.label) ?? [];
+  const bookingStatusSegments =
+    stats?.bookingsByStatus.map((item) => ({
+      ...item,
+      color: STATUS_COLORS[item.label] ?? C.textLight,
+    })) ?? [];
+  const revenueBars = stats?.revenueTrend.map((item) => item.amount) ?? [0];
+  const revenueLabels = stats?.revenueTrend.map((item) => item.label) ?? [];
+  const newUsersTotal = stats?.newUsersThisWeek.total ?? 0;
+  const newUserSegments =
+    newUsersTotal > 0
+      ? [
+          {
+            label: 'Customers',
+            count: stats?.newUsersThisWeek.customers ?? 0,
+            pct: Number((((stats?.newUsersThisWeek.customers ?? 0) / newUsersTotal) * 100).toFixed(1)),
+            color: C.info,
+          },
+          {
+            label: 'Pandits',
+            count: stats?.newUsersThisWeek.pandits ?? 0,
+            pct: Number((((stats?.newUsersThisWeek.pandits ?? 0) / newUsersTotal) * 100).toFixed(1)),
+            color: C.success,
+          },
+        ]
+      : [{ label: 'No new users', count: 0, pct: 0, color: C.textLight }];
+  const recentBookings = (stats?.recentBookings ?? []).map(mapRecentBooking);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        void refreshNotifications();
+      }
+    }, [token, refreshNotifications]),
+  );
 
   const statCards: StatCardProps[] = [
     {
       label: 'Total Users',
       value: formatCount(stats?.totalUsers ?? 0),
-      trend: 'Customers + Pandits on platform',
+      trend: `${formatCount(stats?.totalCustomers ?? 0)} customers • ${formatCount(stats?.totalPandits ?? 0)} pandits`,
       icon: 'people',
       iconColor: C.primary,
       iconBg: C.purpleBg,
@@ -391,7 +430,51 @@ export function SuperAdminDashboard({
       iconBg: C.blueBg,
       loading: statsLoading,
     },
-    ...STATIC_STAT_CARDS,
+    {
+      label: 'Total Bookings',
+      value: formatCount(stats?.totalBookings ?? 0),
+      trend: formatTrendText(stats?.trends.bookingsWeekChangePct, 'Bookings this week'),
+      icon: 'calendar',
+      iconColor: C.warning,
+      iconBg: C.orangeBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Total Revenue',
+      value: formatINR(stats?.totalRevenue ?? 0),
+      trend: `${formatINR(stats?.collectedRevenue ?? 0)} collected`,
+      icon: 'cash',
+      iconColor: C.yellow,
+      iconBg: C.yellowBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Platform Earnings',
+      value: formatINR(stats?.platformEarnings ?? 0),
+      trend: '20% commission on collected payments',
+      icon: 'trending-up',
+      iconColor: C.pink,
+      iconBg: C.pinkBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Pandit Payouts',
+      value: formatINR(stats?.panditPayouts ?? 0),
+      trend: 'Paid / payable to pandits',
+      icon: 'wallet',
+      iconColor: C.cyan,
+      iconBg: C.cyanBg,
+      loading: statsLoading,
+    },
+    {
+      label: 'Total Reviews',
+      value: formatCount(stats?.totalReviews ?? 0),
+      trend: 'Customer booking reviews',
+      icon: 'star',
+      iconColor: C.primary,
+      iconBg: C.purpleBg,
+      loading: statsLoading,
+    },
   ];
 
   return (
@@ -400,7 +483,17 @@ export function SuperAdminDashboard({
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={statsQuery.isRefetching}
+            onRefresh={() => {
+              void statsQuery.refetch();
+              void refreshNotifications();
+            }}
+            tintColor={C.primary}
+          />
+        }
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
       >
         <LinearGradient
           colors={[...C.headerGradient]}
@@ -414,11 +507,11 @@ export function SuperAdminDashboard({
               <Pressable style={styles.headerIconBtn}>
                 <Ionicons name="search" size={22} color="#fff" />
               </Pressable>
-              <Pressable style={styles.headerIconBtn}>
+              <Pressable style={styles.headerIconBtn} onPress={() => router.push('/notifications')}>
                 <Ionicons name="notifications-outline" size={22} color="#fff" />
-                {notificationCount > 0 ? (
+                {badgeLabel ? (
                   <View style={styles.notifBadge}>
-                    <Text style={styles.notifBadgeText}>{notificationCount}</Text>
+                    <Text style={styles.notifBadgeText}>{badgeLabel}</Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -453,14 +546,14 @@ export function SuperAdminDashboard({
                 <Text style={styles.cardTitle}>Bookings Overview</Text>
                 <FilterChip label="This Week" />
               </View>
-              <LineAreaChart data={BOOKING_TREND} labels={BOOKING_LABELS} />
+              <LineAreaChart data={bookingTrendData} labels={bookingTrendLabels} />
             </Card>
 
             <Card style={styles.chartCard}>
               <Text style={styles.cardTitle}>Bookings by Status</Text>
               <DonutChart
-                segments={BOOKING_STATUS}
-                centerValue="12,458"
+                segments={bookingStatusSegments}
+                centerValue={formatCount(stats?.totalBookings ?? 0)}
                 centerLabel="Total"
               />
             </Card>
@@ -475,12 +568,18 @@ export function SuperAdminDashboard({
 
           <SectionHeader title="Recent Bookings" actionLabel="View All >" />
           <Card>
-            {RECENT_BOOKINGS.map((booking, index) => (
-              <View key={booking.id}>
-                <RecentBookingRow booking={booking} />
-                {index < RECENT_BOOKINGS.length - 1 ? <View style={styles.divider} /> : null}
-              </View>
-            ))}
+            {recentBookings.length ? (
+              recentBookings.map((booking, index) => (
+                <View key={String(booking.id)}>
+                  <RecentBookingRow booking={booking} />
+                  {index < recentBookings.length - 1 ? <View style={styles.divider} /> : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyChartText}>
+                {statsLoading ? 'Loading bookings...' : 'No bookings yet'}
+              </Text>
+            )}
           </Card>
 
           <View style={[styles.chartsRow, { marginTop: 20 }]}>
@@ -492,14 +591,16 @@ export function SuperAdminDashboard({
               <View style={styles.revenueSummary}>
                 <View>
                   <Text style={styles.revenueSummaryLabel}>Total Revenue</Text>
-                  <Text style={styles.revenueSummaryValue}>₹24,78,560</Text>
+                  <Text style={styles.revenueSummaryValue}>{formatINR(stats?.totalRevenue ?? 0)}</Text>
                 </View>
                 <View>
                   <Text style={styles.revenueSummaryLabel}>Platform Earnings</Text>
-                  <Text style={[styles.revenueSummaryValue, { color: C.primary }]}>₹4,78,560</Text>
+                  <Text style={[styles.revenueSummaryValue, { color: C.primary }]}>
+                    {formatINR(stats?.platformEarnings ?? 0)}
+                  </Text>
                 </View>
               </View>
-              <BarChart data={REVENUE_BARS} labels={REVENUE_LABELS} />
+              <BarChart data={revenueBars.length ? revenueBars : [0]} labels={revenueLabels.length ? revenueLabels : ['—']} />
             </Card>
 
             <Card style={styles.chartCard}>
@@ -508,13 +609,8 @@ export function SuperAdminDashboard({
                 <FilterChip label="This Week" />
               </View>
               <DonutChart
-                segments={NEW_USERS.map((u) => ({
-                  label: u.label,
-                  count: u.label === 'Customers' ? 856 : 428,
-                  pct: u.pct,
-                  color: u.color,
-                }))}
-                centerValue="1,284"
+                segments={newUserSegments}
+                centerValue={formatCount(newUsersTotal)}
                 centerLabel="Total New Users"
               />
             </Card>
@@ -528,7 +624,7 @@ export function SuperAdminDashboard({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: C.background,
+    backgroundColor: C.screenBg,
   },
   headerGradient: {
     paddingHorizontal: 16,
@@ -622,18 +718,13 @@ const styles = StyleSheet.create({
     marginTop: -12,
     gap: 8,
   },
-  statCard: {
+  statCardWrap: {
     width: '48%',
     flexGrow: 1,
     flexBasis: '46%',
-    backgroundColor: C.card,
-    borderRadius: 16,
+  },
+  statCardInner: {
     padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
   },
   statIconWrap: {
     width: 34,
@@ -676,14 +767,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   card: {
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    marginBottom: 0,
   },
   chartCard: {
     marginBottom: 0,
@@ -970,5 +1054,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: C.text,
+  },
+  emptyChartText: {
+    paddingVertical: 24,
+    textAlign: 'center',
+    fontSize: 14,
+    color: C.textMuted,
   },
 });

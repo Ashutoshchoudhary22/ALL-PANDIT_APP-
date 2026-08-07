@@ -1,8 +1,14 @@
 export const DashboardColors = {
   primary: '#6D28D9',
   primaryDark: '#5B21B6',
+  primaryDeep: '#4C1D95',
   primaryLight: '#8B5CF6',
-  headerGradient: ['#7C3AED', '#6D28D9', '#5B21B6'] as const,
+  headerGradient: ['#8B5CF6', '#6D28D9', '#5B21B6'] as const,
+  headerGradientDeep: ['#7C3AED', '#5B21B6', '#4C1D95'] as const,
+  gold: '#D4A017',
+  goldLight: '#F5D78E',
+  borderGold: 'rgba(212, 160, 23, 0.35)',
+  cream: '#FFFBF5',
   success: '#22C55E',
   danger: '#EF4444',
   warning: '#F97316',
@@ -13,7 +19,8 @@ export const DashboardColors = {
   text: '#1F2937',
   textMuted: '#6B7280',
   textLight: '#9CA3AF',
-  background: '#F3F4F6',
+  background: '#F5F3FF',
+  screenBg: '#F8F7FC',
   card: '#FFFFFF',
   border: '#E5E7EB',
   purpleBg: '#F5F3FF',
@@ -23,4 +30,22 @@ export const DashboardColors = {
   yellowBg: '#FEFCE8',
   pinkBg: '#FDF2F8',
   cyanBg: '#ECFEFF',
+  shadow: '#4C1D95',
+} as const;
+
+export const AdminShadow = {
+  card: {
+    shadowColor: DashboardColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  soft: {
+    shadowColor: DashboardColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
 } as const;

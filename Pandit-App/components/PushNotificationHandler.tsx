@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
 
+import { isPushNotificationsAvailable } from '@/lib/push-capability';
 import {
   getNativePushToken,
+  loadNotificationsModule,
   parsePushNotificationData,
 } from '@/lib/push-notifications';
 import { useNotifications } from '@/providers/NotificationsProvider';
@@ -30,11 +30,12 @@ export function PushNotificationHandler() {
   const registeredTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isLoading || !token || user?.role !== 'pandit' || Platform.OS === 'web') {
+    if (isLoading || !token || user?.role !== 'pandit' || !isPushNotificationsAvailable()) {
       return;
     }
 
     let cancelled = false;
+    let tokenSubscription: { remove: () => void } | null = null;
 
     const registerToken = async () => {
       try {
@@ -49,62 +50,74 @@ export function PushNotificationHandler() {
       }
     };
 
-    void registerToken();
+    void (async () => {
+      const Notifications = await loadNotificationsModule();
+      if (!Notifications || cancelled) return;
 
-    const tokenSubscription = Notifications.addPushTokenListener((event) => {
-      const nextToken = event.data;
-      if (!nextToken || registeredTokenRef.current === nextToken) return;
+      void registerToken();
 
-      void registerPushTokenApi(nextToken)
-        .then(() => {
-          registeredTokenRef.current = nextToken;
-        })
-        .catch((error) => {
-          console.warn('Push token refresh registration failed:', error);
-        });
-    });
+      tokenSubscription = Notifications.addPushTokenListener((event) => {
+        const nextToken = event.data;
+        if (!nextToken || registeredTokenRef.current === nextToken) return;
+
+        void registerPushTokenApi(nextToken)
+          .then(() => {
+            registeredTokenRef.current = nextToken;
+          })
+          .catch((error) => {
+            console.warn('Push token refresh registration failed:', error);
+          });
+      });
+    })();
 
     return () => {
       cancelled = true;
-      tokenSubscription.remove();
+      tokenSubscription?.remove();
     };
   }, [token, user?.role, isLoading]);
 
   useEffect(() => {
-    if (isLoading || !token || user?.role !== 'pandit') {
+    if (isLoading || !token || user?.role !== 'pandit' || !isPushNotificationsAvailable()) {
       return;
     }
 
-    const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      const content = notification.request.content;
-      const data = parsePushNotificationData(content.data as Record<string, unknown>);
-      const type = data.type;
-      const bookingId = Number(data.bookingId || 0);
+    let cancelled = false;
+    let receivedSubscription: { remove: () => void } | null = null;
+    let responseSubscription: { remove: () => void } | null = null;
 
-      if (!type || !bookingId) return;
+    void (async () => {
+      const Notifications = await loadNotificationsModule();
+      if (!Notifications || cancelled) return;
 
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
-      if (type === 'booking:confirmed') {
-        queryClient.invalidateQueries({ queryKey: ['pandit', 'earnings'] });
-      }
+      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        const content = notification.request.content;
+        const data = parsePushNotificationData(content.data as Record<string, unknown>);
+        const type = data.type;
+        const bookingId = Number(data.bookingId || 0);
 
-      addNotification({
-        id:
-          type === 'booking:confirmed'
-            ? `booking-confirmed-${bookingId}`
-            : `booking-${bookingId}`,
-        type: type as 'booking:new' | 'booking:confirmed',
-        title: content.title || data.title || 'Notification',
-        message: content.body || data.message || '',
-        bookingId,
-        read: false,
-        createdAt: new Date().toISOString(),
+        if (!type || !bookingId) return;
+
+        queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
+        queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+        if (type === 'booking:confirmed') {
+          queryClient.invalidateQueries({ queryKey: ['pandit', 'earnings'] });
+        }
+
+        addNotification({
+          id:
+            type === 'booking:confirmed'
+              ? `booking-confirmed-${bookingId}`
+              : `booking-${bookingId}`,
+          type: type as 'booking:new' | 'booking:confirmed',
+          title: content.title || data.title || 'Notification',
+          message: content.body || data.message || '',
+          bookingId,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
       });
-    });
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
         const content = response.notification.request.content;
         const data = parsePushNotificationData(content.data as Record<string, unknown>);
         const type = data.type;
@@ -136,12 +149,13 @@ export function PushNotificationHandler() {
         if (response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
           handleNotificationNavigation(type);
         }
-      },
-    );
+      });
+    })();
 
     return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
+      cancelled = true;
+      receivedSubscription?.remove();
+      responseSubscription?.remove();
     };
   }, [token, user?.role, isLoading, queryClient, addNotification]);
 

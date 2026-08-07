@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, router, usePathname } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -8,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { useAuth } from '@/providers/AuthProvider';
 
-const DRAWER_WIDTH = 288;
+const DRAWER_WIDTH = 300;
 
 type AdminDrawerProps = {
   visible: boolean;
@@ -94,39 +95,45 @@ export function AdminDrawer({ visible, onClose }: AdminDrawerProps) {
         </Animated.View>
 
         <Animated.View
-          style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}
+          style={[styles.drawer, drawerStyle, { paddingBottom: insets.bottom + 16 }]}
         >
-          <View style={styles.drawerHeader}>
+          <LinearGradient
+            colors={[...C.headerGradientDeep]}
+            style={[styles.drawerHeader, { paddingTop: insets.top + 18 }]}
+          >
             <View style={styles.drawerAvatar}>
-              <Ionicons name="shield-checkmark" size={24} color={C.primary} />
+              <Ionicons name="shield-checkmark" size={26} color="#fff" />
             </View>
             <View style={styles.drawerHeaderText}>
-              <Text style={styles.drawerTitle}>My-Pandit Admin</Text>
+              <Text style={styles.drawerTitle}>ApnaAcharya Admin</Text>
               <Text style={styles.drawerSubtitle}>{roleLabel}</Text>
+              {user?.email ? <Text style={styles.drawerEmail}>{user.email}</Text> : null}
             </View>
             <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={C.textMuted} />
+              <Ionicons name="close" size={22} color="#fff" />
             </Pressable>
+          </LinearGradient>
+
+          <View style={styles.drawerBody}>
+            <Text style={styles.sectionLabel}>Modules</Text>
+
+            {MENU_ITEMS.map((item) => {
+              const active = isActivePath(pathname, item);
+              return (
+                <Pressable
+                  key={item.id}
+                  style={[styles.menuItem, active && styles.menuItemActive]}
+                  onPress={() => handleNavigate(item)}
+                >
+                  <View style={[styles.menuIconWrap, active && styles.menuIconWrapActive]}>
+                    <Ionicons name={item.icon} size={20} color={active ? C.primary : C.textMuted} />
+                  </View>
+                  <Text style={[styles.menuLabel, active && styles.menuLabelActive]}>{item.label}</Text>
+                  {active ? <Ionicons name="chevron-forward" size={16} color={C.primary} /> : null}
+                </Pressable>
+              );
+            })}
           </View>
-
-          <Text style={styles.sectionLabel}>Modules</Text>
-
-          {MENU_ITEMS.map((item) => {
-            const active = isActivePath(pathname, item);
-            return (
-              <Pressable
-                key={item.id}
-                style={[styles.menuItem, active && styles.menuItemActive]}
-                onPress={() => handleNavigate(item)}
-              >
-                <View style={[styles.menuIconWrap, active && styles.menuIconWrapActive]}>
-                  <Ionicons name={item.icon} size={20} color={active ? C.primary : C.textMuted} />
-                </View>
-                <Text style={[styles.menuLabel, active && styles.menuLabelActive]}>{item.label}</Text>
-                {active ? <Ionicons name="chevron-forward" size={16} color={C.primary} /> : null}
-              </Pressable>
-            );
-          })}
         </Animated.View>
       </View>
     </Modal>
@@ -140,58 +147,74 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(76, 29, 149, 0.45)',
   },
   drawer: {
     width: DRAWER_WIDTH,
     height: '100%',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    shadowColor: '#000',
+    backgroundColor: C.screenBg,
+    shadowColor: C.shadow,
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
   },
   drawerHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 28,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: 'rgba(212, 160, 23, 0.25)',
   },
   drawerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: C.purpleBg,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1.5,
+    borderColor: C.borderGold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   drawerHeaderText: {
     flex: 1,
+    paddingTop: 2,
   },
   drawerTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    color: C.text,
+    color: '#fff',
   },
   drawerSubtitle: {
-    marginTop: 2,
+    marginTop: 4,
     fontSize: 12,
-    color: C.textMuted,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '700',
+  },
+  drawerEmail: {
+    marginTop: 4,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
   },
   closeBtn: {
-    padding: 4,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerBody: {
+    paddingHorizontal: 14,
+    paddingTop: 18,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: C.textLight,
-    letterSpacing: 0.6,
+    letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
@@ -199,19 +222,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    marginBottom: 4,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.12)',
   },
   menuItemActive: {
     backgroundColor: C.purpleBg,
+    borderColor: C.borderGold,
   },
   menuIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: C.background,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: C.screenBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -226,6 +253,6 @@ const styles = StyleSheet.create({
   },
   menuLabelActive: {
     color: C.primary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

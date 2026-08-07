@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdminScreenHeader } from '@/components/AdminScreenHeader';
 import { LiveLocationIconButton } from '@/components/LiveLocationIconButton';
 import { PanditProfileReviewModal } from '@/components/PanditProfileReviewModal';
+import { AdminEmptyState } from '@/components/ui/AdminEmptyState';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import {
   usePanditProfilesQuery,
@@ -72,7 +74,8 @@ function PanditProfileRow({
   const isUpdatePending = profile.updateRequestStatus === 'pending';
 
   return (
-    <View style={styles.row}>
+    <PremiumCard accent="purple" innerStyle={styles.rowInner}>
+      <View style={styles.row}>
       <View style={styles.rowTop}>
         {profile.profileImage ? (
           <Image source={{ uri: profile.profileImage }} style={styles.avatar} contentFit="cover" />
@@ -153,7 +156,8 @@ function PanditProfileRow({
           </Pressable>
         </View>
       ) : null}
-    </View>
+      </View>
+    </PremiumCard>
   );
 }
 
@@ -220,8 +224,8 @@ export function PanditProfilesScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
-      <AdminScreenHeader title="Pandit Profile" subtitle="Review, approve or reject pandit profiles" />
+      <StatusBar style="light" />
+      <AdminScreenHeader title="Pandit Profiles" subtitle="Review, approve or reject pandit profiles" />
 
       {query.isLoading ? (
         <View style={styles.centerState}>
@@ -258,11 +262,11 @@ export function PanditProfilesScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="person-outline" size={48} color={C.textLight} />
-              <Text style={styles.emptyTitle}>No pandit profiles yet</Text>
-              <Text style={styles.emptySubtitle}>Pandit profiles will appear here once created.</Text>
-            </View>
+            <AdminEmptyState
+              icon="person-outline"
+              title="No pandit profiles yet"
+              subtitle="Pandit profiles will appear here once created."
+            />
           }
         />
       )}
@@ -277,42 +281,39 @@ export function PanditProfilesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.background },
+  root: { flex: 1, backgroundColor: C.screenBg },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   errorText: { marginTop: 12, fontSize: 15, color: C.textMuted, textAlign: 'center' },
   retryBtn: {
     marginTop: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
     backgroundColor: C.primary,
   },
   retryText: { color: '#fff', fontWeight: '700' },
-  listContent: { paddingHorizontal: 16, paddingTop: 4 },
+  listContent: { paddingHorizontal: 16, paddingTop: 16 },
   emptyList: { flexGrow: 1 },
-  row: {
-    backgroundColor: C.card,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
+  rowInner: { padding: 0 },
+  row: { padding: 14 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.border },
+  avatar: { width: 52, height: 52, borderRadius: 18, backgroundColor: C.border },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleBg },
   avatarText: { fontSize: 18, fontWeight: '800', color: C.primary },
   info: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '700', color: C.text },
+  name: { fontSize: 16, fontWeight: '800', color: C.text },
   meta: { marginTop: 3, fontSize: 12, color: C.textMuted },
   contact: { marginTop: 2, fontSize: 12, color: C.textLight },
   actions: { alignItems: 'flex-end', gap: 8 },
   viewBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: C.purpleBg,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   badgeText: { fontSize: 10, fontWeight: '700' },
@@ -323,8 +324,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 11,
+    borderRadius: 12,
     backgroundColor: C.success,
   },
   rejectChip: {
@@ -333,8 +334,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 11,
+    borderRadius: 12,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FECACA',
@@ -342,8 +343,5 @@ const styles = StyleSheet.create({
   approveChipText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   rejectChipText: { color: C.danger, fontSize: 13, fontWeight: '700' },
   chipDisabled: { opacity: 0.6 },
-  separator: { height: 10 },
-  emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 24 },
-  emptyTitle: { marginTop: 16, fontSize: 18, fontWeight: '700', color: C.text },
-  emptySubtitle: { marginTop: 6, fontSize: 14, color: C.textMuted, textAlign: 'center' },
+  separator: { height: 12 },
 });

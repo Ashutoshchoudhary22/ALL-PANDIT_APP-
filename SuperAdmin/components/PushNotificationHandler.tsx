@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
 
+import { isPushNotificationsAvailable } from '@/lib/push-capability';
 import {
   getNativePushToken,
   isAdminRole,
+  loadNotificationsModule,
   parsePushNotificationData,
 } from '@/lib/push-notifications';
 import { useAuth } from '@/providers/AuthProvider';
@@ -14,7 +14,7 @@ import { registerPushTokenApi } from '@/services/push.api';
 
 function handleNotificationNavigation(type?: string) {
   if (type === 'admin:booking:new') {
-    router.push('/(tabs)');
+    router.push('/notifications');
     return;
   }
 
@@ -32,11 +32,12 @@ export function PushNotificationHandler() {
   const registeredTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isLoading || !token || !isAdminRole(user?.role) || Platform.OS === 'web') {
+    if (isLoading || !token || !isAdminRole(user?.role) || !isPushNotificationsAvailable()) {
       return;
     }
 
     let cancelled = false;
+    let tokenSubscription: { remove: () => void } | null = null;
 
     const registerToken = async () => {
       try {
@@ -51,48 +52,61 @@ export function PushNotificationHandler() {
       }
     };
 
-    void registerToken();
+    void (async () => {
+      const Notifications = await loadNotificationsModule();
+      if (!Notifications || cancelled) return;
 
-    const tokenSubscription = Notifications.addPushTokenListener((event) => {
-      const nextToken = event.data;
-      if (!nextToken || registeredTokenRef.current === nextToken) return;
+      void registerToken();
 
-      void registerPushTokenApi(nextToken)
-        .then(() => {
-          registeredTokenRef.current = nextToken;
-        })
-        .catch((error) => {
-          console.warn('Push token refresh registration failed:', error);
-        });
-    });
+      tokenSubscription = Notifications.addPushTokenListener((event) => {
+        const nextToken = event.data;
+        if (!nextToken || registeredTokenRef.current === nextToken) return;
+
+        void registerPushTokenApi(nextToken)
+          .then(() => {
+            registeredTokenRef.current = nextToken;
+          })
+          .catch((error) => {
+            console.warn('Push token refresh registration failed:', error);
+          });
+      });
+    })();
 
     return () => {
       cancelled = true;
-      tokenSubscription.remove();
+      tokenSubscription?.remove();
     };
   }, [token, user?.role, isLoading]);
 
   useEffect(() => {
-    if (isLoading || !token || !isAdminRole(user?.role)) {
+    if (isLoading || !token || !isAdminRole(user?.role) || !isPushNotificationsAvailable()) {
       return;
     }
 
+    let cancelled = false;
+    let receivedSubscription: { remove: () => void } | null = null;
+    let responseSubscription: { remove: () => void } | null = null;
+
     const invalidateAdminData = (type?: string) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] });
       if (type === 'admin:pandit:pending') {
         queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profiles'] });
       }
     };
 
-    const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      const data = parsePushNotificationData(
-        notification.request.content.data as Record<string, unknown>,
-      );
-      invalidateAdminData(data.type);
-    });
+    void (async () => {
+      const Notifications = await loadNotificationsModule();
+      if (!Notifications || cancelled) return;
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        const data = parsePushNotificationData(
+          notification.request.content.data as Record<string, unknown>,
+        );
+        invalidateAdminData(data.type);
+      });
+
+      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = parsePushNotificationData(
           response.notification.request.content.data as Record<string, unknown>,
         );
@@ -101,12 +115,13 @@ export function PushNotificationHandler() {
         if (response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
           handleNotificationNavigation(data.type);
         }
-      },
-    );
+      });
+    })();
 
     return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
+      cancelled = true;
+      receivedSubscription?.remove();
+      responseSubscription?.remove();
     };
   }, [token, user?.role, isLoading, queryClient]);
 

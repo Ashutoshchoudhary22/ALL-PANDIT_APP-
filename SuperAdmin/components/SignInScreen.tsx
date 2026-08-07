@@ -84,11 +84,11 @@ export function SignInScreen({
           <View style={styles.brandIcon}>
             <Ionicons name="shield-checkmark" size={22} color={ADMIN_COLORS.primary} />
           </View>
-          <Text style={styles.brandName}>My-Pandit Super Admin</Text>
+          <Text style={styles.brandName}>ApnaAcharya Admin</Text>
         </View>
 
         <Text style={styles.heroTitle}>
-          Manage platform{'\n'}with full control. 🛡️
+          Manage platform{'\n'}with full control.
         </Text>
       </LinearGradient>
 
@@ -158,14 +158,21 @@ export function SignInScreen({
               onPress={handleSignIn}
               disabled={loginMutation.isPending}
             >
-              {loginMutation.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.signInText}>Sign In</Text>
-                  <Ionicons name="log-in-outline" size={20} color="#fff" />
-                </>
-              )}
+              <LinearGradient
+                colors={[ADMIN_COLORS.primary, ADMIN_COLORS.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.signInGradient}
+              >
+                {loginMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.signInText}>Sign In</Text>
+                    <Ionicons name="log-in-outline" size={20} color="#fff" />
+                  </>
+                )}
+              </LinearGradient>
             </Pressable>
 
             <Text style={styles.accountRow}>
@@ -206,6 +213,8 @@ const styles = StyleSheet.create({
     backgroundColor: ADMIN_COLORS.sheet,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: ADMIN_COLORS.borderGold,
   },
   brandName: {
     color: ADMIN_COLORS.textOnPrimary,
@@ -228,6 +237,8 @@ const styles = StyleSheet.create({
     backgroundColor: ADMIN_COLORS.sheet,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
+    borderTopWidth: 1,
+    borderColor: ADMIN_COLORS.borderGold,
   },
   sheetContent: {
     paddingHorizontal: 24,
@@ -276,9 +287,11 @@ const styles = StyleSheet.create({
   },
   signInBtn: {
     marginTop: 28,
-    height: 54,
     borderRadius: 27,
-    backgroundColor: ADMIN_COLORS.primary,
+    overflow: 'hidden',
+  },
+  signInGradient: {
+    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

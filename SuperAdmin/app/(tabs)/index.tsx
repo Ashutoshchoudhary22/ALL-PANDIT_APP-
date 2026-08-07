@@ -8,5 +8,5 @@ export default function DashboardScreen() {
     user?.email?.split('@')[0]?.replace(/[._]/g, ' ') ||
     (user?.role === 'superadmin' ? 'Super Admin' : 'Admin');
 
-  return <SuperAdminDashboard adminName={adminName} notificationCount={8} />;
+  return <SuperAdminDashboard adminName={adminName} />;
 }
