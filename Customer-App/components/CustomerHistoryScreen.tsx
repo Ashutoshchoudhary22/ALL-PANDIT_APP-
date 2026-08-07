@@ -32,6 +32,7 @@ import {
 import { formatINR } from '@/lib/booking-pricing';
 import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTranslation } from '@/providers/LanguageProvider';
 import { Booking } from '@/services/booking.api';
 
 const STATUS_STYLES: Record<
@@ -231,6 +232,7 @@ function ListSeparator() {
 
 export function CustomerHistoryScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   useProfileReturnBackHandler();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
@@ -319,13 +321,13 @@ export function CustomerHistoryScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerOm}>ॐ</Text>
-            <Text style={styles.headerTitle}>Puja History</Text>
-            <Text style={styles.headerSubtitle}>Completed & cancelled bookings</Text>
+            <Text style={styles.headerTitle}>{t('history.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('history.subtitle')}</Text>
           </View>
           <View style={styles.headerBadge}>
             <Ionicons name="time" size={22} color={C.maroon} />
             <Text style={styles.headerBadgeCount}>{historyBookings.length}</Text>
-            <Text style={styles.headerBadgeLabel}>Total</Text>
+            <Text style={styles.headerBadgeLabel}>{t('history.badge.total')}</Text>
           </View>
         </View>
         <View style={styles.headerDividerWrap}>

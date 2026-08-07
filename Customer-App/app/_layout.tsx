@@ -15,6 +15,7 @@ import { PanditFiltersHost } from '@/components/PanditFiltersHost';
 import { SplashController } from '@/components/SplashController';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { LanguageProvider } from '@/providers/LanguageProvider';
 import { NotificationsProvider } from '@/providers/NotificationsProvider';
 import { SavedPanditsProvider } from '@/providers/SavedPanditsProvider';
 import { PanditFiltersProvider } from '@/providers/PanditFiltersProvider';
@@ -33,6 +34,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <AuthProvider>
+          <LanguageProvider>
           <SavedPanditsProvider>
           <NotificationsProvider>
           <PanditFiltersProvider>
@@ -68,6 +70,7 @@ export default function RootLayout() {
           </PanditFiltersProvider>
           </NotificationsProvider>
           </SavedPanditsProvider>
+          </LanguageProvider>
         </AuthProvider>
       </QueryProvider>
     </GestureHandlerRootView>

@@ -6,22 +6,24 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeColors as C } from '@/constants/home-theme';
+import { useTranslation } from '@/providers/LanguageProvider';
 import { useAuth } from '@/providers/AuthProvider';
 
 const TAB_CONFIG: Record<
   string,
-  { label: string; icon: keyof typeof Ionicons.glyphMap; iconActive: keyof typeof Ionicons.glyphMap }
+  { labelKey: 'tab.home' | 'tab.bookings' | 'tab.search' | 'tab.history' | 'tab.profile'; icon: keyof typeof Ionicons.glyphMap; iconActive: keyof typeof Ionicons.glyphMap }
 > = {
-  home: { label: 'Home', icon: 'home-outline', iconActive: 'home' },
-  bookings: { label: 'Bookings', icon: 'calendar-outline', iconActive: 'calendar' },
-  search: { label: 'Search', icon: 'search', iconActive: 'search' },
-  history: { label: 'History', icon: 'time-outline', iconActive: 'time' },
-  profile: { label: 'Profile', icon: 'person-outline', iconActive: 'person' },
+  home: { labelKey: 'tab.home', icon: 'home-outline', iconActive: 'home' },
+  bookings: { labelKey: 'tab.bookings', icon: 'calendar-outline', iconActive: 'calendar' },
+  search: { labelKey: 'tab.search', icon: 'search', iconActive: 'search' },
+  history: { labelKey: 'tab.history', icon: 'time-outline', iconActive: 'time' },
+  profile: { labelKey: 'tab.profile', icon: 'person-outline', iconActive: 'person' },
 };
 
 export function CustomerTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const { t } = useTranslation();
   const currentRoute = state.routes[state.index];
   const isPublicScreen = currentRoute.name === 'index' || currentRoute.name === 'explore';
 
@@ -80,7 +82,7 @@ export function CustomerTabBar({ state, navigation }: BottomTabBarProps) {
                 color={isFocused ? C.maroon : C.textLight}
               />
               <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
-                {config.label}
+                {t(config.labelKey)}
               </Text>
               {isFocused ? <View style={styles.activeDot} /> : null}
             </PlatformPressable>

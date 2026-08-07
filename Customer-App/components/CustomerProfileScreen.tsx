@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddWalletMoneyModal } from '@/components/AddWalletMoneyModal';
 import { CloudImage } from '@/components/CloudImage';
+import { LanguageSelectModal } from '@/components/LanguageSelectModal';
 import { WalletTransactionsModal } from '@/components/WalletTransactionsModal';
 import { LotusDivider } from '@/components/ui/LotusDivider';
 import { PremiumCard } from '@/components/ui/PremiumCard';
@@ -18,13 +19,15 @@ import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { formatBookingDate, formatBookingTime } from '@/lib/booking-display';
 import { formatINR } from '@/lib/booking-pricing';
 import {
-  CUSTOMER_LANGUAGE_OPTIONS,
   formatCustomerLanguage,
   formatNotificationPreference,
 } from '@/lib/customer-preferences';
 import { navigateFromProfile } from '@/lib/profile-navigation';
 import { useTabBackToHome } from '@/lib/tab-navigation';
+import { AppLanguage, normalizeAppLanguage } from '@/constants/i18n';
+import type { TranslationKey } from '@/constants/i18n/en';
 import { useAuth } from '@/providers/AuthProvider';
+import { useLanguage, useTranslation } from '@/providers/LanguageProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useSavedPandits } from '@/providers/SavedPanditsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
@@ -47,18 +50,19 @@ function comingSoon(feature: string) {
   Alert.alert(feature, 'This will be available soon.');
 }
 
-const BOOKING_STATUS_LABELS: Record<BookingStatus, { label: string; bg: string; text: string }> = {
-  payment_pending: { label: 'Payment Pending', bg: '#FEE2E2', text: '#B91C1C' },
-  pending: { label: 'Awaiting Approval', bg: '#FEF3C7', text: '#B45309' },
-  confirmed: { label: 'Confirmed', bg: '#DCFCE7', text: '#15803D' },
-  in_progress: { label: 'In Progress', bg: '#FEF3C7', text: '#B45309' },
-  awaiting_payment: { label: 'Awaiting Payment', bg: '#FFEDD5', text: '#C2410C' },
-  cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#B91C1C' },
-  completed: { label: 'Completed', bg: '#EFF6FF', text: '#1D4ED8' },
+const BOOKING_STATUS_STYLE: Record<BookingStatus, { labelKey: TranslationKey; bg: string; text: string }> = {
+  payment_pending: { labelKey: 'booking.status.paymentPending', bg: '#FEE2E2', text: '#B91C1C' },
+  pending: { labelKey: 'booking.status.awaitingApproval', bg: '#FEF3C7', text: '#B45309' },
+  confirmed: { labelKey: 'booking.status.confirmed', bg: '#DCFCE7', text: '#15803D' },
+  in_progress: { labelKey: 'booking.status.inProgress', bg: '#FEF3C7', text: '#B45309' },
+  awaiting_payment: { labelKey: 'booking.status.awaitingPayment', bg: '#FFEDD5', text: '#C2410C' },
+  cancelled: { labelKey: 'booking.status.cancelled', bg: '#FEE2E2', text: '#B91C1C' },
+  completed: { labelKey: 'booking.status.completed', bg: '#EFF6FF', text: '#1D4ED8' },
 };
 
 function RecentBookingItem({ booking }: { booking: Booking }) {
-  const statusStyle = BOOKING_STATUS_LABELS[booking.status];
+  const { t } = useTranslation();
+  const statusStyle = BOOKING_STATUS_STYLE[booking.status];
 
   return (
     <PremiumCard accent="saffron" innerStyle={styles.recentBookingCardInner}>
@@ -73,11 +77,13 @@ function RecentBookingItem({ booking }: { booking: Booking }) {
                 {booking.serviceName}
               </Text>
               <Text style={styles.recentBookingSubtitle} numberOfLines={1}>
-                with {booking.panditName}
+                {t('profile.recent.withPandit', { panditName: booking.panditName })}
               </Text>
             </View>
             <View style={[styles.recentStatusBadge, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[styles.recentStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
+              <Text style={[styles.recentStatusText, { color: statusStyle.text }]}>
+                {t(statusStyle.labelKey)}
+              </Text>
             </View>
           </View>
           <View style={styles.recentBookingMeta}>
@@ -393,15 +399,17 @@ function PreferencesSection({
   onToggleNotifications: () => void;
   onOpenNotifications: () => void;
 }) {
-  const languageLabel = profile.languageLabel || formatCustomerLanguage(profile.languageCode);
+  const { t, language } = useTranslation();
+  const languageLabel = formatCustomerLanguage(profile.languageCode, language);
   const notificationsLabel = formatNotificationPreference(
     profile.notificationsEnabled !== false,
     unreadCount,
+    t,
   );
 
   return (
     <>
-      <SectionHeader title="Preferences" />
+      <SectionHeader title={t('profile.section.preferences')} />
       <View style={styles.preferencesGrid}>
         <PremiumCard style={styles.preferenceCardWrap} accent="saffron" innerStyle={styles.preferenceCardInner}>
           <Pressable
@@ -412,7 +420,7 @@ function PreferencesSection({
             <View style={[styles.preferenceIconWrap, { backgroundColor: '#FFF0E0' }]}>
               <Ionicons name="language-outline" size={18} color={C.primary} />
             </View>
-            <Text style={styles.preferenceLabel}>Language</Text>
+            <Text style={styles.preferenceLabel}>{t('profile.pref.language')}</Text>
             <Text style={styles.preferenceValue} numberOfLines={1}>
               {languageLabel}
             </Text>
@@ -426,9 +434,9 @@ function PreferencesSection({
             <View style={[styles.preferenceIconWrap, { backgroundColor: '#F3E8FF' }]}>
               <Ionicons name="location-outline" size={18} color="#9333EA" />
             </View>
-            <Text style={styles.preferenceLabel}>Preferred City</Text>
+            <Text style={styles.preferenceLabel}>{t('profile.pref.preferredCity')}</Text>
             <Text style={styles.preferenceValue} numberOfLines={1}>
-              {profile.cityName || 'Not set'}
+              {profile.cityName || t('profile.notSet')}
             </Text>
           </Pressable>
         </PremiumCard>
@@ -441,7 +449,7 @@ function PreferencesSection({
             <View style={[styles.preferenceIconWrap, { backgroundColor: '#FCE7F3' }]}>
               <Ionicons name="notifications-outline" size={18} color="#DB2777" />
             </View>
-            <Text style={styles.preferenceLabel}>Notifications</Text>
+            <Text style={styles.preferenceLabel}>{t('profile.pref.notifications')}</Text>
             <Text style={styles.preferenceValue} numberOfLines={1}>
               {notificationsLabel}
             </Text>
@@ -452,9 +460,9 @@ function PreferencesSection({
             <View style={[styles.preferenceIconWrap, { backgroundColor: '#ECFDF5' }]}>
               <Ionicons name="mail-unread-outline" size={18} color={C.success} />
             </View>
-            <Text style={styles.preferenceLabel}>Alerts</Text>
+            <Text style={styles.preferenceLabel}>{t('profile.pref.alerts')}</Text>
             <Text style={styles.preferenceValue} numberOfLines={1}>
-              {unreadCount > 0 ? `${unreadCount} new` : 'None'}
+              {unreadCount > 0 ? t('profile.pref.newAlerts', { count: unreadCount }) : t('profile.pref.none')}
             </Text>
           </Pressable>
         </PremiumCard>
@@ -673,6 +681,8 @@ function ProfileContent({
 export function CustomerProfileScreen() {
   const insets = useSafeAreaInsets();
   useTabBackToHome();
+  const { t } = useTranslation();
+  const { setLanguage } = useLanguage();
   const { token, user, isLoading: authLoading, signOut, signIn } = useAuth();
   const { unreadCount } = useNotifications();
   const { savedCount, refreshSavedPandits } = useSavedPandits();
@@ -683,6 +693,7 @@ export function CustomerProfileScreen() {
   const walletQuery = useMyWalletQuery(Boolean(token));
   const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [transactionsModalVisible, setTransactionsModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const profile = profileQuery.data?.data;
   const walletBalance = walletQuery.data?.data.balance ?? 0;
   const walletTransactions = walletQuery.data?.data.transactions ?? [];
@@ -693,33 +704,36 @@ export function CustomerProfileScreen() {
 
   const handleSelectLanguage = () => {
     if (!profile) return;
+    setLanguageModalVisible(true);
+  };
 
-    Alert.alert('Select Language', 'Choose your preferred app language', [
-      ...CUSTOMER_LANGUAGE_OPTIONS.map((option) => ({
-        text: option.label,
-        onPress: () => {
-          if (option.code === profile.languageCode) return;
+  const handleLanguageChange = (optionCode: AppLanguage) => {
+    if (!profile) return;
 
-          updateProfileMutation.mutate(
-            { languageCode: option.code },
-            {
-              onSuccess: async () => {
-                if (token && user) {
-                  await signIn(token, { ...user, languageCode: option.code });
-                }
-              },
-              onError: (error) => {
-                Alert.alert(
-                  'Error',
-                  error instanceof Error ? error.message : 'Could not update language',
-                );
-              },
-            },
+    const nextLanguage = normalizeAppLanguage(optionCode);
+    if (nextLanguage === normalizeAppLanguage(profile.languageCode)) {
+      setLanguageModalVisible(false);
+      return;
+    }
+
+    updateProfileMutation.mutate(
+      { languageCode: optionCode },
+      {
+        onSuccess: async () => {
+          await setLanguage(nextLanguage);
+          if (token && user) {
+            await signIn(token, { ...user, languageCode: optionCode });
+          }
+          setLanguageModalVisible(false);
+        },
+        onError: (error) => {
+          Alert.alert(
+            t('common.error'),
+            error instanceof Error ? error.message : t('profile.language.errorFallback'),
           );
         },
-      })),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+      },
+    );
   };
 
   const handleToggleNotifications = () => {
@@ -788,7 +802,7 @@ export function CustomerProfileScreen() {
       >
         <View>
           <Text style={styles.topOm}>ॐ</Text>
-          <Text style={styles.topTitle}>My Profile</Text>
+          <Text style={styles.topTitle}>{t('profile.title')}</Text>
         </View>
         <View style={styles.topActions}>
           {profile ? (
@@ -818,7 +832,7 @@ export function CustomerProfileScreen() {
         </View>
       ) : !token ? (
         <View style={styles.centerState}>
-          <Text style={styles.stateText}>Please sign in to view your profile</Text>
+          <Text style={styles.stateText}>{t('profile.signInRequired')}</Text>
         </View>
       ) : isNotFound ? (
         <ScrollView
@@ -876,6 +890,14 @@ export function CustomerProfileScreen() {
         visible={transactionsModalVisible}
         transactions={walletTransactions}
         onDismiss={() => setTransactionsModalVisible(false)}
+      />
+
+      <LanguageSelectModal
+        visible={languageModalVisible}
+        selectedCode={profile?.languageCode}
+        saving={updateProfileMutation.isPending}
+        onClose={() => setLanguageModalVisible(false)}
+        onSelect={handleLanguageChange}
       />
     </View>
   );

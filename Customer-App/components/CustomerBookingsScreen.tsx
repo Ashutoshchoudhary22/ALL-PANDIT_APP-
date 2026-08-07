@@ -36,6 +36,7 @@ import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTranslation } from '@/providers/LanguageProvider';
 import {
   Booking,
   BookingCustomerPrefill,
@@ -302,6 +303,7 @@ const keyExtractor = (item: Booking) => String(item.id);
 
 export function CustomerBookingsScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   useProfileReturnBackHandler();
   const { token } = useAuth();
   const bookingsQuery = useMyBookingsQuery(Boolean(token));
@@ -477,13 +479,13 @@ export function CustomerBookingsScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerOm}>ॐ</Text>
-            <Text style={styles.headerTitle}>My Bookings</Text>
-            <Text style={styles.headerSubtitle}>Track your puja requests & status</Text>
+            <Text style={styles.headerTitle}>{t('bookings.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('bookings.subtitle')}</Text>
           </View>
           <View style={styles.headerBadge}>
             <Ionicons name="calendar" size={22} color={C.maroon} />
             <Text style={styles.headerBadgeCount}>{bookings.length}</Text>
-            <Text style={styles.headerBadgeLabel}>Active</Text>
+            <Text style={styles.headerBadgeLabel}>{t('bookings.badge.active')}</Text>
           </View>
         </View>
         <View style={styles.headerDividerWrap}>

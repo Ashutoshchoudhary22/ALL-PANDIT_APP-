@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(150) NULL,
   password_hash VARCHAR(255) NULL,
   profile_image VARCHAR(500) NULL,
-  language_code VARCHAR(10) DEFAULT 'hi',
+  language_code VARCHAR(10) DEFAULT 'en',
   status ENUM('active','inactive','blocked','pending') DEFAULT 'active',
   last_login_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

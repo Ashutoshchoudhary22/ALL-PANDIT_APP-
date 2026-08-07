@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeColors as C } from '@/constants/home-theme';
 import { useLoginMutation } from '@/hooks/use-auth';
 import { exitAppForWrongRole } from '@/lib/role-guard';
+import { useTranslation } from '@/providers/LanguageProvider';
 import { AuthUser } from '@/services/auth.api';
 
 const INPUT_BG = 'rgba(255, 248, 240, 0.96)';
@@ -38,6 +39,7 @@ export function SignInScreen({
   onForgotPassword,
 }: SignInScreenProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -49,7 +51,7 @@ export function SignInScreen({
     setError('');
 
     if (!email.trim() || !password) {
-      setError('Email and password are required');
+      setError(t('auth.validation.required'));
       return;
     }
 
@@ -104,7 +106,7 @@ export function SignInScreen({
               <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder={t('auth.emailPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -119,7 +121,7 @@ export function SignInScreen({
               <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder={t('auth.passwordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
                 value={password}
@@ -140,7 +142,7 @@ export function SignInScreen({
               onPress={onForgotPassword}
               disabled={loginMutation.isPending}
             >
-              <Text style={styles.forgot}>Forgot Password?</Text>
+              <Text style={styles.forgot}>{t('auth.forgotPassword')}</Text>
             </Pressable>
 
             <Pressable
@@ -160,15 +162,15 @@ export function SignInScreen({
                 {loginMutation.isPending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.loginText}>Login</Text>
+                  <Text style={styles.loginText}>{t('auth.login')}</Text>
                 )}
               </LinearGradient>
             </Pressable>
 
             <Text style={styles.accountRow}>
-              Don&apos;t have an account?{' '}
+              {t('auth.noAccount')}{' '}
               <Text style={styles.link} onPress={onSignUp}>
-                Sign Up
+                {t('auth.signUp')}
               </Text>
             </Text>
           </View>

@@ -23,7 +23,8 @@ import { PujaServiceIcon } from '@/components/PujaServiceIcon';
 import { ReviewPromptBanner } from '@/components/ReviewPromptBanner';
 import { LotusDivider } from '@/components/ui/LotusDivider';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
-import { Brand, HomeColors as C } from '@/constants/home-theme';
+import { HomeColors as C } from '@/constants/home-theme';
+import { getPujaCategoryTranslationKey } from '@/constants/i18n';
 import { HOME_PUJA_CATEGORIES } from '@/constants/puja-services';
 import { useFilteredPandits } from '@/hooks/use-filtered-pandits';
 import { useSubmitBookingReviewMutation } from '@/hooks/use-bookings';
@@ -35,6 +36,7 @@ import { usePopularPujaServicesQuery } from '@/hooks/use-popular-puja-services';
 import { useMyCustomerProfileQuery } from '@/hooks/use-customer-profile';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTranslation } from '@/providers/LanguageProvider';
 import { usePanditFilters } from '@/providers/PanditFiltersProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { CustomerProfile } from '@/services/customer-profile.api';
@@ -51,10 +53,10 @@ function openAllPujaServices() {
 const CATEGORIES = HOME_PUJA_CATEGORIES;
 
 const TRUST_FEATURES = [
-  { icon: 'shield-checkmark' as const, title: 'Verified Pandits', desc: '100% Verified and Trusted' },
-  { icon: 'cash' as const, title: 'Transparent Pricing', desc: 'No Hidden Charges Ever' },
-  { icon: 'time' as const, title: 'On-time Service', desc: 'Punctual and Reliable' },
-  { icon: 'headset' as const, title: '24x7 Support', desc: 'We are always here to help' },
+  { icon: 'shield-checkmark' as const, titleKey: 'home.trust.verified.title' as const, descKey: 'home.trust.verified.desc' as const },
+  { icon: 'cash' as const, titleKey: 'home.trust.pricing.title' as const, descKey: 'home.trust.pricing.desc' as const },
+  { icon: 'time' as const, titleKey: 'home.trust.ontime.title' as const, descKey: 'home.trust.ontime.desc' as const },
+  { icon: 'headset' as const, titleKey: 'home.trust.support.title' as const, descKey: 'home.trust.support.desc' as const },
 ];
 
 type CustomerHomeProps = {
@@ -77,13 +79,21 @@ function getDisplayName(profile: CustomerProfile | undefined, mobile?: string | 
   return 'Customer';
 }
 
-function getLocationLabel(profile: CustomerProfile | undefined) {
+function getLocationLabel(profile: CustomerProfile | undefined, t: (key: 'home.addLocation') => string) {
   if (profile?.cityName) return profile.cityName;
   if (profile?.address) return profile.address;
-  return 'Add your location';
+  return t('home.addLocation');
 }
 
-function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => void }) {
+function SectionHeader({
+  title,
+  onViewAll,
+  viewAllText = 'View All →',
+}: {
+  title: string;
+  onViewAll?: () => void;
+  viewAllText?: string;
+}) {
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionTitleWrap}>
@@ -92,7 +102,7 @@ function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => 
       </View>
       {onViewAll ? (
         <Pressable onPress={onViewAll} hitSlop={8}>
-          <Text style={styles.viewAll}>View All →</Text>
+          <Text style={styles.viewAll}>{viewAllText}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -101,6 +111,7 @@ function SectionHeader({ title, onViewAll }: { title: string; onViewAll?: () => 
 
 export function CustomerHome({ notificationCount: notificationCountProp }: CustomerHomeProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { token, user } = useAuth();
   const { unreadCount } = useNotifications();
   const badgeLabel = formatBadgeCount(notificationCountProp ?? unreadCount);
@@ -125,8 +136,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
   const walletBalance = walletQuery.data?.data.balance ?? 0;
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
-  const firstName = profile?.firstName?.trim() || customerName.split(' ')[0] || 'Customer';
-  const location = getLocationLabel(profile);
+  const firstName = profile?.firstName?.trim() || customerName.split(' ')[0] || t('home.fallbackName');
+  const location = getLocationLabel(profile, t);
   const avatarSource = profile?.profileImage || user?.profileImage || DEMO_IMAGES.customer;
 
   useFocusEffect(
@@ -158,10 +169,10 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           rating: payload.rating,
           comment: payload.comment || undefined,
         });
-        Alert.alert('Thank You!', response.message);
+        Alert.alert(t('home.review.thankYou'), response.message);
         void reviewPrompts.refetch();
       } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Could not submit review');
+        Alert.alert(t('home.review.errorTitle'), error instanceof Error ? error.message : t('home.review.errorFallback'));
       }
     },
     [reviewPrompts, submitReview],
@@ -193,9 +204,9 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
               <View style={styles.headerText}>
                 <Text style={styles.headerOm}>ॐ</Text>
                 <Text style={styles.greeting}>
-                  {Brand.greeting}, <Text style={styles.greetingName}>{firstName}</Text>
+                  {t('brand.greeting')}, <Text style={styles.greetingName}>{firstName}</Text>
                 </Text>
-                <Text style={styles.subGreeting}>{Brand.tagline}</Text>
+                <Text style={styles.subGreeting}>{t('brand.tagline')}</Text>
                 <Pressable style={styles.locationPill} onPress={() => router.push('/edit-profile')}>
                   <Ionicons name="location" size={13} color={C.primary} />
                   <Text style={styles.locationText} numberOfLines={1}>
@@ -250,7 +261,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           <View style={styles.searchBar}>
             <Ionicons name="search" size={20} color={C.textLight} />
             <TextInput
-              placeholder="Search for puja, pandit or occasion..."
+              placeholder={t('home.searchPlaceholder')}
               placeholderTextColor={C.textLight}
               style={styles.searchInput}
             />
@@ -268,17 +279,16 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
           <View style={styles.bannerContent}>
             <Text style={styles.bannerOm}>ॐ</Text>
             <Text style={styles.bannerTitle}>
-              Sacred Rituals,{'\n'}Verified Acharyas
+              {t('home.bannerTitle')}
             </Text>
             <Text style={styles.bannerBullets}>
-              ✦ Verified Pandits  ✦ Transparent Pricing{'\n'}
-              ✦ Easy Booking  ✦ On-time Service
+              {t('home.bannerBullets')}
             </Text>
             <Pressable
               style={styles.bookNowBtn}
               onPress={() => router.push('/nearby-pandits')}
             >
-              <Text style={styles.bookNowText}>Book Puja Now</Text>
+              <Text style={styles.bookNowText}>{t('home.bookPujaNow')}</Text>
             </Pressable>
           </View>
           <View style={styles.bannerImageWrap}>
@@ -287,7 +297,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
         </LinearGradient>
 
         {/* Categories */}
-        <SectionHeader title="Puja Services" />
+        <SectionHeader title={t('home.section.pujaServices')} />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -308,7 +318,10 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
             >
               <PujaServiceIcon name={cat.label} index={catIndex} size="sm" />
               <Text style={styles.categoryLabel} numberOfLines={2}>
-                {cat.label}
+                {(() => {
+                  const key = getPujaCategoryTranslationKey(cat.label);
+                  return key ? t(key) : cat.label;
+                })()}
               </Text>
             </Pressable>
           ))}
@@ -316,24 +329,25 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
 
         {/* Nearby Pandits */}
         <SectionHeader
-          title="Nearby Pandits"
+          title={t('home.section.nearbyPandits')}
           onViewAll={token ? () => router.push('/nearby-pandits') : undefined}
+          viewAllText={t('home.viewAll')}
         />
         {panditsQuery.isLoading ? (
           <View style={styles.panditsLoading}>
             <ActivityIndicator size="small" color={C.primary} />
-            <Text style={styles.panditsLoadingText}>Loading verified pandits...</Text>
+            <Text style={styles.panditsLoadingText}>{t('home.pandits.loading')}</Text>
           </View>
         ) : filteredPandits.length === 0 ? (
           <View style={styles.panditsEmpty}>
             <Ionicons name="person-outline" size={32} color={C.textLight} />
             <Text style={styles.panditsEmptyTitle}>
-              {activeCount > 0 ? 'No pandits match your filters' : 'No verified pandits yet'}
+              {activeCount > 0 ? t('home.pandits.emptyFilteredTitle') : t('home.pandits.emptyTitle')}
             </Text>
             <Text style={styles.panditsEmptyText}>
               {activeCount > 0
-                ? 'Try changing or clearing your filters to see more pandits.'
-                : 'Approved pandits will appear here once Super Admin verifies their profiles.'}
+                ? t('home.pandits.emptyFilteredBody')
+                : t('home.pandits.emptyBody')}
             </Text>
           </View>
         ) : (
@@ -357,18 +371,18 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
         )}
 
         {/* Popular Services */}
-        <SectionHeader title="Popular Services" onViewAll={openAllPujaServices} />
+        <SectionHeader title={t('home.section.popularServices')} onViewAll={openAllPujaServices} viewAllText={t('home.viewAll')} />
         {popularServicesQuery.isLoading ? (
           <View style={styles.panditsLoading}>
             <ActivityIndicator size="small" color={C.primary} />
-            <Text style={styles.panditsLoadingText}>Loading latest services...</Text>
+            <Text style={styles.panditsLoadingText}>{t('home.services.loading')}</Text>
           </View>
         ) : popularServices.length === 0 ? (
           <View style={styles.panditsEmpty}>
             <Ionicons name="flame-outline" size={32} color={C.textLight} />
-            <Text style={styles.panditsEmptyTitle}>No services yet</Text>
+            <Text style={styles.panditsEmptyTitle}>{t('home.services.emptyTitle')}</Text>
             <Text style={styles.panditsEmptyText}>
-              Latest puja services will appear here when pandits add them to their profiles.
+              {t('home.services.emptyBody')}
             </Text>
           </View>
         ) : (
@@ -388,7 +402,7 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                     {service.name}
                   </Text>
                   <Text style={styles.servicePrice}>
-                    ₹{service.minPrice.toLocaleString('en-IN')} onwards
+                    ₹{service.minPrice.toLocaleString('en-IN')} {t('home.services.priceOnwards')}
                   </Text>
                 </Pressable>
               ))}
@@ -406,8 +420,8 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
               <View style={styles.trustIconWrap}>
                 <Ionicons name={feature.icon} size={22} color={C.maroon} />
               </View>
-              <Text style={styles.trustTitle}>{feature.title}</Text>
-              <Text style={styles.trustDesc}>{feature.desc}</Text>
+              <Text style={styles.trustTitle}>{t(feature.titleKey)}</Text>
+              <Text style={styles.trustDesc}>{t(feature.descKey)}</Text>
             </View>
           ))}
         </ScrollView>

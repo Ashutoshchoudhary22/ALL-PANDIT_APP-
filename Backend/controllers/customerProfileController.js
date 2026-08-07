@@ -8,13 +8,13 @@ const LANGUAGE_LABELS = {
 };
 
 function formatLanguageLabel(code) {
-  if (!code) return 'Hindi';
+  if (!code) return 'English';
   const key = String(code).trim().toLowerCase();
   return LANGUAGE_LABELS[key] || code;
 }
 
 function normalizeLanguageCode(code) {
-  if (!code) return 'hi';
+  if (!code) return 'en';
   const key = String(code).trim().toLowerCase();
   if (key === 'hindi') return 'hi';
   if (key === 'english') return 'en';
@@ -22,7 +22,7 @@ function normalizeLanguageCode(code) {
   if (['hi', 'en', 'sa', 'sanskrit'].includes(key)) {
     return key === 'sanskrit' ? 'sa' : key;
   }
-  return 'hi';
+  return 'en';
 }
 
 function pickProfileImage(body) {
@@ -60,7 +60,7 @@ function formatProfile(row) {
     mobile: row.mobile,
     email: row.email,
     profileImage: row.profile_image,
-    languageCode: row.language_code || 'hi',
+    languageCode: row.language_code || 'en',
     languageLabel: formatLanguageLabel(row.language_code),
     notificationsEnabled: row.notifications_enabled == null ? true : Boolean(row.notifications_enabled),
     memberSince: row.user_created_at,

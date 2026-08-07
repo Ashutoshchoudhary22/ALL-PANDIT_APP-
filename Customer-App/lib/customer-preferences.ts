@@ -1,26 +1,34 @@
+import type { AppLanguage } from '@/constants/i18n';
+import type { TranslationKey } from '@/constants/i18n/en';
+
 export const CUSTOMER_LANGUAGE_OPTIONS = [
-  { code: 'hi', label: 'Hindi' },
-  { code: 'en', label: 'English' },
-  { code: 'sa', label: 'Sanskrit' },
+  { code: 'en', labelKey: 'language.en' as const },
+  { code: 'hi', labelKey: 'language.hi' as const },
 ] as const;
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  hi: 'Hindi',
-  en: 'English',
-  sa: 'Sanskrit',
-  sanskrit: 'Sanskrit',
-  hindi: 'Hindi',
-  english: 'English',
-};
+export type CustomerLanguageCode = (typeof CUSTOMER_LANGUAGE_OPTIONS)[number]['code'];
 
-export function formatCustomerLanguage(code?: string | null) {
-  if (!code) return 'Hindi';
+export function formatCustomerLanguage(code?: string | null, language: AppLanguage = 'en') {
+  if (!code) return language === 'hi' ? 'हिंदी' : 'English';
   const key = code.trim().toLowerCase();
-  return LANGUAGE_LABELS[key] || code;
+  if (key === 'hi' || key === 'hindi') return language === 'hi' ? 'हिंदी' : 'Hindi';
+  if (key === 'en' || key === 'english') return language === 'hi' ? 'अंग्रेज़ी' : 'English';
+  return code;
 }
 
-export function formatNotificationPreference(enabled: boolean, unreadCount = 0) {
-  if (!enabled) return 'Off';
-  if (unreadCount > 0) return `${unreadCount} unread`;
-  return 'On';
+type NotificationTranslationKey =
+  | 'preferences.notifications.off'
+  | 'preferences.notifications.on'
+  | 'preferences.notifications.unread';
+
+export function formatNotificationPreference(
+  enabled: boolean,
+  unreadCount = 0,
+  t?: (key: NotificationTranslationKey, params?: Record<string, string | number>) => string,
+) {
+  if (!enabled) return t ? t('preferences.notifications.off') : 'Off';
+  if (unreadCount > 0) {
+    return t ? t('preferences.notifications.unread', { count: unreadCount }) : `${unreadCount} unread`;
+  }
+  return t ? t('preferences.notifications.on') : 'On';
 }

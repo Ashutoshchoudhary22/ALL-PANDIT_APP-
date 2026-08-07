@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SlideToAction } from '@/components/SlideToAction';
 import { HomeColors as C } from '@/constants/home-theme';
+import { useTranslation } from '@/providers/LanguageProvider';
 
 export function LandingScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <View style={styles.root}>
@@ -32,7 +34,7 @@ export function LandingScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}>
         <View style={styles.slideWrap}>
-          <SlideToAction label="Begin Your Journey" onComplete={() => router.push('/sign-in')} />
+          <SlideToAction label={t('landing.beginJourney')} onComplete={() => router.push('/sign-in')} />
         </View>
       </View>
     </View>
