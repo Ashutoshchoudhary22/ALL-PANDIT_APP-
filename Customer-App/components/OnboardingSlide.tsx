@@ -165,14 +165,13 @@ export function OnboardingCarousel({
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ImageBackground
         source={require('@/assets/landing.png')}
         style={StyleSheet.absoluteFill}
         resizeMode="contain"
         imageStyle={styles.backgroundImage}
       />
-      <View style={styles.backgroundOverlay} />
 
       <FlatList
         ref={listRef}
@@ -254,10 +253,6 @@ const styles = StyleSheet.create({
   },
   backgroundImage: {
     backgroundColor: '#FFF8F0',
-  },
-  backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 0, 26, 0.45)',
   },
   list: {
     flex: 1,

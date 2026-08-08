@@ -1,13 +1,11 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Image, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SlideToAction } from '@/components/SlideToAction';
+import { HomeColors as C } from '@/constants/home-theme';
 import { useTranslation } from '@/providers/LanguageProvider';
-
-const LANDING_BG = '#FFF8F0';
 
 export function LandingScreen() {
   const insets = useSafeAreaInsets();
@@ -15,19 +13,13 @@ export function LandingScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <View style={[styles.imageWrap, { paddingTop: insets.top }]}>
         <Image
           source={require('@/assets/landing.png')}
           style={styles.landingImage}
           resizeMode="contain"
-        />
-        <LinearGradient
-          colors={['transparent', 'rgba(61, 21, 21, 0.08)', 'rgba(61, 21, 21, 0.35)']}
-          locations={[0.55, 0.82, 1]}
-          style={styles.imageGradient}
-          pointerEvents="none"
         />
       </View>
 
@@ -43,24 +35,21 @@ export function LandingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
   imageWrap: {
     flex: 1,
     width: '100%',
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
   landingImage: {
     width: '100%',
     height: '100%',
   },
-  imageGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
   footer: {
     paddingHorizontal: 28,
     alignItems: 'center',
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
   slideWrap: {
     width: '100%',

@@ -3,9 +3,8 @@ import { Image, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SlideToAction } from '@/components/SlideToAction';
+import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { goToSignIn } from '@/lib/auth-navigation';
-
-const LANDING_BG = '#FFF8F0';
 
 export function LandingScreen() {
   const insets = useSafeAreaInsets();
@@ -32,12 +31,12 @@ export function LandingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
   imageWrap: {
     flex: 1,
     width: '100%',
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
   landingImage: {
     width: '100%',
@@ -45,6 +44,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 28,
-    backgroundColor: LANDING_BG,
+    backgroundColor: C.cream,
   },
 });
