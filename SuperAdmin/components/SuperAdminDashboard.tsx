@@ -117,12 +117,12 @@ function formatBadgeCount(count: number) {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Add Pandit', icon: 'person-add' as const, color: C.primary, bg: C.purpleBg },
+  { label: 'Add Pandit', icon: 'person-add' as const, color: C.primary, bg: C.purpleBg, href: '/pandit-profiles' as const },
   { label: 'Add Service', icon: 'add-circle' as const, color: C.success, bg: C.greenBg },
-  { label: 'Manage Bookings', icon: 'calendar' as const, color: C.warning, bg: C.orangeBg },
+  { label: 'Manage Bookings', icon: 'calendar' as const, color: C.warning, bg: C.orangeBg, href: '/(tabs)/bookings' as const },
   { label: 'Manage Coupons', icon: 'pricetag' as const, color: C.pink, bg: C.pinkBg },
-  { label: 'View Reports', icon: 'bar-chart' as const, color: C.info, bg: C.blueBg },
-  { label: 'System Settings', icon: 'settings' as const, color: C.textMuted, bg: '#F3F4F6' },
+  { label: 'View Reports', icon: 'bar-chart' as const, color: C.info, bg: C.blueBg, href: '/(tabs)/reports' as const },
+  { label: 'System Settings', icon: 'settings' as const, color: C.textMuted, bg: '#F3F4F6', href: '/(tabs)/more' as const },
 ];
 
 
@@ -137,14 +137,24 @@ const STATUS_STYLES: Record<BookingStatus, { bg: string; text: string }> = {
 function SectionHeader({
   title,
   actionLabel,
+  onActionPress,
 }: {
   title: string;
   actionLabel?: string;
+  onActionPress?: () => void;
 }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {actionLabel ? <Text style={styles.sectionAction}>{actionLabel}</Text> : null}
+      {actionLabel ? (
+        onActionPress ? (
+          <Pressable onPress={onActionPress} hitSlop={8}>
+            <Text style={styles.sectionAction}>{actionLabel}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.sectionAction}>{actionLabel}</Text>
+        )
+      ) : null}
     </View>
   );
 }
@@ -285,14 +295,16 @@ function QuickAction({
   label,
   color,
   bg,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   color: string;
   bg: string;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.quickAction}>
+    <Pressable style={styles.quickAction} onPress={onPress}>
       <View style={[styles.quickActionIcon, { backgroundColor: bg }]}>
         <Ionicons name={icon} size={22} color={color} />
       </View>
@@ -562,11 +574,19 @@ export function SuperAdminDashboard({
           <SectionHeader title="Quick Actions" />
           <View style={styles.quickActionsGrid}>
             {QUICK_ACTIONS.map((action) => (
-              <QuickAction key={action.label} {...action} />
+              <QuickAction
+                key={action.label}
+                {...action}
+                onPress={action.href ? () => router.push(action.href) : undefined}
+              />
             ))}
           </View>
 
-          <SectionHeader title="Recent Bookings" actionLabel="View All >" />
+          <SectionHeader
+            title="Recent Bookings"
+            actionLabel="View All >"
+            onActionPress={() => router.push('/(tabs)/bookings')}
+          />
           <Card>
             {recentBookings.length ? (
               recentBookings.map((booking, index) => (
