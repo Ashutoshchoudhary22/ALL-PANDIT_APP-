@@ -1,9 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
-import { Image, StyleSheet, View } from 'react-native';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SlideToAction } from '@/components/SlideToAction';
-import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { goToSignIn } from '@/lib/auth-navigation';
 
 export function LandingScreen() {
@@ -11,15 +10,13 @@ export function LandingScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
-
-      <View style={[styles.imageWrap, { paddingTop: insets.top }]}>
-        <Image
-          source={require('@/assets/landing.png')}
-          style={styles.landingImage}
-          resizeMode="contain"
-        />
-      </View>
+      <StatusBar style="light" />
+      <ImageBackground
+        source={require('@/assets/landing.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
+      <View style={styles.overlay} />
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
         <SlideToAction label="Get Started" onComplete={goToSignIn} />
@@ -31,19 +28,15 @@ export function LandingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: C.cream,
+    backgroundColor: '#1A0A3E',
   },
-  imageWrap: {
-    flex: 1,
-    width: '100%',
-    backgroundColor: C.cream,
-  },
-  landingImage: {
-    width: '100%',
-    height: '100%',
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 0, 26, 0.2)',
   },
   footer: {
+    flex: 1,
+    justifyContent: 'flex-end',
     paddingHorizontal: 28,
-    backgroundColor: C.cream,
   },
 });

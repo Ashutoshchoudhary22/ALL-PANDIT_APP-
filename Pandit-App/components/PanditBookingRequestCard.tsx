@@ -67,12 +67,13 @@ export const PanditBookingRequestCard = memo(function PanditBookingRequestCard({
   onReject,
 }: PanditBookingRequestCardProps) {
   const busy = approving || rejecting;
+  const avatarSource = booking.customerProfileImage || DEMO_IMAGES.customer;
 
   return (
     <PremiumCard accent="gold" innerStyle={styles.cardInner}>
       <View style={styles.cardTop}>
         <View style={styles.avatarFrame}>
-          <CloudImage source={DEMO_IMAGES.customer} preset="avatar" style={styles.customerAvatar} />
+          <CloudImage source={avatarSource} preset="avatar" style={styles.customerAvatar} />
         </View>
         <View style={styles.bookingInfo}>
           <Text style={styles.customerName}>{booking.customerName}</Text>

@@ -7,6 +7,7 @@ export type PanditBooking = {
   panditName: string;
   customerName: string;
   customerMobile: string | null;
+  customerProfileImage: string | null;
   serviceName: string;
   bookingDate: string;
   bookingTime: string;

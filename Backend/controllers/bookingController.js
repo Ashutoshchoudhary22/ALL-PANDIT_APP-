@@ -154,6 +154,7 @@ function mapPanditBookingRow(row) {
     ...formatBooking(row),
     customerName: row.customer_name?.trim() || 'Customer',
     customerMobile: row.customer_mobile || null,
+    customerProfileImage: row.customer_profile_image || null,
   };
 }
 
@@ -665,6 +666,7 @@ exports.getPanditBookingRequests = async (req, res) => {
               pp.name AS pandit_name,
               TRIM(CONCAT(COALESCE(cp.first_name, ''), ' ', COALESCE(cp.last_name, ''))) AS customer_name,
               u.mobile AS customer_mobile,
+              u.profile_image AS customer_profile_image,
               COALESCE(b.latitude, cp.latitude) AS latitude,
               COALESCE(b.longitude, cp.longitude) AS longitude
        FROM bookings b
@@ -814,6 +816,7 @@ exports.getPanditBookings = async (req, res) => {
               pp.name AS pandit_name,
               TRIM(CONCAT(COALESCE(cp.first_name, ''), ' ', COALESCE(cp.last_name, ''))) AS customer_name,
               u.mobile AS customer_mobile,
+              u.profile_image AS customer_profile_image,
               COALESCE(b.latitude, cp.latitude) AS latitude,
               COALESCE(b.longitude, cp.longitude) AS longitude
        FROM bookings b
