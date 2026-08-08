@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,14 +15,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CloudImage } from '@/components/CloudImage';
+import { LanguageSelectModal } from '@/components/LanguageSelectModal';
 import { LotusDivider } from '@/components/ui/LotusDivider';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DEMO_IMAGES } from '@/constants/cloudinary';
+import { AppLanguage, normalizeAppLanguage } from '@/constants/i18n';
 import { Brand, DashboardColors as C } from '@/constants/dashboard-theme';
-import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
+import { useMyPanditProfileQuery, useUpdatePanditProfileMutation } from '@/hooks/use-pandit-profile';
 import { getPanditGalleryPhotos } from '@/lib/pandit-gallery';
+import { formatPanditAppLanguage } from '@/lib/pandit-preferences';
 import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
+import { useLanguage, useTranslation } from '@/providers/LanguageProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
 function formatLocation(profile: PanditProfile) {
@@ -138,7 +142,49 @@ function LogoutButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function ProfileContent({ profile }: { profile: PanditProfile }) {
+function PreferencesSection({
+  updating,
+  onSelectLanguage,
+}: {
+  updating: boolean;
+  onSelectLanguage: () => void;
+}) {
+  const { t, language } = useTranslation();
+  const languageLabel = formatPanditAppLanguage(language, language);
+
+  return (
+    <>
+      <SectionHeader title={t('profile.section.preferences')} />
+      <View style={styles.preferencesGrid}>
+        <PremiumCard style={styles.preferenceCardWrap} accent="saffron" innerStyle={styles.preferenceCardInner}>
+          <Pressable
+            style={[styles.preferenceItem, updating && styles.preferenceItemDisabled]}
+            onPress={onSelectLanguage}
+            disabled={updating}
+          >
+            <View style={[styles.preferenceIconWrap, { backgroundColor: '#FFF0E0' }]}>
+              <Ionicons name="language-outline" size={18} color={C.primary} />
+            </View>
+            <Text style={styles.preferenceLabel}>{t('profile.pref.language')}</Text>
+            <Text style={styles.preferenceValue} numberOfLines={1}>
+              {languageLabel}
+            </Text>
+          </Pressable>
+        </PremiumCard>
+      </View>
+    </>
+  );
+}
+
+function ProfileContent({
+  profile,
+  preferencesUpdating,
+  onSelectLanguage,
+}: {
+  profile: PanditProfile;
+  preferencesUpdating: boolean;
+  onSelectLanguage: () => void;
+}) {
   const imageSource = profile.profileImage || DEMO_IMAGES.pandit1;
   const photoSource =
     profile.updateRequestStatus === 'pending' && profile.pendingProfile
@@ -343,6 +389,11 @@ function ProfileContent({ profile }: { profile: PanditProfile }) {
         ))}
       </View>
 
+      <PreferencesSection
+        updating={preferencesUpdating}
+        onSelectLanguage={onSelectLanguage}
+      />
+
       <SectionHeader title="Profile Details" />
       <PremiumCard accent="gold" innerStyle={styles.detailsCardInner}>
         <View style={styles.detailsCard}>
@@ -448,11 +499,15 @@ function DetailRow({
 
 export function PanditProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { token, isLoading: authLoading, signOut } = useAuth();
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLanguage();
+  const { token, user, isLoading: authLoading, signOut, signIn } = useAuth();
   useTabBackToHome();
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
+  const updateProfileMutation = useUpdatePanditProfileMutation();
   const profile = profileQuery.data?.data;
   const { refetch } = profileQuery;
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -466,6 +521,40 @@ export function PanditProfileScreen() {
     profileQuery.error instanceof Error &&
     (profileQuery.error.message.toLowerCase().includes('not found') ||
       profileQuery.error.message.includes('404'));
+
+  const handleSelectLanguage = () => {
+    if (!profile) return;
+    setLanguageModalVisible(true);
+  };
+
+  const handleLanguageChange = (optionCode: AppLanguage) => {
+    if (!profile) return;
+
+    const nextLanguage = normalizeAppLanguage(optionCode);
+    if (nextLanguage === language) {
+      setLanguageModalVisible(false);
+      return;
+    }
+
+    updateProfileMutation.mutate(
+      { languageCode: optionCode },
+      {
+        onSuccess: async () => {
+          await setLanguage(nextLanguage);
+          if (token && user) {
+            await signIn(token, { ...user, languageCode: optionCode });
+          }
+          setLanguageModalVisible(false);
+        },
+        onError: (error) => {
+          Alert.alert(
+            t('common.error'),
+            error instanceof Error ? error.message : t('profile.language.errorFallback'),
+          );
+        },
+      },
+    );
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -537,10 +626,22 @@ export function PanditProfileScreen() {
             { paddingBottom: insets.bottom + 110 },
           ]}
         >
-          <ProfileContent profile={profile} />
+          <ProfileContent
+            profile={profile}
+            preferencesUpdating={updateProfileMutation.isPending}
+            onSelectLanguage={handleSelectLanguage}
+          />
           <LogoutButton onPress={handleLogout} />
         </ScrollView>
       ) : null}
+
+      <LanguageSelectModal
+        visible={languageModalVisible}
+        selectedCode={language}
+        saving={updateProfileMutation.isPending}
+        onClose={() => setLanguageModalVisible(false)}
+        onSelect={handleLanguageChange}
+      />
     </View>
   );
 }
@@ -872,4 +973,26 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   logoutBtnText: { color: C.danger, fontSize: 15, fontWeight: '800' },
+  preferencesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  preferenceCardWrap: { width: '48%' },
+  preferenceCardInner: { padding: 0 },
+  preferenceItem: {
+    padding: 14,
+    alignItems: 'flex-start',
+    gap: 2,
+    minHeight: 96,
+    justifyContent: 'flex-start',
+  },
+  preferenceItemDisabled: { opacity: 0.6 },
+  preferenceIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.2)',
+  },
+  preferenceLabel: { fontSize: 11, color: C.textMuted, marginTop: 6, fontWeight: '500' },
+  preferenceValue: { fontSize: 13, fontWeight: '800', color: C.maroon },
 });

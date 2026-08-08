@@ -18,6 +18,16 @@ function mapLanguageCode(code) {
   return parts.map((p) => LANGUAGE_LABELS[p] || p);
 }
 
+function isPanditLanguageOnlyUpdate(body) {
+  const allowedKeys = new Set(['languageCode', 'language_code']);
+  const keys = Object.keys(body).filter((key) => body[key] !== undefined);
+  return (
+    keys.length > 0 &&
+    keys.every((key) => allowedKeys.has(key)) &&
+    (body.languageCode !== undefined || body.language_code !== undefined)
+  );
+}
+
 function pickProfileImage(body) {
   const value = body.profileImage ?? body.profile_image;
   return value?.trim() || null;
@@ -876,6 +886,27 @@ exports.updateMyProfile = async (req, res) => {
     }
 
     const currentStatus = currentRow.status;
+    const languageOnlyUpdate = isPanditLanguageOnlyUpdate(req.body);
+    const resolvedLanguageCode =
+      languageCode !== undefined || req.body.language_code !== undefined
+        ? (languageCode ?? req.body.language_code)?.trim() || 'hi'
+        : undefined;
+
+    if (resolvedLanguageCode !== undefined) {
+      await pool.query('UPDATE users SET language_code = ? WHERE id = ?', [
+        resolvedLanguageCode,
+        userId,
+      ]);
+    }
+
+    if (languageOnlyUpdate) {
+      const profile = await fetchProfileByUserId(userId);
+      return res.status(200).json({
+        success: true,
+        message: 'Language updated successfully',
+        data: formatPanditProfile(profile),
+      });
+    }
 
     if (currentStatus === 'approved') {
       const pendingSnapshot = buildPendingSnapshot(currentRow, req.body, {
@@ -919,13 +950,6 @@ exports.updateMyProfile = async (req, res) => {
 
     if (profileImageUrl !== undefined) {
       await saveUserProfileImage(userId, profileImageUrl);
-    }
-
-    if (languageCode !== undefined) {
-      await pool.query('UPDATE users SET language_code = ? WHERE id = ?', [
-        languageCode?.trim() || 'hi',
-        userId,
-      ]);
     }
 
     const nextStatus = currentStatus === 'rejected' ? 'pending' : currentStatus;
