@@ -169,7 +169,8 @@ export function OnboardingCarousel({
       <ImageBackground
         source={require('@/assets/landing.png')}
         style={StyleSheet.absoluteFill}
-        resizeMode="cover"
+        resizeMode="contain"
+        imageStyle={styles.backgroundImage}
       />
       <View style={styles.backgroundOverlay} />
 
@@ -249,7 +250,10 @@ export function OnboardingSlide({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#1A0A3E',
+    backgroundColor: '#FFF8F0',
+  },
+  backgroundImage: {
+    backgroundColor: '#FFF8F0',
   },
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,

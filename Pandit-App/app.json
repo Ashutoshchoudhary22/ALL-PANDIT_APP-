@@ -4,7 +4,7 @@
     "slug": "Pandit-App",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/app-icon.png",
     "scheme": "panditapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFF8F0",
-        "foregroundImage": "./assets/logo.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
@@ -41,16 +41,16 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/logo.png",
-          "imageWidth": 220,
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#1A0A3E"
+          "backgroundColor": "#FFF8F0"
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo.png",
+          "icon": "./assets/adaptive-icon.png",
           "color": "#FFF8F0",
           "defaultChannel": "bookings"
         }

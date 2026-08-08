@@ -1,22 +1,26 @@
 import { StatusBar } from 'expo-status-bar';
-import { ImageBackground, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SlideToAction } from '@/components/SlideToAction';
 import { goToSignIn } from '@/lib/auth-navigation';
+
+const LANDING_BG = '#FFF8F0';
 
 export function LandingScreen() {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
-      <ImageBackground
-        source={require('@/assets/landing.png')}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
-      <View style={styles.overlay} />
+      <StatusBar style="dark" />
+
+      <View style={[styles.imageWrap, { paddingTop: insets.top }]}>
+        <Image
+          source={require('@/assets/landing.png')}
+          style={styles.landingImage}
+          resizeMode="contain"
+        />
+      </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
         <SlideToAction label="Get Started" onComplete={goToSignIn} />
@@ -28,15 +32,19 @@ export function LandingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#1A0A3E',
+    backgroundColor: LANDING_BG,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 0, 26, 0.2)',
+  imageWrap: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: LANDING_BG,
+  },
+  landingImage: {
+    width: '100%',
+    height: '100%',
   },
   footer: {
-    flex: 1,
-    justifyContent: 'flex-end',
     paddingHorizontal: 28,
+    backgroundColor: LANDING_BG,
   },
 });
