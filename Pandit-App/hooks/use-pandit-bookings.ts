@@ -7,6 +7,9 @@ export function usePanditBookingsQuery(enabled = true) {
     queryKey: ['bookings', 'pandit', 'me'],
     queryFn: getPanditBookingsApi,
     enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 }
 

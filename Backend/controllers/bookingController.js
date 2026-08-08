@@ -10,7 +10,10 @@ const { sendBookingOtpEmail } = require('../config/mailer');
 const generateOtp = require('../utils/generateOtp');
 const {
   notifyPanditNewBooking,
+  notifyPanditBookingRequestUpdated,
+  notifyCustomerBookingSubmitted,
   notifyCustomerBookingApproved,
+  notifyCustomerBookingRejected,
   notifyPanditBookingPaymentConfirmed,
   notifyCustomerFinishOtpSent,
   notifyCustomerReviewRequest,
@@ -132,6 +135,25 @@ async function fetchBookingById(bookingId) {
     `SELECT b.*, pp.name AS pandit_name
      FROM bookings b
      INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+     WHERE b.id = ?`,
+    [bookingId],
+  );
+  return rows[0] || null;
+}
+
+async function fetchPanditBookingRow(bookingId) {
+  const [rows] = await pool.query(
+    `SELECT b.*,
+            pp.name AS pandit_name,
+            TRIM(CONCAT(COALESCE(cp.first_name, ''), ' ', COALESCE(cp.last_name, ''))) AS customer_name,
+            u.mobile AS customer_mobile,
+            u.profile_image AS customer_profile_image,
+            COALESCE(b.latitude, cp.latitude) AS latitude,
+            COALESCE(b.longitude, cp.longitude) AS longitude
+     FROM bookings b
+     INNER JOIN pandit_profiles pp ON pp.id = b.pandit_profile_id
+     LEFT JOIN customer_profiles cp ON cp.customer_id = b.customer_id
+     LEFT JOIN users u ON u.id = b.customer_id
      WHERE b.id = ?`,
     [bookingId],
   );
@@ -337,6 +359,7 @@ exports.createBooking = async (req, res) => {
     const bookingId = result.insertId;
     const row = await fetchBookingById(bookingId);
     await notifyPanditNewBooking(req.app.get('io'), bookingId);
+    await notifyCustomerBookingSubmitted(req.app.get('io'), bookingId);
 
     return res.status(201).json({
       success: true,
@@ -730,13 +753,14 @@ exports.approveBooking = async (req, res) => {
       [bookingId],
     );
 
-    const row = await fetchBookingById(bookingId);
+    const row = await fetchPanditBookingRow(bookingId);
     await notifyCustomerBookingApproved(req.app.get('io'), bookingId);
+    await notifyPanditBookingRequestUpdated(req.app.get('io'), bookingId, 'booking:approved');
 
     return res.status(200).json({
       success: true,
       message: 'Booking approved. Customer can now complete the advance payment.',
-      data: formatBooking(row),
+      data: mapPanditBookingRow(row),
     });
   } catch (error) {
     console.error('Approve booking error:', error);
@@ -786,12 +810,14 @@ exports.rejectBooking = async (req, res) => {
       [bookingId],
     );
 
-    const row = await fetchBookingById(bookingId);
+    const row = await fetchPanditBookingRow(bookingId);
+    await notifyCustomerBookingRejected(req.app.get('io'), bookingId);
+    await notifyPanditBookingRequestUpdated(req.app.get('io'), bookingId, 'booking:rejected');
 
     return res.status(200).json({
       success: true,
       message: 'Booking request rejected',
-      data: formatBooking(row),
+      data: mapPanditBookingRow(row),
     });
   } catch (error) {
     console.error('Reject booking error:', error);

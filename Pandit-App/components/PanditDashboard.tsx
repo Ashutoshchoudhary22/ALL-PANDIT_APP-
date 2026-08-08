@@ -347,11 +347,9 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
       if (token) {
         void earningsQuery.refetch();
         void profileQuery.refetch();
-        void requestsQuery.refetch();
-        void bookingsQuery.refetch();
         void reviewsQuery.refetch();
       }
-    }, [token, earningsQuery.refetch, profileQuery.refetch, requestsQuery.refetch, bookingsQuery.refetch, reviewsQuery.refetch]),
+    }, [token, earningsQuery.refetch, profileQuery.refetch, reviewsQuery.refetch]),
   );
 
   const handleApprove = async (booking: PanditBooking) => {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useCallback, useState, memo } from 'react';
 import {
   ActivityIndicator,
@@ -65,14 +65,6 @@ export function PanditBookingRequestsScreen() {
   const requests = requestsQuery.data?.data ?? [];
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (token) {
-        void requestsQuery.refetch();
-      }
-    }, [token, requestsQuery.refetch]),
-  );
 
   const handleApprove = useCallback(async (booking: PanditBooking) => {
     setActiveBookingId(booking.id);

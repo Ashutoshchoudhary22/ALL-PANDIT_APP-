@@ -9,12 +9,9 @@ import {
 } from 'react';
 
 import { clearNotifications, loadNotifications, saveNotifications } from '@/lib/notification-storage';
-import { getMyBookingsApi } from '@/services/booking.api';
 import {
   CustomerNotification,
   mergeNotifications,
-  notificationFromBooking,
-  notificationFromReviewRequest,
 } from '@/services/notification.api';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -53,23 +50,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const stored = await loadNotifications(user.id);
-      const response = await getMyBookingsApi();
-      const fromBookings = (response.data ?? []).flatMap((booking) => {
-        const items: CustomerNotification[] = [];
-        if (booking.status === 'payment_pending') {
-          items.push(notificationFromBooking(booking));
-        }
-        if (booking.needsReview) {
-          items.push(notificationFromReviewRequest(booking));
-        }
-        return items;
-      });
-      const merged = mergeNotifications(stored, fromBookings);
-      setNotifications(merged);
-      await saveNotifications(user.id, merged);
-    } catch {
-      const stored = await loadNotifications(user.id);
       setNotifications(stored);
+    } catch {
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }

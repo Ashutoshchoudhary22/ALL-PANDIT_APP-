@@ -13,18 +13,16 @@ export type CustomerNotification = {
 };
 
 export type CustomerBookingNotification = {
-  type: 'booking:approved' | 'booking:finish_otp' | 'booking:review_request';
+  type:
+    | 'booking:submitted'
+    | 'booking:approved'
+    | 'booking:rejected'
+    | 'booking:finish_otp'
+    | 'booking:review_request'
+    | 'booking:updated';
   title: string;
   message: string;
-  booking: {
-    id: number;
-    panditName: string;
-    serviceName: string;
-    advanceAmount: number;
-    status: string;
-    updatedAt?: string;
-    createdAt?: string;
-  };
+  booking: Booking;
 };
 
 export function notificationFromReviewRequest(booking: Booking): CustomerNotification {

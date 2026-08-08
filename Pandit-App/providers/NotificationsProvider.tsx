@@ -9,11 +9,9 @@ import {
 } from 'react';
 
 import { clearNotifications, loadNotifications, saveNotifications } from '@/lib/notification-storage';
-import { getPanditBookingRequestsApi } from '@/services/booking.api';
 import {
   PanditNotification,
   mergeNotifications,
-  notificationFromBooking,
 } from '@/services/notification.api';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -52,14 +50,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const stored = await loadNotifications(user.id);
-      const response = await getPanditBookingRequestsApi();
-      const fromBookings = (response.data ?? []).map(notificationFromBooking);
-      const merged = mergeNotifications(stored, fromBookings);
-      setNotifications(merged);
-      await saveNotifications(user.id, merged);
-    } catch {
-      const stored = await loadNotifications(user.id);
       setNotifications(stored);
+    } catch {
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }

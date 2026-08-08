@@ -4,11 +4,27 @@ import { useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { Socket } from 'socket.io-client';
 
-import { createAuthenticatedSocket } from '@/lib/socket';
+import {
+  removePanditBookingRequestFromCache,
+  upsertPanditBookingInCache,
+  upsertPanditBookingRequestInCache,
+} from '@/lib/booking-realtime';
 import { advancePercentLabel } from '@/lib/booking-pricing';
+import { createAuthenticatedSocket } from '@/lib/socket';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import { PanditBookingNotification } from '@/services/booking.api';
+import { PanditBooking } from '@/services/booking.api';
+import {
+  notificationFromBooking,
+  notificationFromConfirmedBooking,
+} from '@/services/notification.api';
+
+export type PanditBookingNotification = {
+  type: 'booking:new' | 'booking:confirmed';
+  title: string;
+  message: string;
+  booking: PanditBooking;
+};
 
 export function BookingNotificationListener() {
   const { token, user, isLoading } = useAuth();
@@ -22,7 +38,6 @@ export function BookingNotificationListener() {
     }
 
     const socket = createAuthenticatedSocket(token);
-
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -30,35 +45,24 @@ export function BookingNotificationListener() {
     });
 
     socket.on('booking:new', (payload: PanditBookingNotification) => {
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+      upsertPanditBookingRequestInCache(queryClient, payload.booking);
 
       addNotification({
-        id: `booking-${payload.booking.id}`,
-        type: 'booking:new',
+        ...notificationFromBooking(payload.booking),
         title: payload.title || 'New Booking Request',
         message: payload.message,
-        bookingId: payload.booking.id,
-        read: false,
-        createdAt: payload.booking.createdAt || new Date().toISOString(),
-        booking: payload.booking,
       });
     });
 
     socket.on('booking:confirmed', (payload: PanditBookingNotification) => {
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+      removePanditBookingRequestFromCache(queryClient, payload.booking.id);
+      upsertPanditBookingInCache(queryClient, payload.booking);
       queryClient.invalidateQueries({ queryKey: ['pandit', 'earnings'] });
 
       addNotification({
-        id: `booking-confirmed-${payload.booking.id}`,
-        type: 'booking:confirmed',
+        ...notificationFromConfirmedBooking(payload.booking),
         title: payload.title || 'Payment Received',
         message: payload.message,
-        bookingId: payload.booking.id,
-        read: false,
-        createdAt: payload.booking.updatedAt || payload.booking.createdAt || new Date().toISOString(),
-        booking: payload.booking,
       });
 
       Alert.alert(
@@ -72,6 +76,13 @@ export function BookingNotificationListener() {
           },
         ],
       );
+    });
+
+    socket.on('booking:request_updated', (payload: { type: string; booking: PanditBooking }) => {
+      removePanditBookingRequestFromCache(queryClient, payload.booking.id);
+      if (payload.type === 'booking:approved') {
+        upsertPanditBookingInCache(queryClient, payload.booking);
+      }
     });
 
     socket.on('connect_error', (error) => {

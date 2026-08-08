@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  removePanditBookingRequestFromCache,
+  upsertPanditBookingInCache,
+} from '@/lib/booking-realtime';
+import {
   approvePanditBookingApi,
   getPanditBookingRequestsApi,
   rejectPanditBookingApi,
@@ -11,6 +15,9 @@ export function usePanditBookingRequestsQuery(enabled = true) {
     queryKey: ['bookings', 'pandit', 'requests'],
     queryFn: getPanditBookingRequestsApi,
     enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -18,9 +25,11 @@ export function useApproveBookingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (bookingId: number) => approvePanditBookingApi(bookingId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
+    onSuccess: (response) => {
+      if (response.data) {
+        removePanditBookingRequestFromCache(queryClient, response.data.id);
+        upsertPanditBookingInCache(queryClient, response.data);
+      }
     },
   });
 }
@@ -29,8 +38,10 @@ export function useRejectBookingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (bookingId: number) => rejectPanditBookingApi(bookingId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+    onSuccess: (response) => {
+      if (response.data) {
+        removePanditBookingRequestFromCache(queryClient, response.data.id);
+      }
     },
   });
 }

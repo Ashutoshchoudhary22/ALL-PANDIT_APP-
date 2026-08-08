@@ -329,10 +329,9 @@ export function CustomerBookingsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (token) {
-        void bookingsQuery.refetch();
         void walletQuery.refetch();
       }
-    }, [token, bookingsQuery.refetch, walletQuery.refetch]),
+    }, [token, walletQuery.refetch]),
   );
 
   const handlePayNow = useCallback(async (booking: Booking) => {
