@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { recordLocationPoint } = require('../services/locationHistoryService');
 const {
   getBusyPanditProfileIds,
   getCustomerActiveBookedPanditIds,
@@ -351,6 +352,7 @@ function formatPanditProfile(row) {
     email: row.email,
     languageCode: row.language_code,
     languages: mapLanguageCode(row.language_code),
+    locationTrackingEnabled: Boolean(row.location_tracking_enabled),
     memberSince: row.user_created_at,
     performingSince,
     profileCreatedAt: row.created_at,
@@ -398,6 +400,7 @@ const PROFILE_SELECT = `
     u.email,
     u.profile_image,
     u.language_code,
+    u.location_tracking_enabled,
     u.created_at AS user_created_at
   FROM pandit_profiles pp
   INNER JOIN users u ON u.id = pp.user_id
@@ -1067,6 +1070,8 @@ exports.updateLiveLocation = async (req, res) => {
        WHERE user_id = ?`,
       [latitude, longitude, userId],
     );
+
+    await recordLocationPoint(userId, 'pandit', latitude, longitude);
 
     const profile = await fetchProfileByUserId(userId);
 

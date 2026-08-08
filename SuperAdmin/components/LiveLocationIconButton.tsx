@@ -6,6 +6,8 @@ import { LiveLocationModal } from '@/components/LiveLocationModal';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 
 type LiveLocationIconButtonProps = {
+  userId: number;
+  role: 'customer' | 'pandit';
   name: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -15,6 +17,8 @@ type LiveLocationIconButtonProps = {
 };
 
 export function LiveLocationIconButton({
+  userId,
+  role,
   name,
   latitude,
   longitude,
@@ -51,6 +55,8 @@ export function LiveLocationIconButton({
         <LiveLocationModal
           visible={visible}
           onClose={() => setVisible(false)}
+          userId={userId}
+          role={role}
           name={name}
           latitude={latitude}
           longitude={longitude}

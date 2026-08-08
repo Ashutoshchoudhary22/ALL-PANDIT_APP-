@@ -108,6 +108,7 @@ async function initDb() {
     await ensureColumn(connection, 'customer_profiles', 'live_longitude', 'DECIMAL(11,8) NULL');
     await ensureColumn(connection, 'customer_profiles', 'live_location_at', 'DATETIME NULL');
     await ensureColumn(connection, 'customer_profiles', 'notifications_enabled', 'BOOLEAN DEFAULT TRUE');
+    await ensureColumn(connection, 'users', 'location_tracking_enabled', 'BOOLEAN DEFAULT FALSE');
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS pandit_profiles (
@@ -278,6 +279,19 @@ async function initDb() {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uniq_device_push_token (token),
         INDEX idx_device_push_user_role (user_id, app_role),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS location_history (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        role ENUM('customer','pandit') NOT NULL,
+        latitude DECIMAL(10,8) NOT NULL,
+        longitude DECIMAL(11,8) NOT NULL,
+        recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_location_history_user_role_time (user_id, role, recorded_at),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);

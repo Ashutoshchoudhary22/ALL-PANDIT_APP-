@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { recordLocationPoint } = require('../services/locationHistoryService');
 
 const LANGUAGE_LABELS = {
   hi: 'Hindi',
@@ -63,6 +64,7 @@ function formatProfile(row) {
     languageCode: row.language_code || 'en',
     languageLabel: formatLanguageLabel(row.language_code),
     notificationsEnabled: row.notifications_enabled == null ? true : Boolean(row.notifications_enabled),
+    locationTrackingEnabled: Boolean(row.location_tracking_enabled),
     memberSince: row.user_created_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -91,6 +93,7 @@ const PROFILE_SELECT = `
     u.profile_image,
     u.language_code,
     cp.notifications_enabled,
+    u.location_tracking_enabled,
     u.created_at AS user_created_at
   FROM customer_profiles cp
   INNER JOIN users u ON u.id = cp.customer_id
@@ -401,6 +404,8 @@ exports.updateLiveLocation = async (req, res) => {
        WHERE customer_id = ?`,
       [latitude, longitude, customerId],
     );
+
+    await recordLocationPoint(customerId, 'customer', latitude, longitude);
 
     const profile = await fetchProfileByCustomerId(customerId);
 

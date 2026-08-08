@@ -1,15 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
 import { reverseGeocodeAddress } from '@/lib/reverse-geocode';
+import {
+  getLocationHistoryApi,
+  getLocationTrackingStatusApi,
+  LocationHistoryDate,
+  LocationHistoryPoint,
+  setLocationTrackingApi,
+} from '@/services/admin-location.api';
 
 type LiveLocationModalProps = {
   visible: boolean;
   onClose: () => void;
+  userId: number;
+  role: 'customer' | 'pandit';
   name: string;
   latitude: number;
   longitude: number;
@@ -24,9 +43,28 @@ function formatUpdatedAt(value?: string | null) {
   return date.toLocaleString();
 }
 
-function buildMapHtml(latitude: number, longitude: number) {
+function formatPointTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function buildMapHtml(
+  latitude: number,
+  longitude: number,
+  trailPoints: LocationHistoryPoint[] = [],
+) {
   const lat = latitude.toFixed(6);
   const lon = longitude.toFixed(6);
+  const trailJson = JSON.stringify(
+    trailPoints.map((point) => [point.latitude, point.longitude]),
+  );
 
   return `<!DOCTYPE html>
 <html>
@@ -42,12 +80,38 @@ function buildMapHtml(latitude: number, longitude: number) {
   <body>
     <div id="map"></div>
     <script>
-      var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], 15);
+      var current = [${lat}, ${lon}];
+      var trail = ${trailJson};
+      var map = L.map('map', { zoomControl: true });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
-      L.marker([${lat}, ${lon}]).addTo(map);
+
+      if (trail.length > 0) {
+        var line = L.polyline(trail, { color: '#2563EB', weight: 4, opacity: 0.85 }).addTo(map);
+        L.circleMarker(trail[0], {
+          radius: 7,
+          color: '#16A34A',
+          fillColor: '#16A34A',
+          fillOpacity: 1,
+          weight: 2
+        }).addTo(map).bindPopup('Start');
+        if (trail.length > 1) {
+          L.circleMarker(trail[trail.length - 1], {
+            radius: 7,
+            color: '#DC2626',
+            fillColor: '#DC2626',
+            fillOpacity: 1,
+            weight: 2
+          }).addTo(map).bindPopup('Latest saved point');
+        }
+        map.fitBounds(line.getBounds(), { padding: [28, 28] });
+      } else {
+        map.setView(current, 15);
+      }
+
+      L.marker(current).addTo(map).bindPopup('Current live location');
     </script>
   </body>
 </html>`;
@@ -56,6 +120,8 @@ function buildMapHtml(latitude: number, longitude: number) {
 export function LiveLocationModal({
   visible,
   onClose,
+  userId,
+  role,
   name,
   latitude,
   longitude,
@@ -63,14 +129,72 @@ export function LiveLocationModal({
   cityName,
 }: LiveLocationModalProps) {
   const insets = useSafeAreaInsets();
-  const mapHtml = buildMapHtml(latitude, longitude);
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingSaving, setTrackingSaving] = useState(false);
+  const [historyDates, setHistoryDates] = useState<LocationHistoryDate[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [historyPoints, setHistoryPoints] = useState<LocationHistoryPoint[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const mapHtml = useMemo(
+    () => buildMapHtml(latitude, longitude, trackingEnabled ? historyPoints : []),
+    [latitude, longitude, historyPoints, trackingEnabled],
+  );
+
+  const loadHistory = async (date?: string | null) => {
+    setHistoryLoading(true);
+    try {
+      const response = await getLocationHistoryApi({ userId, role, date });
+      setHistoryPoints(response.data.points);
+    } catch (error) {
+      Alert.alert(
+        'Location History',
+        error instanceof Error ? error.message : 'Could not load location history',
+      );
+      setHistoryPoints([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const loadTrackingState = async () => {
+    setTrackingLoading(true);
+    try {
+      const response = await getLocationTrackingStatusApi(userId, role);
+      setTrackingEnabled(response.data.trackingEnabled);
+      setHistoryDates(response.data.dates);
+      if (response.data.trackingEnabled) {
+        const nextDate = selectedDate ?? response.data.dates[0]?.date ?? null;
+        setSelectedDate(nextDate);
+        await loadHistory(nextDate);
+      } else {
+        setSelectedDate(null);
+        setHistoryPoints([]);
+      }
+    } catch (error) {
+      Alert.alert(
+        'Location Tracking',
+        error instanceof Error ? error.message : 'Could not load tracking status',
+      );
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!visible) {
       setCurrentAddress(null);
       setAddressLoading(false);
+      setTrackingEnabled(false);
+      setTrackingLoading(false);
+      setTrackingSaving(false);
+      setHistoryDates([]);
+      setSelectedDate(null);
+      setHistoryPoints([]);
+      setHistoryLoading(false);
       return;
     }
 
@@ -89,10 +213,45 @@ export function LiveLocationModal({
         if (!cancelled) setAddressLoading(false);
       });
 
+    void loadTrackingState();
+
     return () => {
       cancelled = true;
     };
-  }, [visible, latitude, longitude]);
+  }, [visible, latitude, longitude, userId, role]);
+
+  const handleToggleTracking = async (enabled: boolean) => {
+    setTrackingSaving(true);
+    try {
+      await setLocationTrackingApi({
+        userId,
+        role,
+        enabled,
+        latitude: enabled ? latitude : undefined,
+        longitude: enabled ? longitude : undefined,
+      });
+      setTrackingEnabled(enabled);
+      if (enabled) {
+        await loadTrackingState();
+      } else {
+        setHistoryDates([]);
+        setSelectedDate(null);
+        setHistoryPoints([]);
+      }
+    } catch (error) {
+      Alert.alert(
+        'Location Tracking',
+        error instanceof Error ? error.message : 'Could not update tracking',
+      );
+    } finally {
+      setTrackingSaving(false);
+    }
+  };
+
+  const handleSelectDate = async (date: string | null) => {
+    setSelectedDate(date);
+    await loadHistory(date);
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -114,9 +273,32 @@ export function LiveLocationModal({
             </Pressable>
           </View>
 
+          <View style={styles.trackCard}>
+            <View style={styles.trackTextWrap}>
+              <Text style={styles.trackTitle}>Track Movement</Text>
+              <Text style={styles.trackHint}>
+                {trackingEnabled
+                  ? 'Saving coordinates on every live location update'
+                  : 'Turn ON to save all coordinates in database'}
+              </Text>
+            </View>
+            {trackingLoading ? (
+              <ActivityIndicator size="small" color={C.primary} />
+            ) : (
+              <Switch
+                value={trackingEnabled}
+                onValueChange={handleToggleTracking}
+                disabled={trackingSaving}
+                trackColor={{ false: C.border, true: '#86EFAC' }}
+                thumbColor={trackingEnabled ? C.success : '#fff'}
+              />
+            )}
+          </View>
+
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
             <View style={styles.mapWrap}>
               <WebView
+                key={`${latitude}-${longitude}-${historyPoints.length}-${selectedDate ?? 'all'}`}
                 source={{ html: mapHtml }}
                 style={styles.map}
                 scrollEnabled={false}
@@ -132,6 +314,91 @@ export function LiveLocationModal({
                 )}
               />
             </View>
+
+            {trackingEnabled ? (
+              <>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>Movement History</Text>
+                  <Text style={styles.historyMeta}>
+                    {historyPoints.length} point{historyPoints.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+
+                {historyDates.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.dateRow}
+                  >
+                    <Pressable
+                      style={[styles.dateChip, selectedDate === null && styles.dateChipActive]}
+                      onPress={() => void handleSelectDate(null)}
+                    >
+                      <Text
+                        style={[
+                          styles.dateChipText,
+                          selectedDate === null && styles.dateChipTextActive,
+                        ]}
+                      >
+                        All
+                      </Text>
+                    </Pressable>
+                    {historyDates.map((item) => (
+                      <Pressable
+                        key={item.date}
+                        style={[
+                          styles.dateChip,
+                          selectedDate === item.date && styles.dateChipActive,
+                        ]}
+                        onPress={() => void handleSelectDate(item.date)}
+                      >
+                        <Text
+                          style={[
+                            styles.dateChipText,
+                            selectedDate === item.date && styles.dateChipTextActive,
+                          ]}
+                        >
+                          {formatDateLabel(item.date)} ({item.pointCount})
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <Text style={styles.emptyHistoryText}>
+                    No saved coordinates yet. Points will appear as the user moves with the app open.
+                  </Text>
+                )}
+
+                {historyLoading ? (
+                  <View style={styles.historyLoading}>
+                    <ActivityIndicator size="small" color={C.primary} />
+                    <Text style={styles.historyLoadingText}>Loading route...</Text>
+                  </View>
+                ) : historyPoints.length > 0 ? (
+                  <View style={styles.pointsCard}>
+                    {historyPoints.map((point, index) => (
+                      <View
+                        key={point.id}
+                        style={[
+                          styles.pointRow,
+                          index === historyPoints.length - 1 && styles.pointRowLast,
+                        ]}
+                      >
+                        <View style={styles.pointIndexWrap}>
+                          <Text style={styles.pointIndex}>{index + 1}</Text>
+                        </View>
+                        <View style={styles.pointTextWrap}>
+                          <Text style={styles.pointTime}>{formatPointTime(point.recordedAt)}</Text>
+                          <Text style={styles.pointCoords}>
+                            {point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </>
+            ) : null}
 
             <View style={styles.coordsCard}>
               <View style={styles.addressBlock}>
@@ -173,7 +440,11 @@ export function LiveLocationModal({
 
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
-              <Text style={styles.liveText}>Live GPS coordinates from mobile app</Text>
+              <Text style={styles.liveText}>
+                {trackingEnabled
+                  ? 'Blue line shows saved movement route'
+                  : 'Live GPS coordinates from mobile app'}
+              </Text>
             </View>
           </ScrollView>
         </View>
@@ -192,7 +463,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   sheet: {
-    maxHeight: '88%',
+    maxHeight: '92%',
     backgroundColor: '#fff',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
@@ -211,7 +482,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerIcon: {
     width: 44,
@@ -232,9 +503,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  trackCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.background,
+  },
+  trackTextWrap: { flex: 1 },
+  trackTitle: { fontSize: 15, fontWeight: '800', color: C.text },
+  trackHint: { marginTop: 4, fontSize: 12, lineHeight: 17, color: C.textMuted },
   mapWrap: {
     width: '100%',
-    height: 220,
+    height: 240,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
@@ -256,6 +541,71 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     fontWeight: '600',
   },
+  historyHeader: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyTitle: { fontSize: 15, fontWeight: '800', color: C.text },
+  historyMeta: { fontSize: 12, fontWeight: '700', color: C.textMuted },
+  dateRow: { gap: 8, paddingVertical: 12 },
+  dateChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#fff',
+  },
+  dateChipActive: {
+    borderColor: C.primary,
+    backgroundColor: '#FFF7ED',
+  },
+  dateChipText: { fontSize: 12, fontWeight: '700', color: C.textMuted },
+  dateChipTextActive: { color: C.primary },
+  emptyHistoryText: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 18,
+    color: C.textMuted,
+  },
+  historyLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  historyLoadingText: { fontSize: 12, color: C.textMuted, fontWeight: '600' },
+  pointsCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.background,
+    overflow: 'hidden',
+  },
+  pointRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  pointRowLast: { borderBottomWidth: 0 },
+  pointIndexWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointIndex: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
+  pointTextWrap: { flex: 1 },
+  pointTime: { fontSize: 13, fontWeight: '700', color: C.text },
+  pointCoords: { marginTop: 2, fontSize: 12, color: C.textMuted },
   coordsCard: {
     marginTop: 16,
     borderRadius: 14,
@@ -315,5 +665,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: C.success,
   },
-  liveText: { fontSize: 12, color: C.textMuted, fontWeight: '600' },
+  liveText: { fontSize: 12, color: C.textMuted, fontWeight: '600', textAlign: 'center' },
 });

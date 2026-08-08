@@ -52,6 +52,8 @@ function CustomerProfileRow({ profile }: { profile: CustomerProfile }) {
         </View>
 
         <LiveLocationIconButton
+          userId={profile.customerId}
+          role="customer"
           name={name}
           latitude={profile.liveLatitude}
           longitude={profile.liveLongitude}

@@ -95,6 +95,8 @@ function PanditProfileRow({
 
         <View style={styles.actions}>
           <LiveLocationIconButton
+            userId={profile.userId}
+            role="pandit"
             name={profile.name}
             latitude={profile.liveLatitude}
             longitude={profile.liveLongitude}
