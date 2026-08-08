@@ -1,5 +1,6 @@
 export const SAMAGRI_RATE = 0.2;
 export const ADVANCE_RATE = 0.2;
+export const CANCELLATION_FEE_RATE = 0.09;
 
 export function calculateBookingPrice(basePrice: number, samagriRequired: boolean) {
   const safeBase = Math.max(0, Math.round(basePrice));
@@ -19,4 +20,11 @@ export function calculateBookingPrice(basePrice: number, samagriRequired: boolea
 
 export function formatINR(amount: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+export function calculateCancellationRefund(advanceAmount: number) {
+  const advance = Math.max(0, Math.round(advanceAmount));
+  const cancellationFee = Math.round(advance * CANCELLATION_FEE_RATE);
+  const refundAmount = Math.max(0, advance - cancellationFee);
+  return { advanceAmount: advance, cancellationFee, refundAmount };
 }

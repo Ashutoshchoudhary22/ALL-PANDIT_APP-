@@ -173,8 +173,18 @@ async function debitForBookingAdvance(customerId, bookingId, amount) {
   });
 }
 
-async function refundBookingAdvance(customerId, bookingId, amount) {
+async function refundBookingAdvance(customerId, bookingId, amount, options = {}) {
   if (amount <= 0) return getWalletSummary(customerId).then((s) => s.balance);
+
+  const {
+    cancellationFee = 0,
+    advanceAmount = amount,
+  } = options;
+
+  const description =
+    cancellationFee > 0
+      ? `Refund for cancelled booking #${bookingId}. Advance ₹${advanceAmount}, 9% fee ₹${cancellationFee}, credited ₹${amount}.`
+      : `Refund for cancelled booking #${bookingId}`;
 
   return withWalletLock(customerId, async (connection, balance) => {
     const newBalance = balance + amount;
@@ -193,7 +203,7 @@ async function refundBookingAdvance(customerId, bookingId, amount) {
         amount,
         newBalance,
         String(bookingId),
-        `Refund for cancelled booking #${bookingId}`,
+        description,
       ],
     );
 

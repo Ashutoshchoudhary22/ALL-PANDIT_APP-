@@ -203,6 +203,8 @@ async function initDb() {
     await ensureColumn(connection, 'bookings', 'advance_paid_at', 'DATETIME NULL');
     await ensureColumn(connection, 'bookings', 'completed_at', 'DATETIME NULL');
     await ensureColumn(connection, 'bookings', 'advance_payment_method', "ENUM('razorpay','wallet') NULL");
+    await ensureColumn(connection, 'bookings', 'cancellation_fee_amount', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'bookings', 'refund_amount', 'DECIMAL(10,2) NULL');
     await ensureColumn(connection, 'bookings', 'wallet_advance_amount', 'DECIMAL(10,2) DEFAULT 0');
 
     await connection.query(`

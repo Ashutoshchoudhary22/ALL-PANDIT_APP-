@@ -32,7 +32,7 @@ import {
   formatBookingTime,
   isActiveBooking,
 } from '@/lib/booking-display';
-import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
+import { formatINR, ADVANCE_RATE, calculateCancellationRefund } from '@/lib/booking-pricing';
 import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
@@ -100,8 +100,16 @@ const BookingCard = memo(function BookingCard({
 }) {
   const statusStyle = STATUS_STYLES[booking.status];
   const needsPayment = booking.status === 'payment_pending';
-  const canCancel = booking.status === 'pending' || booking.status === 'payment_pending';
+  const isPaidConfirmed =
+    booking.status === 'confirmed' && booking.paymentStatus === 'advance_paid';
+  const canCancel =
+    booking.status === 'pending' ||
+    booking.status === 'payment_pending' ||
+    isPaidConfirmed;
   const canPayWithWallet = walletBalance >= booking.advanceAmount;
+  const cancellationPreview = isPaidConfirmed
+    ? calculateCancellationRefund(booking.advanceAmount)
+    : null;
 
   return (
     <PremiumCard accent={statusStyle.accent} innerStyle={styles.cardInner}>
@@ -271,10 +279,19 @@ const BookingCard = memo(function BookingCard({
           ) : (
             <>
               <Ionicons name="close-circle-outline" size={16} color={C.danger} />
-              <Text style={styles.cancelBtnText}>Cancel Request</Text>
+              <Text style={styles.cancelBtnText}>
+                {isPaidConfirmed ? 'Cancel Booking' : 'Cancel Request'}
+              </Text>
             </>
           )}
         </Pressable>
+      ) : null}
+
+      {cancellationPreview ? (
+        <Text style={styles.cancelFeeHint}>
+          Cancellation fee: 9% of advance ({formatINR(cancellationPreview.cancellationFee)}). Refund:{' '}
+          {formatINR(cancellationPreview.refundAmount)} to wallet.
+        </Text>
       ) : null}
     </PremiumCard>
   );
@@ -383,7 +400,18 @@ export function CustomerBookingsScreen() {
   );
 
   const handleCancel = useCallback((booking: Booking) => {
-    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking request?', [
+    const isPaidConfirmed =
+      booking.status === 'confirmed' && booking.paymentStatus === 'advance_paid';
+    const refundPreview = isPaidConfirmed
+      ? calculateCancellationRefund(booking.advanceAmount)
+      : null;
+
+    Alert.alert(
+      isPaidConfirmed ? 'Cancel Booking' : 'Cancel Booking',
+      isPaidConfirmed && refundPreview
+        ? `Advance paid: ${formatINR(booking.advanceAmount)}\n9% cancellation fee: ${formatINR(refundPreview.cancellationFee)}\nRefund to wallet: ${formatINR(refundPreview.refundAmount)}\n\nAre you sure you want to cancel this booking?`
+        : 'Are you sure you want to cancel this booking request?',
+      [
       { text: 'No', style: 'cancel' },
       {
         text: 'Yes, Cancel',
@@ -400,7 +428,8 @@ export function CustomerBookingsScreen() {
           }
         },
       },
-    ]);
+    ],
+    );
   }, [cancelBooking]);
 
   const renderItem = useCallback(
@@ -913,6 +942,13 @@ const styles = StyleSheet.create({
     color: C.danger,
     fontSize: 14,
     fontWeight: '800',
+  },
+  cancelFeeHint: {
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 16,
+    color: C.textMuted,
+    textAlign: 'center',
   },
   payBtnText: {
     color: '#fff',

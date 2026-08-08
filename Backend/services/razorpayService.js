@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 
 const ADVANCE_RATE = 0.2;
+const CANCELLATION_FEE_RATE = 0.09;
 
 function getClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -20,6 +21,13 @@ function calculateAdvanceAmount(totalPrice) {
   const advanceAmount = Math.max(1, Math.round(total * ADVANCE_RATE));
   const remainingAmount = Math.max(0, total - advanceAmount);
   return { advanceAmount, remainingAmount };
+}
+
+function calculateCancellationRefund(advanceAmount) {
+  const advance = Math.max(0, Math.round(Number(advanceAmount)));
+  const cancellationFee = Math.round(advance * CANCELLATION_FEE_RATE);
+  const refundAmount = Math.max(0, advance - cancellationFee);
+  return { advanceAmount: advance, cancellationFee, refundAmount };
 }
 
 function toPaise(amountInRupees) {
@@ -154,7 +162,9 @@ async function createTopupOrder({ customerId, amount, customerName }) {
 
 module.exports = {
   ADVANCE_RATE,
+  CANCELLATION_FEE_RATE,
   calculateAdvanceAmount,
+  calculateCancellationRefund,
   createAdvanceOrder,
   createRemainingOrder,
   createTopupOrder,

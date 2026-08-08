@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const {
   calculateAdvanceAmount,
+  calculateCancellationRefund,
   createAdvanceOrder,
   createRemainingOrder,
   verifyPaymentSignature,
@@ -22,7 +23,7 @@ const {
   findPanditBlockingBooking,
   findAnyActiveBookingWithPandit,
 } = require('../utils/panditAvailability');
-const { debitForBookingAdvance } = require('../services/walletService');
+const { debitForBookingAdvance, refundBookingAdvance } = require('../services/walletService');
 
 const SAMAGRI_RATE = 0.2;
 const OTP_TTL_MINUTES = 10;
@@ -937,30 +938,70 @@ exports.cancelBooking = async (req, res) => {
     }
 
     if (!['pending', 'payment_pending'].includes(booking.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Only pending or unpaid approved bookings can be cancelled',
-      });
+      const isPaidAdvanceCancel =
+        booking.status === 'confirmed' && booking.payment_status === 'advance_paid';
+
+      if (!isPaidAdvanceCancel) {
+        return res.status(400).json({
+          success: false,
+          message: 'This booking cannot be cancelled',
+        });
+      }
     }
 
-    if (booking.payment_status === 'advance_paid') {
+    if (
+      ['pending', 'payment_pending'].includes(booking.status) &&
+      booking.payment_status === 'advance_paid'
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Paid bookings cannot be cancelled from the app',
       });
     }
 
-    await pool.query(
-      `UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?`,
-      [bookingId],
-    );
+    const isPaidAdvanceCancel =
+      booking.status === 'confirmed' && booking.payment_status === 'advance_paid';
+
+    let refundDetails = null;
+
+    if (isPaidAdvanceCancel) {
+      refundDetails = calculateCancellationRefund(booking.advance_amount);
+
+      await refundBookingAdvance(
+        booking.customer_id,
+        bookingId,
+        refundDetails.refundAmount,
+        {
+          cancellationFee: refundDetails.cancellationFee,
+          advanceAmount: refundDetails.advanceAmount,
+        },
+      );
+
+      await pool.query(
+        `UPDATE bookings
+         SET status = 'cancelled',
+             cancellation_fee_amount = ?,
+             refund_amount = ?,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [refundDetails.cancellationFee, refundDetails.refundAmount, bookingId],
+      );
+    } else {
+      await pool.query(
+        `UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?`,
+        [bookingId],
+      );
+    }
 
     const row = await fetchBookingById(bookingId);
 
     return res.status(200).json({
       success: true,
-      message: 'Booking request cancelled',
+      message: isPaidAdvanceCancel
+        ? `Booking cancelled. ₹${refundDetails.refundAmount} refunded to wallet after 9% cancellation fee (₹${refundDetails.cancellationFee}).`
+        : 'Booking request cancelled',
       data: formatBooking(row),
+      refund: refundDetails,
     });
   } catch (error) {
     console.error('Cancel booking error:', error);
