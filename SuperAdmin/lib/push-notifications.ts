@@ -37,16 +37,20 @@ async function getNotificationsModule(): Promise<NotificationsModule | null> {
 export async function ensureAndroidNotificationChannel() {
   if (Platform.OS !== 'android') return;
 
-  const Notifications = await getNotificationsModule();
-  if (!Notifications) return;
+  try {
+    const Notifications = await getNotificationsModule();
+    if (!Notifications) return;
 
-  await Notifications.setNotificationChannelAsync(ADMIN_NOTIFICATION_CHANNEL, {
-    name: 'Admin Alerts',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#7C3AED',
-    sound: 'default',
-  });
+    await Notifications.setNotificationChannelAsync(ADMIN_NOTIFICATION_CHANNEL, {
+      name: 'Admin Alerts',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#7C3AED',
+      sound: 'default',
+    });
+  } catch (error) {
+    console.warn('Admin notification channel setup failed:', error);
+  }
 }
 
 export async function requestPushPermissions(): Promise<boolean> {
@@ -79,14 +83,19 @@ export async function requestPushPermissions(): Promise<boolean> {
 export async function getNativePushToken(): Promise<string | null> {
   if (!isPushNotificationsAvailable()) return null;
 
-  const Notifications = await getNotificationsModule();
-  if (!Notifications) return null;
+  try {
+    const Notifications = await getNotificationsModule();
+    if (!Notifications) return null;
 
-  const granted = await requestPushPermissions();
-  if (!granted) return null;
+    const granted = await requestPushPermissions();
+    if (!granted) return null;
 
-  const tokenResult = await Notifications.getDevicePushTokenAsync();
-  return tokenResult.data || null;
+    const tokenResult = await Notifications.getDevicePushTokenAsync();
+    return tokenResult.data || null;
+  } catch (error) {
+    console.warn('Native push token unavailable:', error);
+    return null;
+  }
 }
 
 export async function loadNotificationsModule() {

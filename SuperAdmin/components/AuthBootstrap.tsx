@@ -17,7 +17,7 @@ export function AuthBootstrap() {
     hasBootstrapped.current = true;
 
     if (token && (!user?.role || !ADMIN_ROLES.has(user.role))) {
-      signOut();
+      void signOut();
       return;
     }
 

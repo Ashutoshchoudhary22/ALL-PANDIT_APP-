@@ -324,7 +324,7 @@ function Avatar({ initials, color }: { initials: string; color: string }) {
 }
 
 function RecentBookingRow({ booking }: { booking: RecentBooking }) {
-  const statusStyle = STATUS_STYLES[booking.status];
+  const statusStyle = STATUS_STYLES[booking.status] ?? STATUS_STYLES.Pending;
 
   return (
     <View style={styles.bookingRow}>
@@ -377,29 +377,29 @@ export function SuperAdminDashboard({
   const stats = statsQuery.data?.data;
   const statsLoading = statsQuery.isLoading || statsQuery.isFetching;
 
-  const bookingTrendData = stats?.bookingTrend.map((item) => item.count) ?? [0, 0, 0, 0, 0, 0, 0];
-  const bookingTrendLabels = stats?.bookingTrend.map((item) => item.label) ?? [];
+  const bookingTrendData = stats?.bookingTrend?.map((item) => item.count) ?? [0, 0, 0, 0, 0, 0, 0];
+  const bookingTrendLabels = stats?.bookingTrend?.map((item) => item.label) ?? [];
   const bookingStatusSegments =
-    stats?.bookingsByStatus.map((item) => ({
+    stats?.bookingsByStatus?.map((item) => ({
       ...item,
       color: STATUS_COLORS[item.label] ?? C.textLight,
     })) ?? [];
-  const revenueBars = stats?.revenueTrend.map((item) => item.amount) ?? [0];
-  const revenueLabels = stats?.revenueTrend.map((item) => item.label) ?? [];
-  const newUsersTotal = stats?.newUsersThisWeek.total ?? 0;
+  const revenueBars = stats?.revenueTrend?.map((item) => item.amount) ?? [0];
+  const revenueLabels = stats?.revenueTrend?.map((item) => item.label) ?? [];
+  const newUsersTotal = stats?.newUsersThisWeek?.total ?? 0;
   const newUserSegments =
     newUsersTotal > 0
       ? [
           {
             label: 'Customers',
-            count: stats?.newUsersThisWeek.customers ?? 0,
-            pct: Number((((stats?.newUsersThisWeek.customers ?? 0) / newUsersTotal) * 100).toFixed(1)),
+            count: stats?.newUsersThisWeek?.customers ?? 0,
+            pct: Number((((stats?.newUsersThisWeek?.customers ?? 0) / newUsersTotal) * 100).toFixed(1)),
             color: C.info,
           },
           {
             label: 'Pandits',
-            count: stats?.newUsersThisWeek.pandits ?? 0,
-            pct: Number((((stats?.newUsersThisWeek.pandits ?? 0) / newUsersTotal) * 100).toFixed(1)),
+            count: stats?.newUsersThisWeek?.pandits ?? 0,
+            pct: Number((((stats?.newUsersThisWeek?.pandits ?? 0) / newUsersTotal) * 100).toFixed(1)),
             color: C.success,
           },
         ]
@@ -445,7 +445,7 @@ export function SuperAdminDashboard({
     {
       label: 'Total Bookings',
       value: formatCount(stats?.totalBookings ?? 0),
-      trend: formatTrendText(stats?.trends.bookingsWeekChangePct, 'Bookings this week'),
+      trend: formatTrendText(stats?.trends?.bookingsWeekChangePct, 'Bookings this week'),
       icon: 'calendar',
       iconColor: C.warning,
       iconBg: C.orangeBg,

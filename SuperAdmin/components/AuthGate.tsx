@@ -2,12 +2,17 @@ import { ReactNode } from 'react';
 
 import { useAuth } from '@/providers/AuthProvider';
 
-export function AuthGate({ children }: { children: ReactNode }) {
+type AuthGateProps = {
+  children: ReactNode;
+};
+
+/** Wait for auth hydration before mounting the app stack. */
+export function AuthGate({ children }: AuthGateProps) {
   const { isLoading } = useAuth();
 
   if (isLoading) {
     return null;
   }
 
-  return <>{children}</>;
+  return children;
 }

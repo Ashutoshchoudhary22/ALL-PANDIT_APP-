@@ -52,42 +52,40 @@ export function PushNotificationHandler() {
 
     let cancelled = false;
     let tokenSubscription: { remove: () => void } | null = null;
+    const startupDelay = setTimeout(() => {
+      void (async () => {
+        try {
+          const Notifications = await loadNotificationsModule();
+          if (!Notifications || cancelled) return;
 
-    const registerToken = async () => {
-      try {
-        const pushToken = await getNativePushToken();
-        if (!pushToken || cancelled) return;
-        if (registeredTokenRef.current === pushToken) return;
+          const pushToken = await getNativePushToken();
+          if (!pushToken || cancelled) return;
+          if (registeredTokenRef.current === pushToken) return;
 
-        await registerPushTokenApi(pushToken);
-        registeredTokenRef.current = pushToken;
-      } catch (error) {
-        console.warn('Push token registration failed:', error);
-      }
-    };
+          await registerPushTokenApi(pushToken);
+          registeredTokenRef.current = pushToken;
 
-    void (async () => {
-      const Notifications = await loadNotificationsModule();
-      if (!Notifications || cancelled) return;
+          tokenSubscription = Notifications.addPushTokenListener((event) => {
+            const nextToken = event.data;
+            if (!nextToken || registeredTokenRef.current === nextToken) return;
 
-      void registerToken();
-
-      tokenSubscription = Notifications.addPushTokenListener((event) => {
-        const nextToken = event.data;
-        if (!nextToken || registeredTokenRef.current === nextToken) return;
-
-        void registerPushTokenApi(nextToken)
-          .then(() => {
-            registeredTokenRef.current = nextToken;
-          })
-          .catch((error) => {
-            console.warn('Push token refresh registration failed:', error);
+            void registerPushTokenApi(nextToken)
+              .then(() => {
+                registeredTokenRef.current = nextToken;
+              })
+              .catch((error) => {
+                console.warn('Push token refresh registration failed:', error);
+              });
           });
-      });
-    })();
+        } catch (error) {
+          console.warn('Push token registration failed:', error);
+        }
+      })();
+    }, 2500);
 
     return () => {
       cancelled = true;
+      clearTimeout(startupDelay);
       tokenSubscription?.remove();
     };
   }, [token, user?.role, isLoading]);
@@ -127,30 +125,34 @@ export function PushNotificationHandler() {
     };
 
     void (async () => {
-      const Notifications = await loadNotificationsModule();
-      if (!Notifications || cancelled) return;
+      try {
+        const Notifications = await loadNotificationsModule();
+        if (!Notifications || cancelled) return;
 
-      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-        const content = notification.request.content;
-        const data = parsePushNotificationData(
-          notification.request.content.data as Record<string, unknown>,
-        );
-        invalidateAdminData(data.type);
-        persistPushNotification(content, data);
-      });
+        receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+          const content = notification.request.content;
+          const data = parsePushNotificationData(
+            notification.request.content.data as Record<string, unknown>,
+          );
+          invalidateAdminData(data.type);
+          persistPushNotification(content, data);
+        });
 
-      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        const content = response.notification.request.content;
-        const data = parsePushNotificationData(
-          response.notification.request.content.data as Record<string, unknown>,
-        );
-        invalidateAdminData(data.type);
-        persistPushNotification(content, data);
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          const content = response.notification.request.content;
+          const data = parsePushNotificationData(
+            response.notification.request.content.data as Record<string, unknown>,
+          );
+          invalidateAdminData(data.type);
+          persistPushNotification(content, data);
 
-        if (response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-          handleNotificationNavigation(data.type);
-        }
-      });
+          if (response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+            handleNotificationNavigation(data.type);
+          }
+        });
+      } catch (error) {
+        console.warn('Push notification listeners failed:', error);
+      }
     })();
 
     return () => {

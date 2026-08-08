@@ -133,7 +133,7 @@ export function AdminReportsTabScreen() {
             <MetricCard
               label="Total Revenue"
               value={formatINR(stats?.totalRevenue ?? 0)}
-              trend={formatTrendText(stats?.trends.bookingsWeekChangePct, 'All-time booking value')}
+              trend={formatTrendText(stats?.trends?.bookingsWeekChangePct, 'All-time booking value')}
               icon="cash-outline"
               iconColor={C.success}
               iconBg={C.greenBg}
@@ -149,7 +149,7 @@ export function AdminReportsTabScreen() {
             <MetricCard
               label="Total Bookings"
               value={String(stats?.totalBookings ?? 0)}
-              trend={formatTrendText(stats?.trends.bookingsWeekChangePct, 'Platform bookings')}
+              trend={formatTrendText(stats?.trends?.bookingsWeekChangePct, 'Platform bookings')}
               icon="calendar-outline"
               iconColor={C.warning}
               iconBg={C.orangeBg}
@@ -157,7 +157,7 @@ export function AdminReportsTabScreen() {
             <MetricCard
               label="Total Reviews"
               value={String(stats?.totalReviews ?? 0)}
-              trend={`${stats?.newUsersThisWeek.total ?? 0} new users this week`}
+              trend={`${stats?.newUsersThisWeek?.total ?? 0} new users this week`}
               icon="star-outline"
               iconColor={C.gold}
               iconBg="#FFFBEB"
@@ -167,8 +167,8 @@ export function AdminReportsTabScreen() {
           <Text style={styles.sectionTitle}>Bookings Trend (7 Days)</Text>
           <PremiumCard accent="gold" innerStyle={styles.sectionCard}>
             <TrendBars
-              labels={stats?.bookingTrend.map((item) => item.label) ?? []}
-              values={stats?.bookingTrend.map((item) => item.count) ?? [0]}
+              labels={stats?.bookingTrend?.map((item) => item.label) ?? []}
+              values={stats?.bookingTrend?.map((item) => item.count) ?? [0]}
             />
           </PremiumCard>
 
@@ -188,7 +188,7 @@ export function AdminReportsTabScreen() {
           <Text style={styles.sectionTitle}>Revenue Trend (6 Months)</Text>
           <PremiumCard accent="none" innerStyle={styles.sectionCard}>
             {(stats?.revenueTrend ?? []).length ? (
-              stats?.revenueTrend.map((item) => (
+              stats?.revenueTrend?.map((item) => (
                 <View key={item.label} style={styles.revenueRow}>
                   <Text style={styles.revenueLabel}>{item.label}</Text>
                   <Text style={styles.revenueValue}>{formatINR(item.amount)}</Text>
@@ -203,22 +203,22 @@ export function AdminReportsTabScreen() {
           <PremiumCard accent="gold" innerStyle={styles.sectionCard}>
             <View style={styles.newUsersRow}>
               <View style={styles.newUsersItem}>
-                <Text style={styles.newUsersValue}>{stats?.newUsersThisWeek.customers ?? 0}</Text>
+                <Text style={styles.newUsersValue}>{stats?.newUsersThisWeek?.customers ?? 0}</Text>
                 <Text style={styles.newUsersLabel}>Customers</Text>
               </View>
               <View style={styles.newUsersItem}>
-                <Text style={styles.newUsersValue}>{stats?.newUsersThisWeek.pandits ?? 0}</Text>
+                <Text style={styles.newUsersValue}>{stats?.newUsersThisWeek?.pandits ?? 0}</Text>
                 <Text style={styles.newUsersLabel}>Pandits</Text>
               </View>
               <View style={styles.newUsersItem}>
                 <Text style={[styles.newUsersValue, { color: C.primary }]}>
-                  {stats?.newUsersThisWeek.total ?? 0}
+                  {stats?.newUsersThisWeek?.total ?? 0}
                 </Text>
                 <Text style={styles.newUsersLabel}>Total</Text>
               </View>
             </View>
             <Text style={styles.trendNote}>
-              {formatTrendText(stats?.trends.newUsersWeekChangePct, 'Weekly user growth')}
+              {formatTrendText(stats?.trends?.newUsersWeekChangePct, 'Weekly user growth')}
             </Text>
           </PremiumCard>
 

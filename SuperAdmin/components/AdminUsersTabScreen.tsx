@@ -160,7 +160,7 @@ export function AdminUsersTabScreen() {
                   <Text style={styles.statLabel}>Pandits</Text>
                 </PremiumCard>
                 <PremiumCard accent="none" innerStyle={styles.statCard}>
-                  <Text style={styles.statValue}>{stats?.newUsersThisWeek.total ?? 0}</Text>
+                  <Text style={styles.statValue}>{stats?.newUsersThisWeek?.total ?? 0}</Text>
                   <Text style={styles.statLabel}>New This Week</Text>
                 </PremiumCard>
               </View>

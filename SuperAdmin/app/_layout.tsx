@@ -6,6 +6,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AuthBootstrap } from '@/components/AuthBootstrap';
+import { AuthGate } from '@/components/AuthGate';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PushNotificationHandler } from '@/components/PushNotificationHandler';
 import { SplashController } from '@/components/SplashController';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -30,23 +32,27 @@ export default function RootLayout() {
           <NotificationsProvider>
             <AdminDrawerProvider>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                <AuthBootstrap />
-                <SplashController />
-                <PushNotificationHandler />
-                <Stack initialRouteName="(tabs)">
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="pandit-profiles" options={{ headerShown: false }} />
-                  <Stack.Screen name="customer-profiles" options={{ headerShown: false }} />
-                  <Stack.Screen name="customer-wallets" options={{ headerShown: false }} />
-                  <Stack.Screen name="pandit-reviews" options={{ headerShown: false }} />
-                  <Stack.Screen name="notifications" options={{ headerShown: false }} />
-                  <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-                  <Stack.Screen name="sign-up" options={{ headerShown: false }} />
-                  <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
-                  <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-                  <Stack.Screen name="reset-password" options={{ headerShown: false }} />
-                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-                </Stack>
+                <ErrorBoundary>
+                  <AuthBootstrap />
+                  <SplashController />
+                  <AuthGate>
+                    <PushNotificationHandler />
+                    <Stack>
+                      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen name="pandit-profiles" options={{ headerShown: false }} />
+                      <Stack.Screen name="customer-profiles" options={{ headerShown: false }} />
+                      <Stack.Screen name="customer-wallets" options={{ headerShown: false }} />
+                      <Stack.Screen name="pandit-reviews" options={{ headerShown: false }} />
+                      <Stack.Screen name="notifications" options={{ headerShown: false }} />
+                      <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+                      <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
+                      <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+                      <Stack.Screen name="reset-password" options={{ headerShown: false }} />
+                      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                    </Stack>
+                  </AuthGate>
+                </ErrorBoundary>
                 <StatusBar style="auto" />
               </ThemeProvider>
             </AdminDrawerProvider>
