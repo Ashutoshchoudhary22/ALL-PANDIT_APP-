@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { reverseGeocodeAddress } from '@/lib/reverse-geocode';
 
 type LiveLocationModalProps = {
   visible: boolean;
@@ -22,10 +24,33 @@ function formatUpdatedAt(value?: string | null) {
   return date.toLocaleString();
 }
 
-function staticMapUrl(latitude: number, longitude: number) {
+function buildMapHtml(latitude: number, longitude: number) {
   const lat = latitude.toFixed(6);
   const lon = longitude.toFixed(6);
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=14&size=640x280&markers=${lat},${lon},red-pushpin`;
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background: #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+      L.marker([${lat}, ${lon}]).addTo(map);
+    </script>
+  </body>
+</html>`;
 }
 
 export function LiveLocationModal({
@@ -38,6 +63,36 @@ export function LiveLocationModal({
   cityName,
 }: LiveLocationModalProps) {
   const insets = useSafeAreaInsets();
+  const mapHtml = buildMapHtml(latitude, longitude);
+  const [currentAddress, setCurrentAddress] = useState<string | null>(null);
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setCurrentAddress(null);
+      setAddressLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAddressLoading(true);
+    setCurrentAddress(null);
+
+    void reverseGeocodeAddress(latitude, longitude)
+      .then((address) => {
+        if (!cancelled) setCurrentAddress(address);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentAddress('Address not available');
+      })
+      .finally(() => {
+        if (!cancelled) setAddressLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, latitude, longitude]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -59,42 +114,68 @@ export function LiveLocationModal({
             </Pressable>
           </View>
 
-          <Image
-            source={{ uri: staticMapUrl(latitude, longitude) }}
-            style={styles.map}
-            contentFit="cover"
-          />
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+            <View style={styles.mapWrap}>
+              <WebView
+                source={{ html: mapHtml }}
+                style={styles.map}
+                scrollEnabled={false}
+                bounces={false}
+                javaScriptEnabled
+                domStorageEnabled
+                originWhitelist={['*']}
+                startInLoadingState
+                renderLoading={() => (
+                  <View style={styles.mapLoading}>
+                    <Text style={styles.mapLoadingText}>Loading map...</Text>
+                  </View>
+                )}
+              />
+            </View>
 
-          <View style={styles.coordsCard}>
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Latitude</Text>
-              <Text style={styles.coordValue}>{latitude.toFixed(6)}</Text>
+            <View style={styles.coordsCard}>
+              <View style={styles.addressBlock}>
+                <Text style={styles.coordLabel}>Current Address</Text>
+                {addressLoading ? (
+                  <View style={styles.addressLoadingRow}>
+                    <ActivityIndicator size="small" color={C.primary} />
+                    <Text style={styles.addressLoadingText}>Fetching address...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.addressValue}>{currentAddress || 'Address not available'}</Text>
+                )}
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.coordRow}>
+                <Text style={styles.coordLabel}>Latitude</Text>
+                <Text style={styles.coordValue}>{latitude.toFixed(6)}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.coordRow}>
+                <Text style={styles.coordLabel}>Longitude</Text>
+                <Text style={styles.coordValue}>{longitude.toFixed(6)}</Text>
+              </View>
+              {cityName ? (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.coordRow}>
+                    <Text style={styles.coordLabel}>City</Text>
+                    <Text style={styles.coordValue}>{cityName}</Text>
+                  </View>
+                </>
+              ) : null}
+              <View style={styles.divider} />
+              <View style={styles.coordRow}>
+                <Text style={styles.coordLabel}>Last updated</Text>
+                <Text style={styles.coordValue}>{formatUpdatedAt(updatedAt)}</Text>
+              </View>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Longitude</Text>
-              <Text style={styles.coordValue}>{longitude.toFixed(6)}</Text>
-            </View>
-            {cityName ? (
-              <>
-                <View style={styles.divider} />
-                <View style={styles.coordRow}>
-                  <Text style={styles.coordLabel}>City</Text>
-                  <Text style={styles.coordValue}>{cityName}</Text>
-                </View>
-              </>
-            ) : null}
-            <View style={styles.divider} />
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Last updated</Text>
-              <Text style={styles.coordValue}>{formatUpdatedAt(updatedAt)}</Text>
-            </View>
-          </View>
 
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Live GPS coordinates from mobile app</Text>
-          </View>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live GPS coordinates from mobile app</Text>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -111,6 +192,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   sheet: {
+    maxHeight: '88%',
     backgroundColor: '#fff',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
@@ -150,11 +232,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  map: {
+  mapWrap: {
     width: '100%',
-    height: 180,
+    height: 220,
     borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.border,
     backgroundColor: C.border,
+  },
+  map: {
+    flex: 1,
+    backgroundColor: C.border,
+  },
+  mapLoading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.background,
+  },
+  mapLoadingText: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontWeight: '600',
   },
   coordsCard: {
     marginTop: 16,
@@ -164,6 +264,26 @@ const styles = StyleSheet.create({
     backgroundColor: C.background,
     paddingHorizontal: 14,
     paddingVertical: 4,
+  },
+  addressBlock: {
+    paddingVertical: 12,
+    gap: 8,
+  },
+  addressLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addressLoadingText: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontWeight: '600',
+  },
+  addressValue: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: C.text,
+    fontWeight: '600',
   },
   coordRow: {
     flexDirection: 'row',
