@@ -46,6 +46,20 @@ const MENU_ITEMS: MenuItem[] = [
     href: '/customer-profiles',
     matchPaths: ['/customer-profiles'],
   },
+  {
+    id: 'customer-wallets',
+    label: 'Customer Wallets',
+    icon: 'wallet-outline',
+    href: '/customer-wallets',
+    matchPaths: ['/customer-wallets'],
+  },
+  {
+    id: 'pandit-reviews',
+    label: 'Pandit Reviews',
+    icon: 'star-outline',
+    href: '/pandit-reviews',
+    matchPaths: ['/pandit-reviews'],
+  },
 ];
 
 function isActivePath(pathname: string, item: MenuItem) {

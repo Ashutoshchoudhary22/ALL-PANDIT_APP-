@@ -11,11 +11,10 @@ import {
 
 import { clearNotifications, loadNotifications, saveNotifications } from '@/lib/notification-storage';
 import { isAdminRole } from '@/lib/push-notifications';
-import { getAdminDashboardStatsApi } from '@/services/admin-stats.api';
-import { listPanditProfilesApi } from '@/services/admin-profiles.api';
 import {
   AdminNotification,
-  buildAdminNotifications,
+  buildAdminNotificationsFromFeed,
+  getAdminNotificationsFeedApi,
   mergeNotifications,
 } from '@/services/notification.api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -40,14 +39,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const feedQuery = useQuery({
     queryKey: ['admin', 'notifications', 'feed'],
     queryFn: async () => {
-      const [profilesResponse, statsResponse] = await Promise.all([
-        listPanditProfilesApi(),
-        getAdminDashboardStatsApi(),
-      ]);
-      return buildAdminNotifications(
-        profilesResponse.data ?? [],
-        statsResponse.data?.recentBookings ?? [],
-      );
+      const response = await getAdminNotificationsFeedApi();
+      return buildAdminNotificationsFromFeed(response.data);
     },
     enabled: adminEnabled,
     staleTime: 30_000,

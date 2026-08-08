@@ -96,6 +96,7 @@ export async function loadNotificationsModule() {
 export type PushNotificationData = {
   type?: string;
   bookingId?: string;
+  profileId?: string;
   title?: string;
   message?: string;
 };
@@ -108,6 +109,7 @@ export function parsePushNotificationData(
   return {
     type: typeof data.type === 'string' ? data.type : undefined,
     bookingId: typeof data.bookingId === 'string' ? data.bookingId : undefined,
+    profileId: typeof data.profileId === 'string' ? data.profileId : undefined,
     title: typeof data.title === 'string' ? data.title : undefined,
     message: typeof data.message === 'string' ? data.message : undefined,
   };

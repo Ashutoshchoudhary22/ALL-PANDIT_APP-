@@ -37,6 +37,8 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="pandit-profiles" options={{ headerShown: false }} />
                   <Stack.Screen name="customer-profiles" options={{ headerShown: false }} />
+                  <Stack.Screen name="customer-wallets" options={{ headerShown: false }} />
+                  <Stack.Screen name="pandit-reviews" options={{ headerShown: false }} />
                   <Stack.Screen name="notifications" options={{ headerShown: false }} />
                   <Stack.Screen name="sign-in" options={{ headerShown: false }} />
                   <Stack.Screen name="sign-up" options={{ headerShown: false }} />

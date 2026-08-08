@@ -10,6 +10,11 @@ import {
   parsePushNotificationData,
 } from '@/lib/push-notifications';
 import { useAuth } from '@/providers/AuthProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
+import {
+  AdminNotificationType,
+  notificationFromPushData,
+} from '@/services/notification.api';
 import { registerPushTokenApi } from '@/services/push.api';
 
 function handleNotificationNavigation(type?: string) {
@@ -18,7 +23,7 @@ function handleNotificationNavigation(type?: string) {
     return;
   }
 
-  if (type === 'admin:pandit:pending') {
+  if (type === 'admin:pandit:pending' || type === 'admin:pandit:update') {
     router.push('/pandit-profiles');
     return;
   }
@@ -26,8 +31,17 @@ function handleNotificationNavigation(type?: string) {
   router.push('/(tabs)');
 }
 
+function isAdminNotificationType(type?: string): type is AdminNotificationType {
+  return (
+    type === 'admin:booking:new' ||
+    type === 'admin:pandit:pending' ||
+    type === 'admin:pandit:update'
+  );
+}
+
 export function PushNotificationHandler() {
   const { token, user, isLoading } = useAuth();
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
   const registeredTokenRef = useRef<string | null>(null);
 
@@ -90,9 +104,26 @@ export function PushNotificationHandler() {
     const invalidateAdminData = (type?: string) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] });
-      if (type === 'admin:pandit:pending') {
+      if (type === 'admin:pandit:pending' || type === 'admin:pandit:update') {
         queryClient.invalidateQueries({ queryKey: ['admin', 'pandit-profiles'] });
       }
+    };
+
+    const persistPushNotification = (
+      content: { title?: string | null; body?: string | null },
+      data: ReturnType<typeof parsePushNotificationData>,
+    ) => {
+      if (!isAdminNotificationType(data.type)) return;
+
+      addNotification(
+        notificationFromPushData({
+          type: data.type,
+          title: content.title || data.title || 'Notification',
+          message: content.body || data.message || '',
+          bookingId: data.bookingId ? Number(data.bookingId) : undefined,
+          profileId: data.profileId ? Number(data.profileId) : undefined,
+        }),
+      );
     };
 
     void (async () => {
@@ -100,17 +131,21 @@ export function PushNotificationHandler() {
       if (!Notifications || cancelled) return;
 
       receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        const content = notification.request.content;
         const data = parsePushNotificationData(
           notification.request.content.data as Record<string, unknown>,
         );
         invalidateAdminData(data.type);
+        persistPushNotification(content, data);
       });
 
       responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const content = response.notification.request.content;
         const data = parsePushNotificationData(
           response.notification.request.content.data as Record<string, unknown>,
         );
         invalidateAdminData(data.type);
+        persistPushNotification(content, data);
 
         if (response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
           handleNotificationNavigation(data.type);
@@ -123,7 +158,7 @@ export function PushNotificationHandler() {
       receivedSubscription?.remove();
       responseSubscription?.remove();
     };
-  }, [token, user?.role, isLoading, queryClient]);
+  }, [token, user?.role, isLoading, queryClient, addNotification]);
 
   return null;
 }
