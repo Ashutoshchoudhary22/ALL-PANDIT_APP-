@@ -3,13 +3,17 @@ import { Tabs } from 'expo-router';
 import { PanditTabBar } from '@/components/PanditTabBar';
 import { TabAuthGuard } from '@/components/TabAuthGuard';
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function TabLayout() {
+  const { token } = useAuth();
+
   return (
     <>
       <TabAuthGuard />
       <Tabs
-        initialRouteName="index"
+        initialRouteName={token ? 'dashboard' : 'index'}
+        backBehavior="history"
         tabBar={(props) => <PanditTabBar {...props} />}
         screenOptions={{
           headerShown: false,

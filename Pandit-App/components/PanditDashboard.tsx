@@ -191,14 +191,16 @@ function QuickAction({
   label,
   color,
   bgColor,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   color: string;
   bgColor: string;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.quickAction}>
+    <Pressable style={styles.quickAction} onPress={onPress}>
       <LinearGradient
         colors={[bgColor, '#FFFFFF']}
         start={{ x: 0, y: 0 }}
@@ -575,7 +577,7 @@ export function PanditDashboard({ panditName: panditNameProp }: PanditDashboardP
           <View style={styles.quickActionsRow}>
             <QuickAction icon="briefcase-outline" label="Availability" color={C.primary} bgColor={C.orangeBg} />
             <QuickAction icon="flower-outline" label="Services" color="#EC4899" bgColor="#FDF2F8" />
-            <QuickAction icon="calendar" label="Calendar" color={C.purple} bgColor={C.purpleBg} />
+            <QuickAction icon="calendar" label="Calendar" color={C.purple} bgColor={C.purpleBg} onPress={() => router.push('/(tabs)/calendar')} />
             <QuickAction icon="document-text-outline" label="Documents" color={C.success} bgColor={C.greenBg} />
           </View>
         </PremiumCard>

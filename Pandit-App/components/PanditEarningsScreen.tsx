@@ -19,6 +19,7 @@ import { LotusDivider } from '@/components/ui/LotusDivider';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Brand, DashboardColors as C } from '@/constants/dashboard-theme';
 import { advancePercentLabel } from '@/lib/booking-pricing';
+import { useTabBackToHome } from '@/lib/tab-navigation';
 import { usePanditEarnings } from '@/hooks/use-pandit-earnings';
 import {
   EarningTransaction,
@@ -132,6 +133,7 @@ const keyExtractor = (item: EarningTransaction) => item.id;
 export function PanditEarningsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  useTabBackToHome();
   const earningsQuery = usePanditEarnings(Boolean(token));
   const summary = earningsQuery.summary;
 

@@ -33,6 +33,7 @@ import {
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { promptBookingLocation } from '@/lib/open-map';
 import { advancePercentLabel, remainingPercentLabel } from '@/lib/booking-pricing';
+import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   BookingCustomerPrefill,
@@ -460,6 +461,7 @@ const keyExtractor = (item: PanditBooking) => String(item.id);
 export function PanditBookingsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  useTabBackToHome();
   const bookingsQuery = usePanditBookingsQuery(Boolean(token));
   const startPuja = useStartBookingPujaMutation();
   const requestFinish = useRequestFinishBookingPujaMutation();

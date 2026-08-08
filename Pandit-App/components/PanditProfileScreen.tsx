@@ -21,6 +21,7 @@ import { DEMO_IMAGES } from '@/constants/cloudinary';
 import { Brand, DashboardColors as C } from '@/constants/dashboard-theme';
 import { useMyPanditProfileQuery } from '@/hooks/use-pandit-profile';
 import { getPanditGalleryPhotos } from '@/lib/pandit-gallery';
+import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditProfile } from '@/services/pandit-profile.api';
 
@@ -448,6 +449,7 @@ function DetailRow({
 export function PanditProfileScreen() {
   const insets = useSafeAreaInsets();
   const { token, isLoading: authLoading, signOut } = useAuth();
+  useTabBackToHome();
   const profileQuery = useMyPanditProfileQuery(Boolean(token));
   const profile = profileQuery.data?.data;
   const { refetch } = profileQuery;
