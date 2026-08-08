@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  LayoutChangeEvent,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -90,6 +91,7 @@ function CalendarDayCell({
   dateKey,
   selected,
   today,
+  hasBookings,
   bookingCount,
   onPress,
 }: {
@@ -97,6 +99,7 @@ function CalendarDayCell({
   dateKey: string;
   selected: boolean;
   today: boolean;
+  hasBookings: boolean;
   bookingCount: number;
   onPress: (dateKey: string) => void;
 }) {
@@ -104,17 +107,25 @@ function CalendarDayCell({
     <Pressable
       style={[
         styles.dayCell,
+        hasBookings && !selected && styles.dayCellBooked,
         selected && styles.dayCellSelected,
-        today && !selected && styles.dayCellToday,
+        today && !selected && !hasBookings && styles.dayCellToday,
       ]}
       onPress={() => onPress(dateKey)}
     >
-      <Text style={[styles.dayText, selected && styles.dayTextSelected, today && styles.dayTextToday]}>
+      <Text
+        style={[
+          styles.dayText,
+          hasBookings && !selected && styles.dayTextBooked,
+          selected && styles.dayTextSelected,
+          today && !selected && !hasBookings && styles.dayTextToday,
+        ]}
+      >
         {day}
       </Text>
       {bookingCount > 0 ? (
-        <View style={[styles.dayDot, selected && styles.dayDotSelected]}>
-          <Text style={[styles.dayDotText, selected && styles.dayDotTextSelected]}>
+        <View style={[styles.dayDot, selected && styles.dayDotSelected, hasBookings && !selected && styles.dayDotBooked]}>
+          <Text style={[styles.dayDotText, selected && styles.dayDotTextSelected, hasBookings && !selected && styles.dayDotTextBooked]}>
             {bookingCount > 9 ? '9+' : bookingCount}
           </Text>
         </View>
@@ -125,25 +136,56 @@ function CalendarDayCell({
   );
 }
 
+function DayScheduleSummary({ bookings }: { bookings: PanditBooking[] }) {
+  return (
+    <PremiumCard accent="maroon" innerStyle={styles.scheduleCard}>
+      <Text style={styles.scheduleTitle}>Booking Times</Text>
+      {bookings.map((booking, index) => {
+        const statusStyle = STATUS_STYLES[booking.status];
+        return (
+          <View
+            key={booking.id}
+            style={[styles.scheduleRow, index < bookings.length - 1 && styles.scheduleRowBorder]}
+          >
+            <View style={styles.timeBadge}>
+              <Ionicons name="time-outline" size={14} color="#fff" />
+              <Text style={styles.timeBadgeText}>{formatBookingTime(booking.bookingTime)}</Text>
+            </View>
+            <View style={styles.scheduleBody}>
+              <Text style={styles.scheduleService}>{booking.serviceName}</Text>
+              <Text style={styles.scheduleCustomer}>{booking.customerName}</Text>
+            </View>
+            <View style={[styles.scheduleStatus, { backgroundColor: statusStyle.bg }]}>
+              <Text style={[styles.scheduleStatusText, { color: statusStyle.text }]}>
+                {statusStyle.label}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </PremiumCard>
+  );
+}
+
 function CalendarBookingRow({ booking }: { booking: PanditBooking }) {
   const statusStyle = STATUS_STYLES[booking.status];
 
   return (
     <PremiumCard accent="gold" innerStyle={styles.bookingInner}>
-      <View style={styles.bookingTop}>
-        <View style={styles.bookingMain}>
-          <Text style={styles.serviceName}>{booking.serviceName}</Text>
-          <Text style={styles.customerName}>{booking.customerName}</Text>
+      <View style={styles.bookingTimeRow}>
+        <View style={styles.bookingTimeBadge}>
+          <Ionicons name="time" size={16} color="#fff" />
+          <Text style={styles.bookingTimeText}>{formatBookingTime(booking.bookingTime)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
           <Text style={[styles.statusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
         </View>
       </View>
 
-      <View style={styles.bookingMeta}>
-        <View style={styles.metaItem}>
-          <Ionicons name="time-outline" size={14} color={C.maroon} />
-          <Text style={styles.metaText}>{formatBookingTime(booking.bookingTime)}</Text>
+      <View style={styles.bookingTop}>
+        <View style={styles.bookingMain}>
+          <Text style={styles.serviceName}>{booking.serviceName}</Text>
+          <Text style={styles.customerName}>{booking.customerName}</Text>
         </View>
         <Text style={styles.amountText}>{formatINR(booking.totalPrice)}</Text>
       </View>
@@ -181,6 +223,8 @@ export function PanditCalendarScreen() {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [selectedDate, setSelectedDate] = useState(todayKey);
+  const listRef = useRef<FlatList<PanditBooking>>(null);
+  const headerHeightRef = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -257,8 +301,28 @@ export function PanditCalendarScreen() {
   const goToToday = () => {
     const now = new Date();
     setVisibleMonth({ year: now.getFullYear(), month: now.getMonth() });
-    setSelectedDate(todayKey);
+    handleSelectDate(todayKey);
   };
+
+  const handleSelectDate = useCallback(
+    (dateKey: string) => {
+      setSelectedDate(dateKey);
+      const dayBookings = bookingsByDate.get(dateKey) ?? [];
+      if (dayBookings.length > 0) {
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToOffset({
+            offset: headerHeightRef.current + 8,
+            animated: true,
+          });
+        });
+      }
+    },
+    [bookingsByDate],
+  );
+
+  const handleHeaderLayout = useCallback((event: LayoutChangeEvent) => {
+    headerHeightRef.current = event.nativeEvent.layout.height;
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -292,6 +356,7 @@ export function PanditCalendarScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={selectedBookings}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => <CalendarBookingRow booking={item} />}
@@ -309,7 +374,7 @@ export function PanditCalendarScreen() {
             />
           }
           ListHeaderComponent={
-            <>
+            <View onLayout={handleHeaderLayout}>
               <PremiumCard accent="saffron" innerStyle={styles.calendarCard}>
                 <View style={styles.monthHeader}>
                   <Pressable style={styles.monthNavBtn} onPress={goToPreviousMonth} hitSlop={8}>
@@ -345,14 +410,17 @@ export function PanditCalendarScreen() {
                         dateKey={cell.dateKey}
                         selected={cell.dateKey === selectedDate}
                         today={cell.dateKey === todayKey}
+                        hasBookings={(bookingsByDate.get(cell.dateKey)?.length ?? 0) > 0}
                         bookingCount={bookingsByDate.get(cell.dateKey)?.length ?? 0}
-                        onPress={setSelectedDate}
+                        onPress={handleSelectDate}
                       />
                     ) : (
                       <View key={`empty-${index}`} style={styles.dayCellEmpty} />
                     ),
                   )}
                 </View>
+
+                <Text style={styles.calendarHint}>Dark dates have bookings. Tap to view schedule.</Text>
               </PremiumCard>
 
               <View style={styles.selectedHeader}>
@@ -361,7 +429,13 @@ export function PanditCalendarScreen() {
                   {selectedBookings.length} booking{selectedBookings.length === 1 ? '' : 's'}
                 </Text>
               </View>
-            </>
+
+              {selectedBookings.length > 0 ? <DayScheduleSummary bookings={selectedBookings} /> : null}
+
+              {selectedBookings.length > 0 ? (
+                <Text style={styles.detailsSectionTitle}>Full Details</Text>
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             <PremiumCard accent="gold" innerStyle={styles.emptyCard}>
@@ -509,6 +583,11 @@ const styles = StyleSheet.create({
   dayCellSelected: {
     backgroundColor: C.maroon,
   },
+  dayCellBooked: {
+    backgroundColor: 'rgba(61, 21, 21, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(61, 21, 21, 0.28)',
+  },
   dayCellToday: {
     borderWidth: 1.5,
     borderColor: C.primary,
@@ -520,6 +599,9 @@ const styles = StyleSheet.create({
   },
   dayTextSelected: {
     color: '#fff',
+  },
+  dayTextBooked: {
+    color: C.maroonDark,
   },
   dayTextToday: {
     color: C.maroon,
@@ -537,12 +619,18 @@ const styles = StyleSheet.create({
   dayDotSelected: {
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
+  dayDotBooked: {
+    backgroundColor: C.maroon,
+  },
   dayDotText: {
     fontSize: 9,
     fontWeight: '800',
     color: C.primary,
   },
   dayDotTextSelected: {
+    color: '#fff',
+  },
+  dayDotTextBooked: {
     color: '#fff',
   },
   dayDotSpacer: {
@@ -563,11 +651,105 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     fontWeight: '600',
   },
+  calendarHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: C.textMuted,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  scheduleCard: {
+    padding: 14,
+    marginBottom: 14,
+  },
+  scheduleTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.maroon,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  scheduleRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 160, 23, 0.15)',
+  },
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.maroon,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 92,
+    justifyContent: 'center',
+  },
+  timeBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  scheduleBody: {
+    flex: 1,
+    gap: 2,
+  },
+  scheduleService: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.text,
+  },
+  scheduleCustomer: {
+    fontSize: 12,
+    color: C.textMuted,
+    fontWeight: '600',
+  },
+  scheduleStatus: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  scheduleStatusText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  detailsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.maroon,
+    marginBottom: 10,
+  },
   separator: {
     height: 10,
   },
   bookingInner: {
     padding: 14,
+  },
+  bookingTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  bookingTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.maroon,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bookingTimeText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#fff',
   },
   bookingTop: {
     flexDirection: 'row',
@@ -588,6 +770,11 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     fontWeight: '600',
   },
+  amountText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.primary,
+  },
   statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -596,27 +783,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '800',
-  },
-  bookingMeta: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.text,
-  },
-  amountText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: C.primary,
   },
   mapBtn: {
     marginTop: 12,
