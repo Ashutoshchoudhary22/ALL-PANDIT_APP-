@@ -14,13 +14,5 @@ export function SplashController() {
     }
   }, [isLoading, rootNavigationState?.key]);
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      void SplashScreen.hideAsync();
-    }, 3500);
-
-    return () => clearTimeout(timeout);
-  }, []);
-
   return null;
 }
