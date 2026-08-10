@@ -20,6 +20,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Brand, DashboardColors as C } from '@/constants/dashboard-theme';
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { promptBookingLocation } from '@/lib/open-map';
+import { callCustomerPhone, canShowCustomerContact } from '@/lib/phone-call';
 import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
@@ -169,6 +170,7 @@ function DayScheduleSummary({ bookings }: { bookings: PanditBooking[] }) {
 
 function CalendarBookingRow({ booking }: { booking: PanditBooking }) {
   const statusStyle = STATUS_STYLES[booking.status];
+  const showCustomerContact = canShowCustomerContact(booking);
 
   return (
     <PremiumCard accent="gold" innerStyle={styles.bookingInner}>
@@ -206,6 +208,19 @@ function CalendarBookingRow({ booking }: { booking: PanditBooking }) {
           {booking.address}
         </Text>
       </Pressable>
+
+      {showCustomerContact ? (
+        <Pressable
+          style={styles.callRow}
+          onPress={() => void callCustomerPhone(booking.customerMobile ?? '', booking.customerName)}
+        >
+          <Ionicons name="call-outline" size={16} color={C.success} />
+          <Text style={styles.callRowText}>{booking.customerMobile}</Text>
+          <View style={styles.callIconBtn}>
+            <Ionicons name="call" size={16} color="#fff" />
+          </View>
+        </Pressable>
+      ) : null}
     </PremiumCard>
   );
 }
@@ -801,6 +816,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.textMuted,
     fontWeight: '500',
+  },
+  callRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(34, 139, 34, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 139, 34, 0.25)',
+  },
+  callRowText: {
+    flex: 1,
+    fontSize: 13,
+    color: C.success,
+    fontWeight: '700',
+  },
+  callIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.success,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyCard: {
     alignItems: 'center',

@@ -35,6 +35,7 @@ import {
   getUpcomingPujas,
 } from '@/lib/pandit-upcoming';
 import { promptBookingLocation } from '@/lib/open-map';
+import { callCustomerPhone, canShowCustomerContact } from '@/lib/phone-call';
 import { useAuth } from '@/providers/AuthProvider';
 import { PanditBooking } from '@/services/booking.api';
 import { PanditReview } from '@/services/review.api';
@@ -262,6 +263,8 @@ function RecentReviewCard({ review }: { review: PanditReview }) {
 }
 
 function UpcomingPujaCard({ booking }: { booking: PanditBooking }) {
+  const showCustomerContact = canShowCustomerContact(booking);
+
   const handleOpenLocation = () => {
     promptBookingLocation({
       latitude: booking.latitude,
@@ -308,6 +311,17 @@ function UpcomingPujaCard({ booking }: { booking: PanditBooking }) {
           <Text style={styles.locationBtnText}>View Location</Text>
         </LinearGradient>
       </Pressable>
+      {showCustomerContact ? (
+        <Pressable
+          style={styles.callBtnWrap}
+          onPress={() => void callCustomerPhone(booking.customerMobile ?? '', booking.customerName)}
+        >
+          <View style={styles.callBtn}>
+            <Ionicons name="call" size={16} color="#fff" />
+            <Text style={styles.callBtnText}>Call {booking.customerMobile}</Text>
+          </View>
+        </Pressable>
+      ) : null}
     </PremiumCard>
   );
 }
@@ -1191,6 +1205,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   locationBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  callBtnWrap: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+  },
+  callBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: C.success,
+  },
+  callBtnText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '800',

@@ -3,12 +3,15 @@ const { ADVANCE_RATE } = require('./razorpayService');
 const { sendPushToUser, sendPushToAdmins } = require('./pushNotifications');
 
 function formatPanditBookingNotification(row) {
+  const paymentStatus = row.payment_status;
+  const advancePaid = paymentStatus === 'advance_paid' || paymentStatus === 'fully_paid';
+
   return {
     id: row.id,
     customerId: row.customer_id,
     panditProfileId: row.pandit_profile_id,
     customerName: row.customer_name || 'Customer',
-    customerMobile: row.customer_mobile || null,
+    customerMobile: advancePaid ? row.customer_mobile || null : null,
     customerProfileImage: row.customer_profile_image || null,
     serviceName: row.service_name,
     bookingDate: row.booking_date,

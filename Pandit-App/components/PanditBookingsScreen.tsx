@@ -33,6 +33,7 @@ import {
 import { usePanditBookingsQuery } from '@/hooks/use-pandit-bookings';
 import { promptBookingLocation } from '@/lib/open-map';
 import { advancePercentLabel, remainingPercentLabel } from '@/lib/booking-pricing';
+import { callCustomerPhone, canShowCustomerContact } from '@/lib/phone-call';
 import { useTabBackToHome } from '@/lib/tab-navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import {
@@ -163,6 +164,7 @@ const BookingCard = memo(function BookingCard({
 }: BookingCardProps) {
   const statusStyle = STATUS_STYLES[booking.status];
   const isPaid = booking.paymentStatus === 'advance_paid' || booking.status === 'confirmed';
+  const showCustomerContact = canShowCustomerContact(booking);
   const isRejected = booking.status === 'cancelled';
   const finishOtpSent = Boolean(booking.finishRequestedAt);
 
@@ -250,6 +252,21 @@ const BookingCard = memo(function BookingCard({
       <View style={styles.metaGrid}>
         <MetaPill icon="calendar-outline" text={formatBookingDate(booking.bookingDate)} />
         <MetaPill icon="time-outline" text={formatBookingTime(booking.bookingTime)} />
+        {showCustomerContact ? (
+          <MetaPill
+            icon="call-outline"
+            text={booking.customerMobile ?? ''}
+            trailing={
+              <Pressable
+                style={styles.callBtn}
+                onPress={() => void callCustomerPhone(booking.customerMobile ?? '', booking.customerName)}
+                hitSlop={8}
+              >
+                <Ionicons name="call" size={18} color="#fff" />
+              </Pressable>
+            }
+          />
+        ) : null}
         <MetaPill
           icon="location-outline"
           text={booking.address}
@@ -1009,6 +1026,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 0, 0.25)',
   },
   mapBtnDisabled: { opacity: 0.45 },
+  callBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(21, 128, 61, 0.25)',
+  },
   footer: {
     marginTop: 12,
     paddingTop: 12,

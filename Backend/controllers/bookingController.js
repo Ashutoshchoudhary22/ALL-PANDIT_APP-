@@ -173,10 +173,14 @@ async function panditOwnsBooking(userId, bookingId) {
 }
 
 function mapPanditBookingRow(row) {
+  const booking = formatBooking(row);
+  const advancePaid =
+    booking.paymentStatus === 'advance_paid' || booking.paymentStatus === 'fully_paid';
+
   return {
-    ...formatBooking(row),
+    ...booking,
     customerName: row.customer_name?.trim() || 'Customer',
-    customerMobile: row.customer_mobile || null,
+    customerMobile: advancePaid ? row.customer_mobile || null : null,
     customerProfileImage: row.customer_profile_image || null,
   };
 }
