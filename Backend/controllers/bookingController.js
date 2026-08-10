@@ -1,7 +1,6 @@
 const pool = require('../config/db');
 const {
   calculateAdvanceAmount,
-  calculateCancellationRefund,
   createAdvanceOrder,
   createRemainingOrder,
   verifyPaymentSignature,
@@ -937,6 +936,7 @@ exports.cancelBooking = async (req, res) => {
     }
 
     const bookingId = Number(req.params.id);
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!Number.isFinite(bookingId)) {
       return res.status(400).json({
         success: false,
@@ -985,26 +985,38 @@ exports.cancelBooking = async (req, res) => {
     let refundDetails = null;
 
     if (isPaidAdvanceCancel) {
-      refundDetails = calculateCancellationRefund(booking.advance_amount);
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cancellation reason is required',
+        });
+      }
 
-      await refundBookingAdvance(
-        booking.customer_id,
-        bookingId,
-        refundDetails.refundAmount,
-        {
-          cancellationFee: refundDetails.cancellationFee,
-          advanceAmount: refundDetails.advanceAmount,
-        },
-      );
+      const advanceAmount = Number(booking.advance_amount);
+      const refundAmount = Number.isFinite(advanceAmount) ? advanceAmount : 0;
+
+      if (refundAmount > 0) {
+        await refundBookingAdvance(booking.customer_id, bookingId, refundAmount, {
+          cancellationFee: 0,
+          advanceAmount: refundAmount,
+        });
+      }
+
+      refundDetails = {
+        advanceAmount: refundAmount,
+        cancellationFee: 0,
+        refundAmount,
+      };
 
       await pool.query(
         `UPDATE bookings
          SET status = 'cancelled',
-             cancellation_fee_amount = ?,
+             cancellation_fee_amount = 0,
              refund_amount = ?,
+             cancellation_reason = ?,
              updated_at = NOW()
          WHERE id = ?`,
-        [refundDetails.cancellationFee, refundDetails.refundAmount, bookingId],
+        [refundAmount, reason, bookingId],
       );
     } else {
       await pool.query(
@@ -1018,7 +1030,9 @@ exports.cancelBooking = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: isPaidAdvanceCancel
-        ? `Booking cancelled. ₹${refundDetails.refundAmount} refunded to wallet after 9% cancellation fee (₹${refundDetails.cancellationFee}).`
+        ? refundDetails.refundAmount > 0
+          ? `Booking cancelled. ₹${refundDetails.refundAmount} refunded to your wallet.`
+          : 'Booking cancelled successfully.'
         : 'Booking request cancelled',
       data: formatBooking(row),
       refund: refundDetails,

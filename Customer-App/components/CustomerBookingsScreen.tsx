@@ -8,10 +8,12 @@ import {
   Alert,
   FlatList,
   ListRenderItemInfo,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +34,7 @@ import {
   formatBookingTime,
   isActiveBooking,
 } from '@/lib/booking-display';
-import { formatINR, ADVANCE_RATE, calculateCancellationRefund } from '@/lib/booking-pricing';
+import { formatINR, ADVANCE_RATE } from '@/lib/booking-pricing';
 import { useProfileReturnBackHandler } from '@/lib/profile-navigation';
 import { useMyWalletQuery } from '@/hooks/use-wallet';
 import { useAuth } from '@/providers/AuthProvider';
@@ -107,9 +109,6 @@ const BookingCard = memo(function BookingCard({
     booking.status === 'payment_pending' ||
     isPaidConfirmed;
   const canPayWithWallet = walletBalance >= booking.advanceAmount;
-  const cancellationPreview = isPaidConfirmed
-    ? calculateCancellationRefund(booking.advanceAmount)
-    : null;
 
   return (
     <PremiumCard accent={statusStyle.accent} innerStyle={styles.cardInner}>
@@ -286,13 +285,6 @@ const BookingCard = memo(function BookingCard({
           )}
         </Pressable>
       ) : null}
-
-      {cancellationPreview ? (
-        <Text style={styles.cancelFeeHint}>
-          Cancellation fee: 9% of advance ({formatINR(cancellationPreview.cancellationFee)}). Refund:{' '}
-          {formatINR(cancellationPreview.refundAmount)} to wallet.
-        </Text>
-      ) : null}
     </PremiumCard>
   );
 });
@@ -336,6 +328,9 @@ export function CustomerBookingsScreen() {
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
   const [payingWithWalletBookingId, setPayingWithWalletBookingId] = useState<number | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
+  const [cancelReasonBooking, setCancelReasonBooking] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReasonError, setCancelReasonError] = useState('');
   const [paymentSession, setPaymentSession] = useState<{
     bookingId: number;
     payment: BookingPaymentDetails;
@@ -399,38 +394,64 @@ export function CustomerBookingsScreen() {
     [payWithWallet, walletBalance],
   );
 
-  const handleCancel = useCallback((booking: Booking) => {
-    const isPaidConfirmed =
-      booking.status === 'confirmed' && booking.paymentStatus === 'advance_paid';
-    const refundPreview = isPaidConfirmed
-      ? calculateCancellationRefund(booking.advanceAmount)
-      : null;
+  const submitCancellation = useCallback(
+    async (booking: Booking, reason?: string) => {
+      setCancellingBookingId(booking.id);
+      try {
+        const response = await cancelBooking.mutateAsync({
+          bookingId: booking.id,
+          reason,
+        });
+        setCancelReasonBooking(null);
+        setCancelReason('');
+        setCancelReasonError('');
+        Alert.alert('Cancelled', response.message);
+      } catch (error) {
+        Alert.alert('Error', error instanceof Error ? error.message : 'Could not cancel booking');
+      } finally {
+        setCancellingBookingId(null);
+      }
+    },
+    [cancelBooking],
+  );
 
-    Alert.alert(
-      isPaidConfirmed ? 'Cancel Booking' : 'Cancel Booking',
-      isPaidConfirmed && refundPreview
-        ? `Advance paid: ${formatINR(booking.advanceAmount)}\n9% cancellation fee: ${formatINR(refundPreview.cancellationFee)}\nRefund to wallet: ${formatINR(refundPreview.refundAmount)}\n\nAre you sure you want to cancel this booking?`
-        : 'Are you sure you want to cancel this booking request?',
-      [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel',
-        style: 'destructive',
-        onPress: async () => {
-          setCancellingBookingId(booking.id);
-          try {
-            const response = await cancelBooking.mutateAsync(booking.id);
-            Alert.alert('Cancelled', response.message);
-          } catch (error) {
-            Alert.alert('Error', error instanceof Error ? error.message : 'Could not cancel booking');
-          } finally {
-            setCancellingBookingId(null);
-          }
+  const handleCancel = useCallback(
+    (booking: Booking) => {
+      const isPaidConfirmed =
+        booking.status === 'confirmed' && booking.paymentStatus === 'advance_paid';
+
+      if (isPaidConfirmed) {
+        setCancelReason('');
+        setCancelReasonError('');
+        setCancelReasonBooking(booking);
+        return;
+      }
+
+      Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking request?', [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => {
+            void submitCancellation(booking);
+          },
         },
-      },
-    ],
-    );
-  }, [cancelBooking]);
+      ]);
+    },
+    [submitCancellation],
+  );
+
+  const handleConfirmCancelWithReason = useCallback(() => {
+    if (!cancelReasonBooking) return;
+
+    const trimmedReason = cancelReason.trim();
+    if (trimmedReason.length < 3) {
+      setCancelReasonError('Please enter a reason (at least 3 characters).');
+      return;
+    }
+
+    void submitCancellation(cancelReasonBooking, trimmedReason);
+  }, [cancelReason, cancelReasonBooking, submitCancellation]);
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Booking>) => (
@@ -621,6 +642,71 @@ export function CustomerBookingsScreen() {
         onSuccess={handlePaymentSuccess}
         onDismiss={handlePaymentDismiss}
       />
+
+      <Modal
+        visible={Boolean(cancelReasonBooking)}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => {
+          if (cancellingBookingId) return;
+          setCancelReasonBooking(null);
+          setCancelReason('');
+          setCancelReasonError('');
+        }}
+      >
+        <View style={styles.cancelModalOverlay}>
+          <View style={styles.cancelModalCard}>
+            <Text style={styles.cancelModalTitle}>Cancel Booking</Text>
+            <Text style={styles.cancelModalMessage}>
+              Please tell us why you want to cancel. No cancellation fee will be charged.
+            </Text>
+            <TextInput
+              style={styles.cancelReasonInput}
+              placeholder="Enter cancellation reason"
+              placeholderTextColor={C.textMuted}
+              value={cancelReason}
+              onChangeText={(text) => {
+                setCancelReason(text);
+                if (cancelReasonError) setCancelReasonError('');
+              }}
+              multiline
+              maxLength={300}
+              textAlignVertical="top"
+            />
+            {cancelReasonError ? (
+              <Text style={styles.cancelReasonError}>{cancelReasonError}</Text>
+            ) : null}
+            <View style={styles.cancelModalActions}>
+              <Pressable
+                style={styles.cancelModalSecondaryBtn}
+                disabled={Boolean(cancellingBookingId)}
+                onPress={() => {
+                  setCancelReasonBooking(null);
+                  setCancelReason('');
+                  setCancelReasonError('');
+                }}
+              >
+                <Text style={styles.cancelModalSecondaryText}>Back</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.cancelModalPrimaryBtn,
+                  cancellingBookingId ? styles.btnDisabled : null,
+                ]}
+                disabled={Boolean(cancellingBookingId)}
+                onPress={handleConfirmCancelWithReason}
+              >
+                {cancellingBookingId ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.cancelModalPrimaryText}>Cancel Booking</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -943,12 +1029,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  cancelFeeHint: {
-    marginTop: 8,
-    fontSize: 11,
-    lineHeight: 16,
+  cancelModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  cancelModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+  },
+  cancelModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: C.text,
+    textAlign: 'center',
+  },
+  cancelModalMessage: {
+    marginTop: 10,
+    fontSize: 14,
+    lineHeight: 21,
     color: C.textMuted,
     textAlign: 'center',
+  },
+  cancelReasonInput: {
+    marginTop: 16,
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.25)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: C.text,
+    backgroundColor: C.creamDark,
+  },
+  cancelReasonError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: C.danger,
+    fontWeight: '600',
+  },
+  cancelModalActions: {
+    marginTop: 18,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelModalSecondaryBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 160, 23, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalSecondaryText: {
+    color: C.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelModalPrimaryBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: C.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalPrimaryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   payBtnText: {
     color: '#fff',

@@ -85,6 +85,7 @@ ALTER TABLE pandit_profiles ADD COLUMN update_request_status ENUM('none','pendin
 ALTER TABLE bookings ADD COLUMN advance_payment_method ENUM('razorpay','wallet') NULL;
 ALTER TABLE bookings ADD COLUMN cancellation_fee_amount DECIMAL(10,2) NULL;
 ALTER TABLE bookings ADD COLUMN refund_amount DECIMAL(10,2) NULL;
+ALTER TABLE bookings ADD COLUMN cancellation_reason TEXT NULL;
 ALTER TABLE bookings ADD COLUMN wallet_advance_amount DECIMAL(10,2) DEFAULT 0;
 ALTER TABLE bookings ADD COLUMN advance_paid_at DATETIME NULL;
 ALTER TABLE bookings ADD COLUMN completed_at DATETIME NULL;

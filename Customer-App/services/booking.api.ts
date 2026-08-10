@@ -116,9 +116,10 @@ export async function payBookingWithWalletApi(bookingId: number) {
   return data;
 }
 
-export async function cancelBookingApi(bookingId: number) {
+export async function cancelBookingApi(bookingId: number, reason?: string) {
   const { data } = await apiClient.post<{ success: boolean; message: string; data: Booking }>(
     `/api/bookings/${bookingId}/cancel`,
+    reason ? { reason } : undefined,
   );
   return data;
 }

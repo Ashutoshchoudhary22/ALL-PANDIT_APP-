@@ -72,7 +72,8 @@ export function useVerifyBookingPaymentMutation() {
 export function useCancelBookingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (bookingId: number) => cancelBookingApi(bookingId),
+    mutationFn: ({ bookingId, reason }: { bookingId: number; reason?: string }) =>
+      cancelBookingApi(bookingId, reason),
     onSuccess: (response) => {
       if (response.data) {
         upsertCustomerBookingInCache(queryClient, response.data);
