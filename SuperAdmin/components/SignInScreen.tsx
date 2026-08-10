@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -34,12 +34,39 @@ export function SignInScreen({
   onForgotPassword,
 }: SignInScreenProps) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const loginMutation = useLoginMutation();
+  const restingBottom = Math.max(insets.bottom, 16) + 8;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+      });
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleSignIn = () => {
     setError('');
@@ -92,23 +119,29 @@ export function SignInScreen({
         </Text>
       </LinearGradient>
 
-      <KeyboardAvoidingView
-        style={styles.sheetWrap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.sheet}>
+      <View style={styles.sheetWrap}>
+        <View
+          style={[
+            styles.sheet,
+            keyboardHeight > 0 ? { marginBottom: keyboardHeight - restingBottom } : null,
+          ]}
+        >
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             contentContainerStyle={[
               styles.sheetContent,
-              { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+              { paddingBottom: restingBottom },
             ]}
           >
-            <Text style={styles.formTitle}>Admin Sign In</Text>
-            <Text style={styles.formSubtitle}>
-              Sign in to manage users, pandits, bookings and platform settings.
-            </Text>
+            <Pressable onPress={Keyboard.dismiss}>
+              <Text style={styles.formTitle}>Admin Sign In</Text>
+              <Text style={styles.formSubtitle}>
+                Sign in to manage users, pandits, bookings and platform settings.
+              </Text>
+            </Pressable>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -187,7 +220,7 @@ export function SignInScreen({
             </Pressable>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
