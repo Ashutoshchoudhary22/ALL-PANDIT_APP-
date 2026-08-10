@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ImageBackground,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -44,8 +43,29 @@ export function SignInScreen({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const loginMutation = useLoginMutation();
+  const restingBottom = Math.max(insets.bottom, 16) + 22;
+  const formBottom = keyboardHeight > 0 ? keyboardHeight : restingBottom;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleSignIn = () => {
     setError('');
@@ -85,97 +105,83 @@ export function SignInScreen({
         resizeMode="cover"
       />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingBottom: Math.max(insets.bottom, 16) + 22,
-            },
-          ]}
+      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
+
+      <View style={[styles.formWrap, { bottom: formBottom }]}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <View style={[styles.inputRow, styles.emailRow]}>
+          <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.emailPlaceholder')}
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            editable={!loginMutation.isPending}
+          />
+        </View>
+
+        <View style={[styles.inputRow, styles.inputRowSpacing]}>
+          <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.passwordPlaceholder')}
+            placeholderTextColor="#9CA3AF"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+            editable={!loginMutation.isPending}
+          />
+          <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+            <Ionicons
+              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              size={20}
+              color={ICON_COLOR}
+            />
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={styles.forgotWrap}
+          onPress={onForgotPassword}
+          disabled={loginMutation.isPending}
         >
-          <View style={styles.form}>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <Text style={styles.forgot}>{t('auth.forgotPassword')}</Text>
+        </Pressable>
 
-            <View style={[styles.inputRow, styles.emailRow]}>
-              <Ionicons name="mail-outline" size={20} color={ICON_COLOR} />
-              <TextInput
-                style={styles.input}
-                placeholder={t('auth.emailPlaceholder')}
-                placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-                editable={!loginMutation.isPending}
-              />
-            </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.loginBtnWrap,
+            (pressed || loginMutation.isPending) && styles.pressed,
+          ]}
+          onPress={handleSignIn}
+          disabled={loginMutation.isPending}
+        >
+          <LinearGradient
+            colors={[C.maroon, C.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.loginBtn}
+          >
+            {loginMutation.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginText}>{t('auth.login')}</Text>
+            )}
+          </LinearGradient>
+        </Pressable>
 
-            <View style={[styles.inputRow, styles.inputRowSpacing]}>
-              <Ionicons name="lock-closed-outline" size={20} color={ICON_COLOR} />
-              <TextInput
-                style={styles.input}
-                placeholder={t('auth.passwordPlaceholder')}
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                editable={!loginMutation.isPending}
-              />
-              <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-                <Ionicons
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color={ICON_COLOR}
-                />
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={styles.forgotWrap}
-              onPress={onForgotPassword}
-              disabled={loginMutation.isPending}
-            >
-              <Text style={styles.forgot}>{t('auth.forgotPassword')}</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.loginBtnWrap,
-                (pressed || loginMutation.isPending) && styles.pressed,
-              ]}
-              onPress={handleSignIn}
-              disabled={loginMutation.isPending}
-            >
-              <LinearGradient
-                colors={[C.maroon, C.primary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.loginBtn}
-              >
-                {loginMutation.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.loginText}>{t('auth.login')}</Text>
-                )}
-              </LinearGradient>
-            </Pressable>
-
-            <Text style={styles.accountRow}>
-              {t('auth.noAccount')}{' '}
-              <Text style={styles.link} onPress={onSignUp}>
-                {t('auth.signUp')}
-              </Text>
-            </Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <Text style={styles.accountRow}>
+          {t('auth.noAccount')}{' '}
+          <Text style={styles.link} onPress={onSignUp}>
+            {t('auth.signUp')}
+          </Text>
+        </Text>
+      </View>
     </View>
   );
 }
@@ -185,16 +191,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.cream,
   },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 28,
-    justifyContent: 'flex-end',
-  },
-  form: {
-    width: '100%',
+  formWrap: {
+    position: 'absolute',
+    left: 28,
+    right: 28,
   },
   errorText: {
     marginBottom: 12,
