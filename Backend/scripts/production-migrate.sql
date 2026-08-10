@@ -16,6 +16,24 @@ CREATE TABLE IF NOT EXISTS device_push_tokens (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Notification history
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  recipient_role ENUM('customer','pandit','admin','superadmin') NOT NULL,
+  type VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NULL,
+  booking_id BIGINT UNSIGNED NULL,
+  data JSON NULL,
+  read_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_notifications_user_created (user_id, created_at),
+  INDEX idx_notifications_booking (booking_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+);
+
 -- Location tracking history
 CREATE TABLE IF NOT EXISTS location_history (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

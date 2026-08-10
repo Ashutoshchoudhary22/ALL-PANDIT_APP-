@@ -11,7 +11,10 @@ import {
 import { clearNotifications, loadNotifications, saveNotifications } from '@/lib/notification-storage';
 import {
   CustomerNotification,
+  getMyNotificationsApi,
+  markNotificationsReadApi,
   mergeNotifications,
+  notificationFromServer,
 } from '@/services/notification.api';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -49,14 +52,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
+      const [stored, response] = await Promise.all([
+        loadNotifications(user.id),
+        getMyNotificationsApi(),
+      ]);
+      const merged = mergeNotifications(
+        stored,
+        response.data.items.map(notificationFromServer),
+      );
+      setNotifications(merged);
+      await persist(merged);
+    } catch {
       const stored = await loadNotifications(user.id);
       setNotifications(stored);
-    } catch {
-      setNotifications([]);
     } finally {
       setIsLoading(false);
     }
-  }, [token, user?.id, user?.role]);
+  }, [token, user?.id, user?.role, persist]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -88,6 +100,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       void persist(next);
       return next;
     });
+    void markNotificationsReadApi({ all: true });
   }, [persist]);
 
   const markAsRead = useCallback(
@@ -97,8 +110,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         void persist(next);
         return next;
       });
+      const notification = notifications.find((item) => item.id === id);
+      if (notification?.serverId) {
+        void markNotificationsReadApi({ ids: [notification.serverId] });
+      }
     },
-    [persist],
+    [notifications, persist],
   );
 
   const unreadCount = useMemo(

@@ -112,8 +112,7 @@ const keyExtractor = (item: PanditNotification) => item.id;
 
 export function PanditNotificationsScreen() {
   const insets = useSafeAreaInsets();
-  const { notifications, isLoading, markAllRead, markAsRead, refreshNotifications } =
-    useNotifications();
+  const { notifications, isLoading, markAsRead, refreshNotifications } = useNotifications();
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read).length,
@@ -122,8 +121,8 @@ export function PanditNotificationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      markAllRead();
-    }, [markAllRead]),
+      void refreshNotifications();
+    }, [refreshNotifications]),
   );
 
   const handlePress = useCallback(

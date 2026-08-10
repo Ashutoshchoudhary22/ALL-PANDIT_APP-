@@ -87,8 +87,7 @@ const keyExtractor = (item: CustomerNotification) => item.id;
 export function CustomerNotificationsScreen() {
   const insets = useSafeAreaInsets();
   const fromProfile = useProfileReturnBackHandler();
-  const { notifications, isLoading, markAllRead, markAsRead, refreshNotifications } =
-    useNotifications();
+  const { notifications, isLoading, markAsRead, refreshNotifications } = useNotifications();
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read).length,
@@ -97,8 +96,8 @@ export function CustomerNotificationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      markAllRead();
-    }, [markAllRead]),
+      void refreshNotifications();
+    }, [refreshNotifications]),
   );
 
   const handlePress = useCallback(

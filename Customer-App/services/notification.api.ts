@@ -1,9 +1,16 @@
 import { Booking } from '@/services/booking.api';
 import { ADVANCE_RATE } from '@/lib/booking-pricing';
+import { apiClient } from '@/lib/axios';
 
 export type CustomerNotification = {
   id: string;
-  type: 'booking:approved' | 'booking:finish_otp' | 'booking:review_request';
+  serverId?: number;
+  type:
+    | 'booking:submitted'
+    | 'booking:approved'
+    | 'booking:rejected'
+    | 'booking:finish_otp'
+    | 'booking:review_request';
   title: string;
   message: string;
   bookingId: number;
@@ -11,6 +18,57 @@ export type CustomerNotification = {
   createdAt: string;
   booking?: Partial<Booking> & { panditName?: string };
 };
+
+type ServerNotification = {
+  id: number;
+  type: CustomerNotification['type'];
+  title: string;
+  message: string;
+  bookingId: number | null;
+  read: boolean;
+  createdAt: string;
+};
+
+function clientNotificationId(type: CustomerNotification['type'], bookingId: number, serverId: number) {
+  const prefix = {
+    'booking:submitted': 'booking-submitted',
+    'booking:approved': 'booking-approved',
+    'booking:rejected': 'booking-rejected',
+    'booking:finish_otp': 'booking-finish',
+    'booking:review_request': 'booking-review',
+  }[type];
+
+  return bookingId ? `${prefix}-${bookingId}` : `notification-${serverId}`;
+}
+
+export function notificationFromServer(row: ServerNotification): CustomerNotification {
+  return {
+    id: clientNotificationId(row.type, row.bookingId || 0, row.id),
+    serverId: row.id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    bookingId: row.bookingId || 0,
+    read: row.read,
+    createdAt: row.createdAt,
+  };
+}
+
+export async function getMyNotificationsApi() {
+  const { data } = await apiClient.get<{
+    success: boolean;
+    data: { items: ServerNotification[]; unreadCount: number };
+  }>('/api/notifications');
+  return data;
+}
+
+export async function markNotificationsReadApi(payload: { ids?: number[]; all?: boolean }) {
+  const { data } = await apiClient.patch<{ success: boolean; data: { updated: number } }>(
+    '/api/notifications/read',
+    payload,
+  );
+  return data;
+}
 
 export type CustomerBookingNotification = {
   type:
@@ -59,7 +117,7 @@ export function mergeNotifications(
 
   for (const item of incoming) {
     const current = map.get(item.id);
-    map.set(item.id, current ? { ...item, read: current.read } : item);
+    map.set(item.id, current ? { ...item, read: current.read || item.read } : item);
   }
 
   return Array.from(map.values()).sort(

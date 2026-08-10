@@ -1,6 +1,27 @@
 const pool = require('../config/db');
 const { ADVANCE_RATE } = require('./razorpayService');
 const { sendPushToUser, sendPushToAdmins } = require('./pushNotifications');
+const {
+  saveNotification,
+  saveNotificationsForRoles,
+} = require('./notificationHistoryService');
+
+async function saveBookingNotification(userId, role, payload, bookingId) {
+  await saveNotification({
+    userId,
+    role,
+    type: payload.type,
+    title: payload.title,
+    message: payload.message,
+    bookingId,
+    data: {
+      type: payload.type,
+      bookingId: String(bookingId),
+      title: payload.title,
+      message: payload.message,
+    },
+  });
+}
 
 function formatPanditBookingNotification(row) {
   const paymentStatus = row.payment_status;
@@ -65,6 +86,20 @@ async function notifyPanditNewBooking(io, bookingId) {
     message: `${row.customer_name || 'A customer'} requested ${row.service_name}. Please review and approve.`,
     booking: formatPanditBookingNotification(row),
   };
+
+  await saveBookingNotification(row.pandit_user_id, 'pandit', payload, row.id);
+  await saveNotificationsForRoles(['admin', 'superadmin'], {
+    type: 'admin:booking:new',
+    title: 'New Booking',
+    message: `${row.customer_name || 'A customer'} booked ${row.service_name}.`,
+    bookingId: row.id,
+    data: {
+      type: 'admin:booking:new',
+      bookingId: String(row.id),
+      title: 'New Booking',
+      message: `${row.customer_name || 'A customer'} booked ${row.service_name}.`,
+    },
+  });
 
   if (io) {
     io.to(`pandit:${row.pandit_user_id}`).emit('booking:new', payload);
@@ -167,6 +202,7 @@ async function notifyCustomerBookingSubmitted(io, bookingId) {
     booking: formatCustomerBookingNotification(row),
   };
 
+  await saveBookingNotification(row.customer_id, 'customer', payload, row.id);
   emitCustomerBookingEvent(io, row.customer_id, payload);
   return payload;
 }
@@ -182,6 +218,7 @@ async function notifyCustomerBookingRejected(io, bookingId) {
     booking: formatCustomerBookingNotification(row),
   };
 
+  await saveBookingNotification(row.customer_id, 'customer', payload, row.id);
   emitCustomerBookingEvent(io, row.customer_id, payload);
 
   await sendPushToUser(row.customer_id, 'customer', {
@@ -225,6 +262,7 @@ async function notifyCustomerBookingApproved(io, bookingId) {
     booking: formatCustomerBookingNotification(row),
   };
 
+  await saveBookingNotification(row.customer_id, 'customer', payload, row.id);
   emitCustomerBookingEvent(io, row.customer_id, payload);
 
   await sendPushToUser(row.customer_id, 'customer', {
@@ -254,7 +292,11 @@ async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
     booking: formatPanditBookingNotification(row),
   };
 
-  io.to(`pandit:${row.pandit_user_id}`).emit('booking:confirmed', payload);
+  await saveBookingNotification(row.pandit_user_id, 'pandit', payload, row.id);
+
+  if (io) {
+    io.to(`pandit:${row.pandit_user_id}`).emit('booking:confirmed', payload);
+  }
 
   await sendPushToUser(row.pandit_user_id, 'pandit', {
     title: payload.title,
@@ -281,6 +323,7 @@ async function notifyCustomerFinishOtpSent(io, bookingId) {
     booking: formatCustomerBookingNotification(row, { includeSessionOtp: true }),
   };
 
+  await saveBookingNotification(row.customer_id, 'customer', payload, row.id);
   emitCustomerBookingEvent(io, row.customer_id, payload);
 
   await sendPushToUser(row.customer_id, 'customer', {
@@ -308,6 +351,7 @@ async function notifyCustomerReviewRequest(io, bookingId) {
     booking: formatCustomerBookingNotification(row),
   };
 
+  await saveBookingNotification(row.customer_id, 'customer', payload, row.id);
   emitCustomerBookingEvent(io, row.customer_id, payload);
 
   await sendPushToUser(row.customer_id, 'customer', {
