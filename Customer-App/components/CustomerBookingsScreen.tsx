@@ -659,7 +659,8 @@ export function CustomerBookingsScreen() {
           <View style={styles.cancelModalCard}>
             <Text style={styles.cancelModalTitle}>Cancel Booking</Text>
             <Text style={styles.cancelModalMessage}>
-              Please tell us why you want to cancel. No cancellation fee will be charged.
+              Please tell us why you want to cancel. Your full advance amount will be refunded to
+              your wallet. No cancellation fee will be charged.
             </Text>
             <TextInput
               style={styles.cancelReasonInput}
