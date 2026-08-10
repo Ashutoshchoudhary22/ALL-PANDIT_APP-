@@ -88,7 +88,7 @@ export function VerifyOtpScreen({
           <Text style={styles.brandName}>ApnaAcharya Admin</Text>
         </View>
 
-        <Text style={styles.heroTitle}>Verify your email OTP 📧</Text>
+        <Text style={styles.heroTitle}>Verify your mobile OTP 📱</Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -99,7 +99,7 @@ export function VerifyOtpScreen({
           <View style={[styles.sheetContent, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <Text style={styles.formTitle}>Enter OTP</Text>
             <Text style={styles.formSubtitle}>
-              We sent a 6-digit code to {email || mobile}. Enter it below to complete signup.
+              We sent a 6-digit code to your mobile number {mobile}. Enter it below to complete signup.
             </Text>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}

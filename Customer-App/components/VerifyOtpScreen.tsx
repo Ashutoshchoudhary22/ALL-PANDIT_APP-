@@ -88,7 +88,7 @@ export function VerifyOtpScreen({
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
-        <Text style={styles.heroTitle}>Verify your email 📧</Text>
+        <Text style={styles.heroTitle}>Verify your mobile OTP 📱</Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -98,8 +98,8 @@ export function VerifyOtpScreen({
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <Text style={styles.formTitle}>Enter OTP</Text>
           <Text style={styles.formSubtitle}>
-            We sent a 6-digit code to{'\n'}
-            <Text style={styles.email}>{email || mobile}</Text>
+            We sent a 6-digit code to your mobile number{'\n'}
+            <Text style={styles.email}>{mobile}</Text>
           </Text>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

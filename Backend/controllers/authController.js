@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/db');
 const { sendOtpEmail, sendPasswordResetEmail, getAppSchemeForRole } = require('../config/mailer');
 const generateOtp = require('../utils/generateOtp');
+const { sendSmsOtp } = require('../services/msg91Service');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'my-pandit-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -69,6 +70,26 @@ async function resolvePlatformAdminRole() {
   return rows.length === 0 ? 'superadmin' : 'admin';
 }
 
+async function deliverSignupOtp({ mobile, email, otp }) {
+  try {
+    await sendSmsOtp({
+      mobile,
+      otp,
+      expiresInMinutes: OTP_EXPIRES_MINUTES,
+    });
+    return { channel: 'sms' };
+  } catch (smsError) {
+    console.warn('MSG91 SMS OTP failed:', smsError.message);
+
+    if (!email) {
+      throw smsError;
+    }
+
+    const mailResult = await sendOtpEmail(email, mobile, otp);
+    return { channel: 'email', devMode: mailResult.devMode };
+  }
+}
+
 exports.signup = async (req, res) => {
   try {
     const { mobile, email, password, role } = req.body;
@@ -117,32 +138,23 @@ exports.signup = async (req, res) => {
       [normalizedMobile, normalizedEmail, passwordHash, accountType, otp, OTP_EXPIRES_MINUTES],
     );
 
-    if (normalizedEmail) {
-      const mailResult = await sendOtpEmail(normalizedEmail, normalizedMobile, otp);
-
-      return res.status(200).json({
-        success: true,
-        message: 'OTP sent to your email. Please verify to complete signup.',
-        data: {
-          mobile: normalizedMobile,
-          email: normalizedEmail,
-          role: accountType,
-          ...(process.env.NODE_ENV !== 'production' && mailResult.devMode && { otp }),
-        },
-      });
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] OTP for ${normalizedMobile}: ${otp}`);
-    }
+    const delivery = await deliverSignupOtp({
+      mobile: normalizedMobile,
+      email: normalizedEmail,
+      otp,
+    });
 
     return res.status(200).json({
       success: true,
-      message: 'OTP generated. Please verify to complete signup.',
+      message:
+        delivery.channel === 'sms'
+          ? 'OTP sent to your mobile number. Please verify to complete signup.'
+          : 'SMS OTP could not be sent. OTP sent to your email instead.',
       data: {
         mobile: normalizedMobile,
+        email: normalizedEmail,
         role: accountType,
-        ...(process.env.NODE_ENV !== 'production' && { otp }),
+        ...(process.env.NODE_ENV !== 'production' && delivery.devMode && { otp }),
       },
     });
   } catch (error) {
@@ -287,23 +299,19 @@ exports.resendOtp = async (req, res) => {
       [otp, OTP_EXPIRES_MINUTES, record.mobile],
     );
 
-    if (record.email) {
-      const mailResult = await sendOtpEmail(record.email, record.mobile, otp);
-      return res.status(200).json({
-        success: true,
-        message: 'New OTP sent to your email',
-        ...(process.env.NODE_ENV !== 'production' && mailResult.devMode && { otp }),
-      });
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] OTP for ${record.mobile}: ${otp}`);
-    }
+    const delivery = await deliverSignupOtp({
+      mobile: record.mobile,
+      email: record.email,
+      otp,
+    });
 
     return res.status(200).json({
       success: true,
-      message: 'New OTP generated',
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
+      message:
+        delivery.channel === 'sms'
+          ? 'New OTP sent to your mobile number'
+          : 'SMS OTP could not be sent. New OTP sent to your email instead.',
+      ...(process.env.NODE_ENV !== 'production' && delivery.devMode && { otp }),
     });
   } catch (error) {
     console.error('Resend OTP error:', error);
