@@ -100,7 +100,25 @@ async function sendOtpEmail(to, name, otp) {
   }
 }
 
-async function sendBookingOtpEmail(to, name, otp, purpose) {
+function formatStartOtpEmailValidity(bookingDate) {
+  const datePart = String(bookingDate || '').slice(0, 10);
+  const [year, month, day] = datePart.split('-').map(Number);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return 'This OTP is valid until 1 day after your puja date.';
+  }
+
+  const validUntil = new Date(year, month - 1, day + 1);
+  const formatted = validUntil.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return `This OTP is valid until <strong>${formatted}</strong> (1 day after your puja date).`;
+}
+
+async function sendBookingOtpEmail(to, name, otp, purpose, options = {}) {
   const smtpUser = getSmtpUser();
   const smtpPass = getSmtpPass();
   const isConfigured = smtpUser && smtpPass;
@@ -113,6 +131,9 @@ async function sendBookingOtpEmail(to, name, otp, purpose) {
   const instruction = isStart
     ? 'Share this OTP with your pandit when they arrive to start the puja.'
     : 'Share this OTP with your pandit after the puja is completed to collect the remaining payment.';
+  const validityText = isStart
+    ? formatStartOtpEmailValidity(options.bookingDate)
+    : 'This OTP is valid for <strong>10 minutes</strong>.';
 
   if (!isConfigured) {
     console.log(`[DEV] Booking ${purpose} OTP for ${to}: ${otp}`);
@@ -133,7 +154,7 @@ async function sendBookingOtpEmail(to, name, otp, purpose) {
         <p><strong>${heading}</strong></p>
         <h1 style="color: #FF8C00; letter-spacing: 8px; font-size: 36px;">${otp}</h1>
         <p>${instruction}</p>
-        <p>This OTP is valid for <strong>10 minutes</strong>.</p>
+        <p>${validityText}</p>
         <p style="color: #9CA3AF; font-size: 12px;">© My-Pandit</p>
       </div>
     `,

@@ -26,10 +26,22 @@ const {
 const { debitForBookingAdvance, refundBookingAdvance } = require('../services/walletService');
 
 const SAMAGRI_RATE = 0.2;
-const OTP_TTL_MINUTES = 10;
+const FINISH_OTP_TTL_MINUTES = 10;
 
-function otpExpiresAt() {
-  return new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+function finishOtpExpiresAt() {
+  return new Date(Date.now() + FINISH_OTP_TTL_MINUTES * 60 * 1000);
+}
+
+function startOtpExpiresAt(bookingDate) {
+  const datePart = String(bookingDate || '').slice(0, 10);
+  const [year, month, day] = datePart.split('-').map(Number);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return finishOtpExpiresAt();
+  }
+
+  // Valid through the day after the booking date (expires at start of +2 day).
+  return new Date(year, month - 1, day + 2, 0, 0, 0, 0);
 }
 
 function isOtpExpired(expiresAt) {
@@ -451,7 +463,7 @@ exports.verifyBookingPayment = async (req, res) => {
     }
 
     const startOtp = generateOtp();
-    const expiresAt = otpExpiresAt();
+    const expiresAt = startOtpExpiresAt(booking.booking_date);
 
     await pool.query(
       `UPDATE bookings
@@ -464,7 +476,9 @@ exports.verifyBookingPayment = async (req, res) => {
 
     const customer = await fetchCustomerContact(booking.customer_id);
     if (customer.email) {
-      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start');
+      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start', {
+        bookingDate: booking.booking_date,
+      });
     } else {
       console.log(`[DEV] Start OTP for booking ${bookingId}: ${startOtp}`);
     }
@@ -645,7 +659,7 @@ exports.payBookingWithWallet = async (req, res) => {
     }
 
     const startOtp = generateOtp();
-    const expiresAt = otpExpiresAt();
+    const expiresAt = startOtpExpiresAt(booking.booking_date);
 
     await pool.query(
       `UPDATE bookings
@@ -658,7 +672,9 @@ exports.payBookingWithWallet = async (req, res) => {
 
     const customer = await fetchCustomerContact(booking.customer_id);
     if (customer.email) {
-      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start');
+      await sendBookingOtpEmail(customer.email, customer.name, startOtp, 'start', {
+        bookingDate: booking.booking_date,
+      });
     } else {
       console.log(`[DEV] Start OTP for booking ${bookingId}: ${startOtp}`);
     }
@@ -1140,7 +1156,7 @@ exports.requestFinishBookingPuja = async (req, res) => {
     }
 
     const finishOtp = generateOtp();
-    const expiresAt = otpExpiresAt();
+    const expiresAt = finishOtpExpiresAt();
     const customer = await fetchCustomerContact(booking.customer_id);
 
     await pool.query(
