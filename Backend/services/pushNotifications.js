@@ -12,7 +12,14 @@ function normalizeData(data = {}) {
 
 async function sendPushToTokens(tokens, { title, body, data = {}, channelId = BOOKING_CHANNEL_ID }) {
   const messaging = getMessaging();
-  if (!messaging || !tokens.length) return { sent: 0, failed: 0 };
+  if (!messaging) {
+    console.warn(`Push skipped: Firebase Messaging is unavailable (${channelId}).`);
+    return { sent: 0, failed: 0 };
+  }
+  if (!tokens.length) {
+    console.warn(`Push skipped: no registered tokens found (${channelId}).`);
+    return { sent: 0, failed: 0 };
+  }
 
   const payload = {
     tokens,
@@ -55,6 +62,7 @@ async function sendPushToTokens(tokens, { title, body, data = {}, channelId = BO
     if (item.success) return;
 
     const code = item.error?.code || '';
+    console.warn(`FCM delivery failed for token ${tokens[index].slice(0, 16)}…: ${code || item.error?.message || 'unknown error'}`);
     if (
       code === 'messaging/registration-token-not-registered' ||
       code === 'messaging/invalid-registration-token'
@@ -66,6 +74,10 @@ async function sendPushToTokens(tokens, { title, body, data = {}, channelId = BO
   if (invalidTokens.length) {
     await pool.query('DELETE FROM device_push_tokens WHERE token IN (?)', [invalidTokens]);
   }
+
+  console.log(
+    `FCM push result (${channelId}): sent=${response.successCount}, failed=${response.failureCount}, recipients=${tokens.length}.`,
+  );
 
   return {
     sent: response.successCount,

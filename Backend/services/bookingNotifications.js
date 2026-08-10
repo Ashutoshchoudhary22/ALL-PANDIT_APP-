@@ -242,8 +242,6 @@ async function notifyCustomerBookingApproved(io, bookingId) {
 }
 
 async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
-  if (!io) return null;
-
   const row = await fetchBookingNotificationRow(bookingId);
   if (!row?.pandit_user_id) return null;
 
@@ -273,8 +271,6 @@ async function notifyPanditBookingPaymentConfirmed(io, bookingId) {
 }
 
 async function notifyCustomerFinishOtpSent(io, bookingId) {
-  if (!io) return null;
-
   const row = await fetchBookingNotificationRow(bookingId);
   if (!row?.customer_id) return null;
 
@@ -302,8 +298,6 @@ async function notifyCustomerFinishOtpSent(io, bookingId) {
 }
 
 async function notifyCustomerReviewRequest(io, bookingId) {
-  if (!io) return null;
-
   const row = await fetchBookingNotificationRow(bookingId);
   if (!row?.customer_id) return null;
 
