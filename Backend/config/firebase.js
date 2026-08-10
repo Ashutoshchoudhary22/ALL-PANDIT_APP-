@@ -1,13 +1,53 @@
 const fs = require('fs');
 const path = require('path');
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getMessaging: getFirebaseMessaging } = require('firebase-admin/messaging');
 
 let messaging = null;
 let initAttempted = false;
 
+function normalizeServiceAccount(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const account = { ...raw };
+
+  if (typeof account.private_key === 'string') {
+    account.private_key = account.private_key.replace(/\\n/g, '\n');
+  }
+
+  const requiredFields = ['project_id', 'client_email', 'private_key'];
+  for (const field of requiredFields) {
+    if (typeof account[field] !== 'string' || !account[field].trim()) {
+      console.warn(`Firebase service account is missing required field: ${field}`);
+      return null;
+    }
+  }
+
+  return account;
+}
+
+function parseInlineServiceAccount(rawValue) {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('{')) {
+    return JSON.parse(trimmed);
+  }
+
+  return JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'));
+}
+
 function loadServiceAccount() {
   const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (inlineJson) {
-    return JSON.parse(inlineJson);
+    try {
+      return normalizeServiceAccount(parseInlineServiceAccount(inlineJson));
+    } catch (error) {
+      console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', error.message);
+      return null;
+    }
   }
 
   const filePath =
@@ -18,7 +58,12 @@ function loadServiceAccount() {
     return null;
   }
 
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  try {
+    return normalizeServiceAccount(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+  } catch (error) {
+    console.warn('Failed to read Firebase service account file:', error.message);
+    return null;
+  }
 }
 
 function getMessaging() {
@@ -35,14 +80,13 @@ function getMessaging() {
       return null;
     }
 
-    const admin = require('firebase-admin');
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount),
       });
     }
 
-    messaging = admin.messaging();
+    messaging = getFirebaseMessaging();
     console.log('Firebase Admin ready for push notifications');
   } catch (error) {
     console.warn('Firebase Admin init failed:', error.message);
