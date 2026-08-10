@@ -5,9 +5,11 @@ import { useEffect, useRef } from 'react';
 import { ADVANCE_RATE } from '@/lib/booking-pricing';
 import { isPushNotificationsAvailable } from '@/lib/push-capability';
 import {
+  consumeInitialNotificationResponse,
   getNativePushToken,
   loadNotificationsModule,
   parsePushNotificationData,
+  saveRegisteredPushToken,
 } from '@/lib/push-notifications';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -51,6 +53,7 @@ export function PushNotificationHandler() {
 
         await registerPushTokenApi(pushToken);
         registeredTokenRef.current = pushToken;
+        await saveRegisteredPushToken(pushToken);
       } catch (error) {
         console.warn('Push token registration failed:', error);
       }
@@ -67,8 +70,9 @@ export function PushNotificationHandler() {
         if (!nextToken || registeredTokenRef.current === nextToken) return;
 
         void registerPushTokenApi(nextToken)
-          .then(() => {
+          .then(async () => {
             registeredTokenRef.current = nextToken;
+            await saveRegisteredPushToken(nextToken);
           })
           .catch((error) => {
             console.warn('Push token refresh registration failed:', error);
@@ -146,6 +150,26 @@ export function PushNotificationHandler() {
           handleNotificationNavigation(type);
         }
       });
+
+      await consumeInitialNotificationResponse(
+        (data, content) => {
+          const type = data.type;
+          const bookingId = Number(data.bookingId || 0);
+          if (!type || !bookingId) return;
+
+          queryClient.invalidateQueries({ queryKey: ['bookings', 'me'] });
+          addNotification({
+            id: `${type}-${bookingId}`,
+            type: type as 'booking:approved' | 'booking:finish_otp' | 'booking:review_request',
+            title: content.title || data.title || 'Notification',
+            message: content.body || data.message || '',
+            bookingId,
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+        },
+        handleNotificationNavigation,
+      );
     })();
 
     return () => {

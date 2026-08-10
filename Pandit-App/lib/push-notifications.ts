@@ -1,8 +1,10 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { isPushNotificationsAvailable } from '@/lib/push-capability';
 
 export const BOOKING_NOTIFICATION_CHANNEL = 'bookings';
+const REGISTERED_PUSH_TOKEN_KEY = 'my_pandit_registered_push_token';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -49,6 +51,19 @@ export async function ensureAndroidNotificationChannel() {
   });
 }
 
+export async function hasPushPermission(): Promise<boolean> {
+  if (!isPushNotificationsAvailable()) return true;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return true;
+
+  const current = await Notifications.getPermissionsAsync();
+  return (
+    current.granted ||
+    current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  );
+}
+
 export async function requestPushPermissions(): Promise<boolean> {
   if (!isPushNotificationsAvailable()) return false;
 
@@ -76,13 +91,15 @@ export async function requestPushPermissions(): Promise<boolean> {
   );
 }
 
-export async function getNativePushToken(): Promise<string | null> {
+export async function getNativePushToken(options?: { requestIfNeeded?: boolean }): Promise<string | null> {
   if (!isPushNotificationsAvailable()) return null;
 
   const Notifications = await getNotificationsModule();
   if (!Notifications) return null;
 
-  const granted = await requestPushPermissions();
+  const granted = options?.requestIfNeeded
+    ? await requestPushPermissions()
+    : await hasPushPermission();
   if (!granted) return null;
 
   const tokenResult = await Notifications.getDevicePushTokenAsync();
@@ -111,4 +128,56 @@ export function parsePushNotificationData(
     title: typeof data.title === 'string' ? data.title : undefined,
     message: typeof data.message === 'string' ? data.message : undefined,
   };
+}
+
+export async function saveRegisteredPushToken(token: string) {
+  await AsyncStorage.setItem(REGISTERED_PUSH_TOKEN_KEY, token);
+}
+
+export async function getRegisteredPushToken() {
+  return AsyncStorage.getItem(REGISTERED_PUSH_TOKEN_KEY);
+}
+
+export async function clearRegisteredPushToken() {
+  await AsyncStorage.removeItem(REGISTERED_PUSH_TOKEN_KEY);
+}
+
+export async function unregisterStoredPushToken(
+  unregisterApi: (token: string) => Promise<unknown>,
+) {
+  const storedToken = await getRegisteredPushToken();
+  if (!storedToken) return;
+
+  try {
+    await unregisterApi(storedToken);
+  } catch {
+    // Ignore if already removed server-side.
+  } finally {
+    await clearRegisteredPushToken();
+  }
+}
+
+export async function consumeInitialNotificationResponse(
+  onResponse: (
+    data: PushNotificationData,
+    content: { title?: string | null; body?: string | null },
+  ) => void,
+  onNavigate?: (type?: string) => void,
+) {
+  if (!isPushNotificationsAvailable()) return;
+
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) return;
+
+  const last = await Notifications.getLastNotificationResponseAsync();
+  if (!last) return;
+
+  const content = last.notification.request.content;
+  const data = parsePushNotificationData(content.data as Record<string, unknown>);
+
+  onResponse(data, content);
+
+  if (last.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+    onNavigate?.(data.type);
+  }
 }

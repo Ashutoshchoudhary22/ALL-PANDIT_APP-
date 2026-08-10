@@ -4,10 +4,12 @@ import { useEffect, useRef } from 'react';
 
 import { isPushNotificationsAvailable } from '@/lib/push-capability';
 import {
+  consumeInitialNotificationResponse,
   getNativePushToken,
   isAdminRole,
   loadNotificationsModule,
   parsePushNotificationData,
+  saveRegisteredPushToken,
 } from '@/lib/push-notifications';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
@@ -52,40 +54,40 @@ export function PushNotificationHandler() {
 
     let cancelled = false;
     let tokenSubscription: { remove: () => void } | null = null;
-    const startupDelay = setTimeout(() => {
-      void (async () => {
-        try {
-          const Notifications = await loadNotificationsModule();
-          if (!Notifications || cancelled) return;
 
-          const pushToken = await getNativePushToken();
-          if (!pushToken || cancelled) return;
-          if (registeredTokenRef.current === pushToken) return;
+    void (async () => {
+      try {
+        const Notifications = await loadNotificationsModule();
+        if (!Notifications || cancelled) return;
 
-          await registerPushTokenApi(pushToken);
-          registeredTokenRef.current = pushToken;
+        const pushToken = await getNativePushToken();
+        if (!pushToken || cancelled) return;
+        if (registeredTokenRef.current === pushToken) return;
 
-          tokenSubscription = Notifications.addPushTokenListener((event) => {
-            const nextToken = event.data;
-            if (!nextToken || registeredTokenRef.current === nextToken) return;
+        await registerPushTokenApi(pushToken);
+        registeredTokenRef.current = pushToken;
+        await saveRegisteredPushToken(pushToken);
 
-            void registerPushTokenApi(nextToken)
-              .then(() => {
-                registeredTokenRef.current = nextToken;
-              })
-              .catch((error) => {
-                console.warn('Push token refresh registration failed:', error);
-              });
-          });
-        } catch (error) {
-          console.warn('Push token registration failed:', error);
-        }
-      })();
-    }, 2500);
+        tokenSubscription = Notifications.addPushTokenListener((event) => {
+          const nextToken = event.data;
+          if (!nextToken || registeredTokenRef.current === nextToken) return;
+
+          void registerPushTokenApi(nextToken)
+            .then(async () => {
+              registeredTokenRef.current = nextToken;
+              await saveRegisteredPushToken(nextToken);
+            })
+            .catch((error) => {
+              console.warn('Push token refresh registration failed:', error);
+            });
+        });
+      } catch (error) {
+        console.warn('Push token registration failed:', error);
+      }
+    })();
 
     return () => {
       cancelled = true;
-      clearTimeout(startupDelay);
       tokenSubscription?.remove();
     };
   }, [token, user?.role, isLoading]);
@@ -150,6 +152,14 @@ export function PushNotificationHandler() {
             handleNotificationNavigation(data.type);
           }
         });
+
+        await consumeInitialNotificationResponse(
+          (data, content) => {
+            invalidateAdminData(data.type);
+            persistPushNotification(content, data);
+          },
+          handleNotificationNavigation,
+        );
       } catch (error) {
         console.warn('Push notification listeners failed:', error);
       }

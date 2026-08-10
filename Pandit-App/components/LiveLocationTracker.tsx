@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react';
 import type { LocationSubscription } from 'expo-location';
 
 import { useLiveLocationGranted } from '@/components/LiveLocationGate';
+import {
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+} from '@/lib/background-location';
 import { startLiveLocationWatch } from '@/lib/live-location';
 import { useAuth } from '@/providers/AuthProvider';
 import { updatePanditLiveLocationApi } from '@/services/pandit-profile.api';
@@ -13,12 +17,17 @@ export function LiveLocationTracker() {
 
   useEffect(() => {
     if (!token || user?.role !== 'pandit' || !locationGranted) {
+      void stopBackgroundLocationTracking();
       subscriptionRef.current?.remove();
       subscriptionRef.current = null;
       return;
     }
 
     let cancelled = false;
+
+    void startBackgroundLocationTracking().catch((error) => {
+      console.warn('Background location start failed:', error);
+    });
 
     (async () => {
       const subscription = await startLiveLocationWatch(async (coords) => {
@@ -39,6 +48,7 @@ export function LiveLocationTracker() {
 
     return () => {
       cancelled = true;
+      void stopBackgroundLocationTracking();
       subscriptionRef.current?.remove();
       subscriptionRef.current = null;
     };

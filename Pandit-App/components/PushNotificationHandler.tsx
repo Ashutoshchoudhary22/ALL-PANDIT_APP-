@@ -4,12 +4,15 @@ import { useEffect, useRef } from 'react';
 
 import { isPushNotificationsAvailable } from '@/lib/push-capability';
 import {
+  consumeInitialNotificationResponse,
   getNativePushToken,
   loadNotificationsModule,
   parsePushNotificationData,
+  saveRegisteredPushToken,
 } from '@/lib/push-notifications';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useLiveLocationGranted } from '@/components/LiveLocationGate';
 import { registerPushTokenApi } from '@/services/push.api';
 
 function handleNotificationNavigation(type?: string) {
@@ -25,12 +28,19 @@ function handleNotificationNavigation(type?: string) {
 
 export function PushNotificationHandler() {
   const { token, user, isLoading } = useAuth();
+  const permissionsGranted = useLiveLocationGranted();
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
   const registeredTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isLoading || !token || user?.role !== 'pandit' || !isPushNotificationsAvailable()) {
+    if (
+      isLoading ||
+      !token ||
+      user?.role !== 'pandit' ||
+      !permissionsGranted ||
+      !isPushNotificationsAvailable()
+    ) {
       return;
     }
 
@@ -45,6 +55,7 @@ export function PushNotificationHandler() {
 
         await registerPushTokenApi(pushToken);
         registeredTokenRef.current = pushToken;
+        await saveRegisteredPushToken(pushToken);
       } catch (error) {
         console.warn('Push token registration failed:', error);
       }
@@ -61,8 +72,9 @@ export function PushNotificationHandler() {
         if (!nextToken || registeredTokenRef.current === nextToken) return;
 
         void registerPushTokenApi(nextToken)
-          .then(() => {
+          .then(async () => {
             registeredTokenRef.current = nextToken;
+            await saveRegisteredPushToken(nextToken);
           })
           .catch((error) => {
             console.warn('Push token refresh registration failed:', error);
@@ -74,10 +86,16 @@ export function PushNotificationHandler() {
       cancelled = true;
       tokenSubscription?.remove();
     };
-  }, [token, user?.role, isLoading]);
+  }, [token, user?.role, isLoading, permissionsGranted]);
 
   useEffect(() => {
-    if (isLoading || !token || user?.role !== 'pandit' || !isPushNotificationsAvailable()) {
+    if (
+      isLoading ||
+      !token ||
+      user?.role !== 'pandit' ||
+      !permissionsGranted ||
+      !isPushNotificationsAvailable()
+    ) {
       return;
     }
 
@@ -150,6 +168,34 @@ export function PushNotificationHandler() {
           handleNotificationNavigation(type);
         }
       });
+
+      await consumeInitialNotificationResponse(
+        (data, content) => {
+          const type = data.type;
+          const bookingId = Number(data.bookingId || 0);
+          if (!type || !bookingId) return;
+
+          queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'me'] });
+          queryClient.invalidateQueries({ queryKey: ['bookings', 'pandit', 'requests'] });
+          if (type === 'booking:confirmed') {
+            queryClient.invalidateQueries({ queryKey: ['pandit', 'earnings'] });
+          }
+
+          addNotification({
+            id:
+              type === 'booking:confirmed'
+                ? `booking-confirmed-${bookingId}`
+                : `booking-${bookingId}`,
+            type: type as 'booking:new' | 'booking:confirmed',
+            title: content.title || data.title || 'Notification',
+            message: content.body || data.message || '',
+            bookingId,
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+        },
+        handleNotificationNavigation,
+      );
     })();
 
     return () => {
@@ -157,7 +203,7 @@ export function PushNotificationHandler() {
       receivedSubscription?.remove();
       responseSubscription?.remove();
     };
-  }, [token, user?.role, isLoading, queryClient, addNotification]);
+  }, [token, user?.role, isLoading, permissionsGranted, queryClient, addNotification]);
 
   return null;
 }

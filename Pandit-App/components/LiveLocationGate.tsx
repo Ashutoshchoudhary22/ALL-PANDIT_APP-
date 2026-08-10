@@ -15,6 +15,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardColors as C } from '@/constants/dashboard-theme';
+import {
+  areAllPanditPermissionsGranted,
+  getPanditPermissionStatus,
+  requestAllPanditPermissions,
+} from '@/lib/app-permissions';
 import { requestLiveLocationPermission } from '@/lib/live-location';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -42,17 +47,19 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
   const insets = useSafeAreaInsets();
   const { token, user, isLoading, signOut } = useAuth();
   const [checking, setChecking] = useState(false);
-  const [granted, setGranted] = useState(false);
+  const [permissionsOk, setPermissionsOk] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [showSettingsHint, setShowSettingsHint] = useState(false);
 
   const shouldEnforce = Platform.OS !== 'web' && Boolean(token && user?.role === role);
-  const canUseApp = !shouldEnforce || granted;
+  const isPandit = role === 'pandit';
+  const canUseApp = !shouldEnforce || permissionsOk;
   const showLoadingOverlay = shouldEnforce && isLoading;
 
   const refreshPermission = useCallback(
     async (silent = false) => {
       if (!shouldEnforce) {
-        setGranted(true);
+        setPermissionsOk(true);
         setChecking(false);
         return;
       }
@@ -62,15 +69,20 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
       }
 
       try {
-        const { status } = await getPermissionWithTimeout();
-        setGranted(status === 'granted');
+        if (isPandit) {
+          const status = await getPanditPermissionStatus();
+          setPermissionsOk(areAllPanditPermissionsGranted(status));
+        } else {
+          const { status } = await getPermissionWithTimeout();
+          setPermissionsOk(status === 'granted');
+        }
       } catch {
-        setGranted(false);
+        setPermissionsOk(false);
       } finally {
         setChecking(false);
       }
     },
-    [shouldEnforce],
+    [isPandit, shouldEnforce],
   );
 
   useEffect(() => {
@@ -88,10 +100,21 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
 
   const handleAllow = async () => {
     setRequesting(true);
+    setShowSettingsHint(false);
+
     try {
-      const ok = await requestLiveLocationPermission();
-      if (ok) {
-        setGranted(true);
+      if (isPandit) {
+        const status = await requestAllPanditPermissions();
+        setPermissionsOk(areAllPanditPermissionsGranted(status));
+        if (!areAllPanditPermissionsGranted(status)) {
+          setShowSettingsHint(true);
+        }
+      } else {
+        const ok = await requestLiveLocationPermission();
+        setPermissionsOk(ok);
+        if (!ok) {
+          setShowSettingsHint(true);
+        }
       }
     } finally {
       setRequesting(false);
@@ -123,7 +146,7 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
         ) : null}
 
         <Modal
-          visible={shouldEnforce && !granted && !checking && !isLoading}
+          visible={shouldEnforce && !permissionsOk && !checking && !isLoading}
           animationType="fade"
           transparent
           statusBarTranslucent
@@ -133,10 +156,10 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
               <View style={styles.iconWrap}>
                 <Ionicons name="location" size={36} color={C.primary} />
               </View>
-              <Text style={styles.title}>Live Location Required</Text>
+              <Text style={styles.title}>Access your location</Text>
               <Text style={styles.message}>
-                My-Pandit needs your live location so customers and admin can see your current position.
-                Please allow location access to continue.
+                Allow location and notifications to receive bookings and share your live position
+                with customers.
               </Text>
 
               <Pressable
@@ -147,16 +170,15 @@ export function LiveLocationGate({ children, role }: LiveLocationGateProps) {
                 {requesting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                    <Text style={styles.allowText}>Allow Live Location</Text>
-                  </>
+                  <Text style={styles.allowText}>Allow Access</Text>
                 )}
               </Pressable>
 
-              <Pressable style={styles.settingsBtn} onPress={handleOpenSettings}>
-                <Text style={styles.settingsText}>Open Settings</Text>
-              </Pressable>
+              {showSettingsHint ? (
+                <Pressable style={styles.settingsBtn} onPress={handleOpenSettings}>
+                  <Text style={styles.settingsText}>Open Settings</Text>
+                </Pressable>
+              ) : null}
 
               <Pressable style={styles.logoutBtn} onPress={() => signOut()}>
                 <Text style={styles.logoutText}>Logout</Text>
@@ -220,10 +242,8 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     backgroundColor: C.primary,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   btnDisabled: { opacity: 0.7 },
   allowText: { color: '#fff', fontSize: 16, fontWeight: '700' },

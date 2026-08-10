@@ -1,8 +1,10 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { isPushNotificationsAvailable } from '@/lib/push-capability';
 
 export const ADMIN_NOTIFICATION_CHANNEL = 'admin-alerts';
+const REGISTERED_PUSH_TOKEN_KEY = 'my_pandit_admin_registered_push_token';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -126,4 +128,56 @@ export function parsePushNotificationData(
 
 export function isAdminRole(role?: string | null) {
   return role === 'admin' || role === 'superadmin';
+}
+
+export async function saveRegisteredPushToken(token: string) {
+  await AsyncStorage.setItem(REGISTERED_PUSH_TOKEN_KEY, token);
+}
+
+export async function getRegisteredPushToken() {
+  return AsyncStorage.getItem(REGISTERED_PUSH_TOKEN_KEY);
+}
+
+export async function clearRegisteredPushToken() {
+  await AsyncStorage.removeItem(REGISTERED_PUSH_TOKEN_KEY);
+}
+
+export async function unregisterStoredPushToken(
+  unregisterApi: (token: string) => Promise<unknown>,
+) {
+  const storedToken = await getRegisteredPushToken();
+  if (!storedToken) return;
+
+  try {
+    await unregisterApi(storedToken);
+  } catch {
+    // Ignore if already removed server-side.
+  } finally {
+    await clearRegisteredPushToken();
+  }
+}
+
+export async function consumeInitialNotificationResponse(
+  onResponse: (
+    data: PushNotificationData,
+    content: { title?: string | null; body?: string | null },
+  ) => void,
+  onNavigate?: (type?: string) => void,
+) {
+  if (!isPushNotificationsAvailable()) return;
+
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) return;
+
+  const last = await Notifications.getLastNotificationResponseAsync();
+  if (!last) return;
+
+  const content = last.notification.request.content;
+  const data = parsePushNotificationData(content.data as Record<string, unknown>);
+
+  onResponse(data, content);
+
+  if (last.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+    onNavigate?.(data.type);
+  }
 }

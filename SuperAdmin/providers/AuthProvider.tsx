@@ -9,7 +9,10 @@ import {
 } from '@/lib/auth-storage';
 import { apiClient, setUnauthorizedHandler, syncAuthToken } from '@/lib/axios';
 import { goToSignIn } from '@/lib/auth-navigation';
+import { isPushNotificationsAvailable } from '@/lib/push-capability';
+import { unregisterStoredPushToken } from '@/lib/push-notifications';
 import { AuthUser } from '@/services/auth.api';
+import { unregisterPushTokenApi } from '@/services/push.api';
 
 type AuthContextValue = {
   token: string | null;
@@ -28,6 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const signOut = useCallback(async () => {
+    if (isPushNotificationsAvailable()) {
+      await unregisterStoredPushToken(unregisterPushTokenApi);
+    }
     syncAuthToken(null);
     await clearAuthSession();
     setToken(null);

@@ -23,9 +23,27 @@ async function sendPushToTokens(tokens, { title, body, data = {}, channelId = BO
     data: normalizeData(data),
     android: {
       priority: 'high',
+      ttl: 86400000,
+      directBootOk: true,
       notification: {
         channelId,
         sound: 'default',
+        priority: 'high',
+        visibility: 'public',
+        defaultVibrateTimings: true,
+        defaultSound: true,
+      },
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          'content-available': 1,
+        },
       },
     },
   };
