@@ -71,23 +71,68 @@ async function resolvePlatformAdminRole() {
 }
 
 async function deliverSignupOtp({ mobile, email, otp }) {
+  let smsSent = false;
+  let emailSent = false;
+  let emailDevMode = false;
+
   try {
     await sendSmsOtp({
       mobile,
       otp,
       expiresInMinutes: OTP_EXPIRES_MINUTES,
     });
-    return { channel: 'sms' };
+    smsSent = true;
   } catch (smsError) {
     console.warn('MSG91 SMS OTP failed:', smsError.message);
-
-    if (!email) {
-      throw smsError;
-    }
-
-    const mailResult = await sendOtpEmail(email, mobile, otp);
-    return { channel: 'email', devMode: mailResult.devMode };
   }
+
+  if (email) {
+    try {
+      const mailResult = await sendOtpEmail(email, mobile, otp);
+      emailSent = true;
+      emailDevMode = Boolean(mailResult.devMode);
+    } catch (emailError) {
+      console.error('Email OTP failed:', emailError.message);
+    }
+  }
+
+  if (smsSent && emailSent) {
+    return { channel: 'both', devMode: emailDevMode };
+  }
+
+  if (smsSent) {
+    return { channel: 'sms' };
+  }
+
+  if (emailSent) {
+    return { channel: 'email', devMode: emailDevMode };
+  }
+
+  throw new Error('Could not deliver OTP via SMS or email. Please try again later.');
+}
+
+function signupOtpSuccessMessage(delivery) {
+  if (delivery.channel === 'both') {
+    return 'OTP sent to your mobile number and email. Please verify to complete signup.';
+  }
+
+  if (delivery.channel === 'sms') {
+    return 'OTP sent to your mobile number. Please verify to complete signup.';
+  }
+
+  return 'SMS OTP could not be sent. OTP sent to your email instead.';
+}
+
+function resendOtpSuccessMessage(delivery) {
+  if (delivery.channel === 'both') {
+    return 'New OTP sent to your mobile number and email';
+  }
+
+  if (delivery.channel === 'sms') {
+    return 'New OTP sent to your mobile number';
+  }
+
+  return 'SMS OTP could not be sent. New OTP sent to your email instead.';
 }
 
 exports.signup = async (req, res) => {
@@ -130,6 +175,12 @@ exports.signup = async (req, res) => {
     const otp = generateOtp();
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const delivery = await deliverSignupOtp({
+      mobile: normalizedMobile,
+      email: normalizedEmail,
+      otp,
+    });
+
     await pool.query('DELETE FROM signup_otps WHERE mobile = ?', [normalizedMobile]);
 
     await pool.query(
@@ -138,18 +189,9 @@ exports.signup = async (req, res) => {
       [normalizedMobile, normalizedEmail, passwordHash, accountType, otp, OTP_EXPIRES_MINUTES],
     );
 
-    const delivery = await deliverSignupOtp({
-      mobile: normalizedMobile,
-      email: normalizedEmail,
-      otp,
-    });
-
     return res.status(200).json({
       success: true,
-      message:
-        delivery.channel === 'sms'
-          ? 'OTP sent to your mobile number. Please verify to complete signup.'
-          : 'SMS OTP could not be sent. OTP sent to your email instead.',
+      message: signupOtpSuccessMessage(delivery),
       data: {
         mobile: normalizedMobile,
         email: normalizedEmail,
@@ -161,7 +203,7 @@ exports.signup = async (req, res) => {
     console.error('Signup error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error during signup',
+      message: error.message || 'Server error during signup',
     });
   }
 };
@@ -292,6 +334,12 @@ exports.resendOtp = async (req, res) => {
     const otp = generateOtp();
     const record = rows[0];
 
+    const delivery = await deliverSignupOtp({
+      mobile: record.mobile,
+      email: record.email,
+      otp,
+    });
+
     await pool.query(
       `UPDATE signup_otps
        SET otp = ?, expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE)
@@ -299,25 +347,16 @@ exports.resendOtp = async (req, res) => {
       [otp, OTP_EXPIRES_MINUTES, record.mobile],
     );
 
-    const delivery = await deliverSignupOtp({
-      mobile: record.mobile,
-      email: record.email,
-      otp,
-    });
-
     return res.status(200).json({
       success: true,
-      message:
-        delivery.channel === 'sms'
-          ? 'New OTP sent to your mobile number'
-          : 'SMS OTP could not be sent. New OTP sent to your email instead.',
+      message: resendOtpSuccessMessage(delivery),
       ...(process.env.NODE_ENV !== 'production' && delivery.devMode && { otp }),
     });
   } catch (error) {
     console.error('Resend OTP error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error while resending OTP',
+      message: error.message || 'Server error while resending OTP',
     });
   }
 };

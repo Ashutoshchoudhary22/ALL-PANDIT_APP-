@@ -14,7 +14,25 @@ function toInternationalMobile(mobile, countryCode) {
     throw new Error('A valid mobile number is required for SMS OTP');
   }
 
+  if (digits.length === 10) {
+    return `${countryCode}${digits}`;
+  }
+
   return digits.startsWith(countryCode) ? digits : `${countryCode}${digits}`;
+}
+
+async function parseResponse(response) {
+  const raw = await response.text();
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw };
+  }
 }
 
 async function sendSmsOtp({ mobile, otp, expiresInMinutes }) {
@@ -23,36 +41,47 @@ async function sendSmsOtp({ mobile, otp, expiresInMinutes }) {
     throw new Error('MSG91 SMS OTP is not configured');
   }
 
-  const params = new URLSearchParams({
+  const body = {
     template_id: templateId,
     mobile: toInternationalMobile(mobile, countryCode),
     otp: String(otp),
     otp_length: String(String(otp).length),
     otp_expiry: String(expiresInMinutes),
-  });
+  };
 
   let response;
   try {
-    response = await fetch(`${MSG91_SEND_OTP_URL}?${params.toString()}`, {
+    response = await fetch(MSG91_SEND_OTP_URL, {
+      method: 'POST',
       headers: {
         authkey: authKey,
         Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify(body),
     });
-  } catch {
-    throw new Error('Could not reach MSG91 to send SMS OTP');
+  } catch (error) {
+    throw new Error(`Could not reach MSG91 to send SMS OTP: ${error.message}`);
   }
 
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    // MSG91 error responses are occasionally plain text.
-  }
+  const payload = await parseResponse(response);
 
   if (!response.ok || payload?.type === 'error') {
-    throw new Error(payload?.message || payload?.error || 'MSG91 could not send SMS OTP');
+    const message =
+      payload?.message || payload?.error || `MSG91 rejected SMS OTP (${response.status})`;
+    console.error('MSG91 SMS OTP error:', { status: response.status, payload, mobile: body.mobile });
+    throw new Error(message);
   }
+
+  if (payload?.type !== 'success') {
+    console.error('MSG91 SMS OTP unexpected response:', { status: response.status, payload });
+    throw new Error(payload?.message || 'MSG91 did not confirm SMS OTP delivery');
+  }
+
+  console.log('MSG91 SMS OTP queued:', {
+    mobile: body.mobile,
+    requestId: payload.request_id || null,
+  });
 
   return payload;
 }

@@ -54,6 +54,10 @@ async function sendOtpEmail(to, name, otp) {
   const isConfigured = smtpUser && smtpPass;
 
   if (!isConfigured) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMTP is not configured for OTP email delivery');
+    }
+
     console.log(`[DEV] OTP for ${to}: ${otp}`);
     return { devMode: true };
   }
