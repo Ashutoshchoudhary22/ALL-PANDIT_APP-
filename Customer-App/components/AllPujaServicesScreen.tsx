@@ -19,16 +19,91 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { PUJA_SERVICE_OPTIONS } from '@/constants/puja-services';
 import { HomeColors as C } from '@/constants/home-theme';
 import { openPanditsForService } from '@/lib/pandit-navigation';
+import { useTranslation } from '@/providers/LanguageProvider';
+
+const PUJA_SERVICE_HI_LABELS: Record<string, string> = {
+  'Marriage Puja': 'विवाह पूजा',
+  'Griha Pravesh': 'गृह प्रवेश',
+  'Satyanarayan Katha': 'सत्यनारायण कथा',
+  'Birthday Puja': 'जन्मदिन पूजा',
+  'Sunderkand Path': 'सुंदरकांड पाठ',
+  'Business Opening': 'व्यवसाय आरंभ पूजा',
+  Havan: 'हवन',
+  'Navratri Puja': 'नवरात्रि पूजा',
+  'Bhagwat Katha': 'भागवत कथा',
+  Shradh: 'श्राद्ध',
+  Rudrabhishek: 'रुद्राभिषेक',
+  Mundan: 'मुंडन संस्कार',
+  'Mahamrityunjaya Jaap': 'महामृत्युंजय जाप',
+  'Ganesh Puja': 'गणेश पूजा',
+  'Lakshmi Puja': 'लक्ष्मी पूजा',
+  'Saraswati Puja': 'सरस्वती पूजा',
+  'Durga Puja': 'दुर्गा पूजा',
+  'Kali Puja': 'काली पूजा',
+  'Shiv Puja': 'शिव पूजा',
+  'Vishnu Puja': 'विष्णु पूजा',
+  'Ram Katha': 'राम कथा',
+  'Shiv Mahapuran Katha': 'शिव महापुराण कथा',
+  'Akhand Ramayan Path': 'अखंड रामायण पाठ',
+  'Hanuman Chalisa Path': 'हनुमान चालीसा पाठ',
+  'Grah Shanti Puja': 'ग्रह शांति पूजा',
+  'Navgraha Puja': 'नवग्रह पूजा',
+  'Vastu Shanti Puja': 'वास्तु शांति पूजा',
+  'Bhoomi Pujan': 'भूमि पूजन',
+  'Shilanyas Puja': 'शिलान्यास पूजा',
+  'Office Puja': 'ऑफिस पूजा',
+  'Shop Opening Puja': 'दुकान उद्घाटन पूजा',
+  'Vehicle Puja': 'वाहन पूजा',
+  'Factory Puja': 'फैक्ट्री पूजा',
+  'Lakshmi Kuber Puja': 'लक्ष्मी कुबेर पूजा',
+  'Dhanteras Puja': 'धनतेरस पूजा',
+  'Ayudha Puja': 'आयुध पूजा',
+  'Namkaran Sanskar': 'नामकरण संस्कार',
+  'Annaprashan Sanskar': 'अन्नप्राशन संस्कार',
+  'Vidyarambh Sanskar': 'विद्यारंभ संस्कार',
+  'Janeu Sanskar': 'जनेऊ संस्कार',
+  'Engagement Puja': 'सगाई पूजा',
+  'Wedding Anniversary Puja': 'विवाह वर्षगांठ पूजा',
+  'Baby Shower Puja': 'गोद भराई पूजा',
+  'Kaal Sarp Dosh Puja': 'काल सर्प दोष पूजा',
+  'Mangal Dosh Puja': 'मंगल दोष पूजा',
+  'Pitra Dosh Puja': 'पितृ दोष पूजा',
+  'Shani Shanti Puja': 'शनि शांति पूजा',
+  'Rahu Ketu Shanti Puja': 'राहु केतु शांति पूजा',
+  'Chandi Path': 'चंडी पाठ',
+  'Gayatri Havan': 'गायत्री हवन',
+  'Chandi Havan': 'चंडी हवन',
+  'Sudarshan Havan': 'सुदर्शन हवन',
+  'Putra Kameshti Yagya': 'पुत्र कामेष्टि यज्ञ',
+  'Antyeshti Sanskar': 'अंत्येष्टि संस्कार',
+  'Terahvi Kriya': 'तेहरवीं क्रिया',
+  'Asthi Visarjan': 'अस्थि विसर्जन',
+  'Narayan Bali Puja': 'नारायण बली पूजा',
+  'Tripindi Shradh': 'त्रिपिंडी श्राद्ध',
+};
+
+function getPujaServiceLabel(name: string, language: 'en' | 'hi') {
+  if (language === 'hi') {
+    return PUJA_SERVICE_HI_LABELS[name] ?? name;
+  }
+
+  return name;
+}
 
 export function AllPujaServicesScreen() {
   const insets = useSafeAreaInsets();
+  const { t, language } = useTranslation();
   const [search, setSearch] = useState('');
 
   const filteredServices = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return PUJA_SERVICE_OPTIONS;
-    return PUJA_SERVICE_OPTIONS.filter((name) => name.toLowerCase().includes(query));
-  }, [search]);
+    return PUJA_SERVICE_OPTIONS.filter((name) => {
+      const englishLabel = name.toLowerCase();
+      const translatedLabel = getPujaServiceLabel(name, language).toLowerCase();
+      return englishLabel.includes(query) || translatedLabel.includes(query);
+    });
+  }, [language, search]);
 
   return (
     <View style={styles.root}>
@@ -47,13 +122,13 @@ export function AllPujaServicesScreen() {
           <View style={styles.headerBadge}>
             <Ionicons name="flame" size={18} color={C.maroon} />
             <Text style={styles.headerBadgeCount}>{PUJA_SERVICE_OPTIONS.length}</Text>
-            <Text style={styles.headerBadgeLabel}>Services</Text>
+            <Text style={styles.headerBadgeLabel}>{t('allPuja.badge.services')}</Text>
           </View>
         </View>
         <View style={styles.headerContent}>
           <Text style={styles.headerOm}>ॐ</Text>
-          <Text style={styles.headerTitle}>All Puja Services</Text>
-          <Text style={styles.headerSubtitle}>Choose a ritual and find verified pandits</Text>
+          <Text style={styles.headerTitle}>{t('allPuja.title')}</Text>
+          <Text style={styles.headerSubtitle}>{t('allPuja.subtitle')}</Text>
         </View>
         <View style={styles.headerDividerWrap}>
           <LotusDivider color={C.goldLight} width={180} />
@@ -64,7 +139,7 @@ export function AllPujaServicesScreen() {
         <Ionicons name="search" size={18} color={C.maroon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search puja service..."
+          placeholder={t('allPuja.searchPlaceholder')}
           placeholderTextColor={C.textLight}
           value={search}
           onChangeText={setSearch}
@@ -86,7 +161,7 @@ export function AllPujaServicesScreen() {
             <PremiumCard accent={index % 3 === 0 ? 'gold' : index % 3 === 1 ? 'saffron' : 'maroon'} innerStyle={styles.serviceCardInner}>
               <PujaServiceIcon name={item} index={index} size="lg" />
               <Text style={styles.serviceName} numberOfLines={3}>
-                {item}
+                {getPujaServiceLabel(item, language)}
               </Text>
             </PremiumCard>
           </Pressable>
@@ -95,8 +170,8 @@ export function AllPujaServicesScreen() {
           <PremiumCard accent="gold" innerStyle={styles.emptyCardInner}>
             <View style={styles.emptyWrap}>
               <Ionicons name="search-outline" size={36} color={C.maroon} />
-              <Text style={styles.emptyTitle}>No service found</Text>
-              <Text style={styles.emptySubtitle}>Try a different search term.</Text>
+              <Text style={styles.emptyTitle}>{t('allPuja.empty.title')}</Text>
+              <Text style={styles.emptySubtitle}>{t('allPuja.empty.subtitle')}</Text>
             </View>
           </PremiumCard>
         }

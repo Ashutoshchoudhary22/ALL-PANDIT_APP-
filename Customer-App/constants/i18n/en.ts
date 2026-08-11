@@ -58,6 +58,13 @@ const en = {
   'home.review.errorTitle': 'Error',
   'home.review.errorFallback': 'Could not submit review',
 
+  'allPuja.title': 'All Puja Services',
+  'allPuja.subtitle': 'Choose a ritual and find verified pandits',
+  'allPuja.badge.services': 'Services',
+  'allPuja.searchPlaceholder': 'Search puja service...',
+  'allPuja.empty.title': 'No service found',
+  'allPuja.empty.subtitle': 'Try a different search term.',
+
   'puja.marriagePuja': 'Marriage Puja',
   'puja.grihaPravesh': 'Griha Pravesh',
   'puja.satyanarayanKatha': 'Satyanarayan Katha',

@@ -60,6 +60,13 @@ const hi: Record<TranslationKey, string> = {
   'home.review.errorTitle': 'त्रुटि',
   'home.review.errorFallback': 'समीक्षा जमा नहीं हो सकी',
 
+  'allPuja.title': 'सभी पूजा सेवाएं',
+  'allPuja.subtitle': 'अनुष्ठान चुनें और प्रमाणित पंडित पाएं',
+  'allPuja.badge.services': 'सेवाएं',
+  'allPuja.searchPlaceholder': 'पूजा सेवा खोजें...',
+  'allPuja.empty.title': 'कोई सेवा नहीं मिली',
+  'allPuja.empty.subtitle': 'कोई दूसरा खोज शब्द आज़माएं।',
+
   'puja.marriagePuja': 'विवाह पूजा',
   'puja.grihaPravesh': 'गृह प्रवेश',
   'puja.satyanarayanKatha': 'सत्यनारायण कथा',

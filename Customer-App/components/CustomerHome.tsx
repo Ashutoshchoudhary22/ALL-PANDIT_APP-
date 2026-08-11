@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +53,17 @@ function openAllPujaServices() {
 }
 
 const CATEGORIES = HOME_PUJA_CATEGORIES;
+const HOME_SLIDER_GAP = 12;
+const HOME_SLIDER_INTERVAL_MS = 3000;
+const HOME_SLIDER_IMAGES = [
+  require('../assets/sliders-image/1.jpeg'),
+  require('../assets/sliders-image/2.jpeg'),
+  require('../assets/sliders-image/3.jpeg'),
+  require('../assets/sliders-image/4.jpeg'),
+  require('../assets/sliders-image/5.jpeg'),
+  require('../assets/sliders-image/6.jpeg'),
+  require('../assets/sliders-image/7.jpeg'),
+];
 
 const TRUST_FEATURES = [
   { icon: 'shield-checkmark' as const, titleKey: 'home.trust.verified.title' as const, descKey: 'home.trust.verified.desc' as const },
@@ -111,6 +124,7 @@ function SectionHeader({
 
 export function CustomerHome({ notificationCount: notificationCountProp }: CustomerHomeProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
   const { token, user } = useAuth();
   const { unreadCount } = useNotifications();
@@ -133,12 +147,16 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
   const reviewPrompts = usePendingReviewPrompts(Boolean(token));
   const submitReview = useSubmitBookingReviewMutation();
   const [walletModalVisible, setWalletModalVisible] = useState(false);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const sliderScrollRef = useRef<ScrollView | null>(null);
   const walletBalance = walletQuery.data?.data.balance ?? 0;
 
   const customerName = getDisplayName(profile, user?.mobile, user?.email);
   const firstName = profile?.firstName?.trim() || customerName.split(' ')[0] || t('home.fallbackName');
   const location = getLocationLabel(profile, t);
   const avatarSource = profile?.profileImage || user?.profileImage || DEMO_IMAGES.customer;
+  const sliderCardWidth = Math.max(screenWidth - 32, 260);
+  const sliderStep = sliderCardWidth + HOME_SLIDER_GAP;
 
   useFocusEffect(
     useCallback(() => {
@@ -177,6 +195,36 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
     },
     [reviewPrompts, submitReview],
   );
+
+  const scrollToSlide = useCallback(
+    (index: number, animated: boolean) => {
+      sliderScrollRef.current?.scrollTo({
+        x: index * sliderStep,
+        y: 0,
+        animated,
+      });
+    },
+    [sliderStep],
+  );
+
+  useEffect(() => {
+    const imagesCount = HOME_SLIDER_IMAGES.length;
+    if (imagesCount <= 1) return;
+
+    const timer = setInterval(() => {
+      setActiveSlideIndex((currentIndex) => {
+        const nextIndex = (currentIndex + 1) % imagesCount;
+        scrollToSlide(nextIndex, true);
+        return nextIndex;
+      });
+    }, HOME_SLIDER_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [scrollToSlide]);
+
+  useEffect(() => {
+    scrollToSlide(activeSlideIndex, false);
+  }, [activeSlideIndex, scrollToSlide]);
 
   return (
     <View style={styles.root}>
@@ -324,6 +372,31 @@ export function CustomerHome({ notificationCount: notificationCountProp }: Custo
                 })()}
               </Text>
             </Pressable>
+          ))}
+        </ScrollView>
+
+        <ScrollView
+          ref={sliderScrollRef}
+          horizontal
+          pagingEnabled
+          decelerationRate="fast"
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sliderRow}
+          style={styles.sliderScroll}
+          snapToInterval={sliderStep}
+          snapToAlignment="start"
+          onMomentumScrollEnd={(event) => {
+            const offsetX = event.nativeEvent.contentOffset.x;
+            const index = Math.round(offsetX / sliderStep);
+            if (index !== activeSlideIndex) {
+              setActiveSlideIndex(index);
+            }
+          }}
+        >
+          {HOME_SLIDER_IMAGES.map((source, index) => (
+            <View key={`home-slider-${index + 1}`} style={[styles.sliderCard, { width: sliderCardWidth }]}>
+              <Image source={source} style={styles.sliderImage} resizeMode="cover" />
+            </View>
           ))}
         </ScrollView>
 
@@ -715,6 +788,31 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 2,
     marginBottom: 8,
+  },
+  sliderScroll: {
+    flexGrow: 0,
+  },
+  sliderRow: {
+    gap: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  sliderCard: {
+    height: 160,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.border,
+    shadowColor: C.maroonDark,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sliderImage: {
+    width: '100%',
+    height: '100%',
   },
   categoryItem: {
     alignItems: 'center',
