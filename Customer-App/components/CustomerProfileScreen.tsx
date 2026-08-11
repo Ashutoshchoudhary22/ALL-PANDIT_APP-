@@ -703,16 +703,23 @@ export function CustomerProfileScreen() {
       profileQuery.error.message.includes('404'));
 
   const handleSelectLanguage = () => {
-    if (!profile) return;
     setLanguageModalVisible(true);
   };
 
   const handleLanguageChange = (optionCode: AppLanguage) => {
-    if (!profile) return;
-
     const nextLanguage = normalizeAppLanguage(optionCode);
-    if (nextLanguage === normalizeAppLanguage(profile.languageCode)) {
+    const currentLanguage = normalizeAppLanguage(profile?.languageCode || user?.languageCode);
+    if (nextLanguage === currentLanguage) {
       setLanguageModalVisible(false);
+      return;
+    }
+
+    if (!profile) {
+      setLanguageModalVisible(false);
+      void setLanguage(nextLanguage);
+      if (token && user) {
+        void signIn(token, { ...user, languageCode: optionCode });
+      }
       return;
     }
 
@@ -810,6 +817,14 @@ export function CustomerProfileScreen() {
               <Ionicons name="create-outline" size={18} color={C.maroon} />
             </Pressable>
           ) : null}
+          <Pressable
+            style={styles.editBtn}
+            onPress={handleSelectLanguage}
+            disabled={updateProfileMutation.isPending}
+            hitSlop={8}
+          >
+            <Ionicons name="language-outline" size={18} color={C.maroon} />
+          </Pressable>
           <Pressable onPress={openNotifications} hitSlop={8}>
             <View>
               <Ionicons name="notifications-outline" size={22} color="#fff" />
@@ -891,7 +906,7 @@ export function CustomerProfileScreen() {
 
       <LanguageSelectModal
         visible={languageModalVisible}
-        selectedCode={profile?.languageCode}
+        selectedCode={profile?.languageCode || user?.languageCode}
         saving={updateProfileMutation.isPending}
         onClose={() => setLanguageModalVisible(false)}
         onSelect={handleLanguageChange}

@@ -95,7 +95,7 @@ const PREMIUM: Record<string, PujaServiceStyle> = {
   'Ram Katha': { icon: 'book-account', iconSet: 'material', bg: '#FFEDD5', bgEnd: '#FED7AA', color: '#C2410C' },
   'Hanuman Chalisa Path': { icon: 'shield-sun', iconSet: 'material', bg: '#FEE2E2', bgEnd: '#FECACA', color: '#DC2626' },
   'Grah Shanti Puja': { icon: 'orbit', iconSet: 'material', bg: '#EDE9FE', bgEnd: '#DDD6FE', color: '#7C3AED' },
-  'Navgraha Puja': { icon: 'solar-system', iconSet: 'material', bg: '#F3E8FF', bgEnd: '#E9D5FF', color: '#7E22CE' },
+  'Navgraha Puja': { icon: 'orbit', iconSet: 'material', bg: '#F3E8FF', bgEnd: '#E9D5FF', color: '#7E22CE' },
   'Vastu Shanti Puja': { icon: 'compass-rose', iconSet: 'material', bg: '#ECFDF5', bgEnd: '#D1FAE5', color: '#047857' },
   'Bhoomi Pujan': { icon: 'terrain', iconSet: 'material', bg: '#DCFCE7', bgEnd: '#BBF7D0', color: '#166534' },
   'Vehicle Puja': { icon: 'car-side', iconSet: 'material', bg: '#E0F2FE', bgEnd: '#BAE6FD', color: '#0369A1' },
