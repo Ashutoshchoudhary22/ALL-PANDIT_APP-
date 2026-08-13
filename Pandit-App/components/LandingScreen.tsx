@@ -12,7 +12,7 @@ export function LandingScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <ImageBackground
-        source={require('@/assets/landing.png')}
+        source={require('@/assets/landing1.png')}
         style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />
