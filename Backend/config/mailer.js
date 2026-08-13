@@ -48,6 +48,59 @@ async function verifySmtpConnection() {
   return true;
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildEmailShell({ title, greeting, bodyHtml, accentColor = '#C97400' }) {
+  return `
+    <div style="margin:0; padding:0; background:#FFF8ED;">
+      <div style="max-width:620px; margin:0 auto; padding:28px 16px; font-family: Arial, sans-serif; color:#4A2B10;">
+        <div style="text-align:center; margin-bottom:14px;">
+          <div style="display:inline-block; padding:8px 18px; border:1px solid #F0D2A1; border-radius:999px; background:#FFF2DE; color:#9B5700; font-size:12px; letter-spacing:1px; font-weight:700;">
+            APNAACHARYA
+          </div>
+        </div>
+        <div style="background:linear-gradient(180deg, #FFFDF9 0%, #FFF6E7 100%); border:1px solid #EFCB96; border-radius:20px; padding:28px 24px; box-shadow:0 8px 24px rgba(158, 99, 14, 0.12);">
+          <div style="width:64px; height:64px; margin:0 auto 12px; border-radius:999px; border:1px solid #F2D39F; background:#FFF8EE; text-align:center; line-height:64px; color:${accentColor}; font-size:30px; font-weight:700;">
+            &#2384;
+          </div>
+          <h2 style="margin:0 0 18px; text-align:center; color:#5C1D1D; font-size:24px; line-height:1.3;">${title}</h2>
+          <p style="margin:0 0 12px; font-size:15px; line-height:1.7;">${greeting}</p>
+          ${bodyHtml}
+          <p style="margin:20px 0 0; color:#8C6C46; font-size:12px; text-align:center;">
+            This is an automated email from ApnaAcharya.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildOtpEmailHtml({ title, name, otp, instruction, validityText }) {
+  const safeName = escapeHtml(name || 'User');
+  const safeOtp = escapeHtml(otp);
+
+  return buildEmailShell({
+    title,
+    greeting: `Hi ${safeName},`,
+    bodyHtml: `
+      <p style="margin:0 0 14px; font-size:15px; line-height:1.7;">${instruction}</p>
+      <div style="margin:12px 0 16px; padding:16px; border-radius:14px; border:1px dashed #E9B870; background:#FFF3E0; text-align:center;">
+        <div style="color:#8E4E00; font-size:12px; letter-spacing:1px; font-weight:700; margin-bottom:8px;">YOUR OTP</div>
+        <div style="color:#7A1B1B; letter-spacing:8px; font-size:34px; line-height:1; font-weight:800;">${safeOtp}</div>
+      </div>
+      <p style="margin:0 0 12px; font-size:14px; line-height:1.7;">${validityText}</p>
+      <p style="margin:0; font-size:14px; line-height:1.7;">If you did not request this, please ignore this email.</p>
+    `,
+  });
+}
+
 async function sendOtpEmail(to, name, otp) {
   const smtpUser = getSmtpUser();
   const smtpPass = getSmtpPass();
@@ -66,20 +119,16 @@ async function sendOtpEmail(to, name, otp) {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"My-Pandit" <${from}>`,
+    from: `"ApnaAcharya" <${from}>`,
     to,
     subject: 'My-Pandit - Email Verification OTP',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #7C3AED;">My-Pandit</h2>
-        <p>Hi ${name},</p>
-        <p>Your email verification OTP is:</p>
-        <h1 style="color: #7C3AED; letter-spacing: 8px; font-size: 36px;">${otp}</h1>
-        <p>This OTP is valid for <strong>10 minutes</strong>.</p>
-        <p>If you did not request this, please ignore this email.</p>
-        <p style="color: #9CA3AF; font-size: 12px;">© My-Pandit</p>
-      </div>
-    `,
+    html: buildOtpEmailHtml({
+      title: 'Email Verification OTP',
+      name,
+      otp,
+      instruction: 'Use the following OTP to verify your ApnaAcharya account.',
+      validityText: 'This OTP is valid for <strong>10 minutes</strong>.',
+    }),
   };
 
   try {
@@ -148,20 +197,16 @@ async function sendBookingOtpEmail(to, name, otp, purpose, options = {}) {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"My-Pandit" <${from}>`,
+    from: `"ApnaAcharya" <${from}>`,
     to,
     subject,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #FF8C00;">My-Pandit</h2>
-        <p>Hi ${name || 'Customer'},</p>
-        <p><strong>${heading}</strong></p>
-        <h1 style="color: #FF8C00; letter-spacing: 8px; font-size: 36px;">${otp}</h1>
-        <p>${instruction}</p>
-        <p>${validityText}</p>
-        <p style="color: #9CA3AF; font-size: 12px;">© My-Pandit</p>
-      </div>
-    `,
+    html: buildOtpEmailHtml({
+      title: heading,
+      name: name || 'Customer',
+      otp,
+      instruction,
+      validityText,
+    }),
   };
 
   try {
@@ -211,28 +256,33 @@ async function sendPasswordResetEmail(to, resetLink, appDeepLink, role) {
     from: `"ApnaAcharya" <${from}>`,
     to,
     subject: 'ApnaAcharya - Reset Your Password',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #7C3AED;">ApnaAcharya</h2>
-        <p>Hi,</p>
-        <p>We received a request to reset your password for your ${appLabel} account.</p>
-        <p>Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>
-        <p style="margin: 28px 0;">
+    html: buildEmailShell({
+      title: 'Reset Your Password',
+      greeting: 'Hi,',
+      bodyHtml: `
+        <p style="margin:0 0 14px; font-size:15px; line-height:1.7;">
+          We received a request to reset your password for your <strong>${escapeHtml(appLabel)}</strong> account.
+        </p>
+        <p style="margin:0 0 16px; font-size:15px; line-height:1.7;">
+          Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.
+        </p>
+        <div style="margin:20px 0 16px; text-align:center;">
           <a href="${resetLink}"
-             style="background: #FF8C00; color: #fff; text-decoration: none; padding: 14px 24px; border-radius: 10px; font-weight: 700; display: inline-block;">
+             style="background:#D78000; color:#fff; text-decoration:none; padding:13px 24px; border-radius:10px; font-weight:700; display:inline-block;">
             Reset Password
           </a>
-        </p>
+        </div>
         ${
           appDeepLink
-            ? `<p style="font-size: 14px; color: #4B5563;">On your phone? <a href="${appDeepLink}" style="color: #7C3AED;">Open in ${appLabel}</a></p>`
+            ? `<p style="margin:0 0 10px; font-size:14px; color:#5E4224;">On your phone? <a href="${appDeepLink}" style="color:#7A1B1B; font-weight:700;">Open in ${escapeHtml(appLabel)}</a></p>`
             : ''
         }
-        <p style="font-size: 13px; color: #6B7280; word-break: break-all;">Or copy this link:<br>${resetLink}</p>
-        <p>If you did not request a password reset, you can safely ignore this email.</p>
-        <p style="color: #9CA3AF; font-size: 12px;">© ApnaAcharya</p>
-      </div>
-    `,
+        <p style="margin:0 0 10px; font-size:13px; color:#7A5E3F; word-break:break-all;">
+          Or copy this link:<br>${escapeHtml(resetLink)}
+        </p>
+        <p style="margin:0; font-size:14px; line-height:1.7;">If you did not request a password reset, you can safely ignore this email.</p>
+      `,
+    }),
   };
 
   try {
